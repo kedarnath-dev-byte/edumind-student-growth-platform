@@ -1,10 +1,9 @@
-"""
+﻿"""
 @module    evaluation
 @description Evaluation & Monitoring package.
              Exposes models, repository, service, and controller.
 @author    EduMind AI Engineering
 """
-
 from modules.evaluation.models import (
     StudentSession,
     DocumentHistory,
@@ -12,7 +11,6 @@ from modules.evaluation.models import (
     RAGEvaluation,
     APIMetric,
 )
-
 __all__ = [
     "StudentSession",
     "DocumentHistory",
@@ -20,4 +18,3 @@ __all__ = [
     "RAGEvaluation",
     "APIMetric",
 ]
-
