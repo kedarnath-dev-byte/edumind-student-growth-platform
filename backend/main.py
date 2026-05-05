@@ -1,68 +1,51 @@
 """
-EduMind AI — Application Entry Point
-Author: Mamani Kedarnath
-Description: FastAPI application factory. Creates and configures
-             the main app instance, registers all routers,
-             sets up CORS, and starts the uvicorn server.
-             This is the ONLY file that should be run directly.
+@module    main
+@description FastAPI application entry point for EduMind AI backend.
+             Registers all routers, attaches middleware, and initialises
+             the database on startup.
+             Run with: uvicorn backend.main:app --reload
+@author    EduMind AI Engineering
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
-from backend.core.config import settings
+from backend.core.database import init_db
+from backend.modules.evaluation.evaluation_controller import router as evaluation_router
+from backend.modules.evaluation.timing_middleware import TimingMiddleware
 
+# ─── App Instance ─────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="EduMind AI",
+    description="RAG + LangGraph + Fine-Tuning Education Platform",
+    version="1.0.0",
+)
 
-def create_app() -> FastAPI:
-    """
-    Application factory pattern.
-    Creates and configures the FastAPI instance.
-    Returns the configured app — makes testing easier.
-    """
-    app = FastAPI(
-        title=settings.app_name,
-        version=settings.app_version,
-        description="RAG + LangGraph + Fine-Tuning Education Platform",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-    )
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Tighten in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    # --- CORS Middleware ---
-    # Allows React frontend (localhost:5173) to call our API
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# ─── Timing Middleware ────────────────────────────────────────────────────────
+app.add_middleware(TimingMiddleware)
 
-    # --- Health Check Route ---
-    @app.get("/api/v1/health")
-    async def health_check():
-        """
-        Simple endpoint to verify the server is running.
-        Used by deployment platforms to check app status.
-        """
-        return {
-            "status": "healthy",
-            "app": settings.app_name,
-            "version": settings.app_version,
-            "debug": settings.debug,
-        }
+# ─── Routers ──────────────────────────────────────────────────────────────────
+app.include_router(evaluation_router)
 
-    return app
+# ─── Startup Event ────────────────────────────────────────────────────────────
+@app.on_event("startup")
+async def on_startup():
+    """Create all DB tables on first run."""
+    init_db()
+    print("✅ EduMind AI started — database tables ready")
 
 
-# Create the app instance
-app = create_app()
-
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "backend.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        reload=settings.debug,
-    )
+# ─── Root Health Check ────────────────────────────────────────────────────────
+@app.get("/")
+async def root():
+    """Quick health check endpoint."""
+    return {"status": "ok", "app": "EduMind AI", "version": "1.0.0"}
