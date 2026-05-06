@@ -10,6 +10,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from modules.health.health_controller import router as health_router
+from modules.ingestion.ingestion_service import router as ingestion_router
 
 from core.database import init_db
 from modules.evaluation.evaluation_controller import router as evaluation_router
@@ -37,6 +38,7 @@ app.add_middleware(TimingMiddleware)
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
+app.include_router(ingestion_router, prefix="/api/v1", tags=["Ingestion"])
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
