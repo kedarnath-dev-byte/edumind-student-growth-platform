@@ -1,78 +1,107 @@
 """
-rag_controller.py
-FastAPI router for RAG pipeline endpoints.
-Retrieves relevant chunks from ChromaDB and sends to Groq.
+@module RagController
+@description FastAPI router for RAG query endpoints.
+             Uses keyword search over in-memory chunks from
+             ingestion_controller to avoid ChromaDB OOM on free tier.
+             Follows Controller -> Service -> Repository pattern.
+@author      EduMind AI Engineering
 """
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import os, chromadb
+from groq import Groq
+import os
 
-router = APIRouter()
+from modules.ingestion.ingestion_controller import chunk_store
 
-ALL_PIPELINE_NAMES = [
-    "naive", "hyde", "fusion", "rerank", "hybrid",
-    "multi_query", "ensemble", "contextual", "corrective",
-    "speculative", "step_back", "adaptive", "graph",
-    "raptor", "sentence_window", "parent_document"
-]
+router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
 
-chroma_client = chromadb.Client()
-collection = chroma_client.get_or_create_collection("edumind_docs")
 
 class QueryRequest(BaseModel):
+    """Request body for RAG query."""
     question: str
-    pipeline_type: str = "naive"
+    document_id: str = None  # Optional: search specific doc only
 
-@router.post("/rag/query")
+
+def keyword_search(question: str, document_id: str = None, top_k: int = 5) -> list:
+    """
+    Search chunks using simple keyword matching.
+    Returns top_k most relevant chunks.
+    No embeddings needed — saves RAM on free tier.
+    """
+    question_words = set(question.lower().split())
+    scored_chunks = []
+
+    docs_to_search = (
+        {document_id: chunk_store[document_id]}
+        if document_id and document_id in chunk_store
+        else chunk_store
+    )
+
+    for doc_id, chunks in docs_to_search.items():
+        for chunk in chunks:
+            chunk_words = set(chunk.lower().split())
+            score = len(question_words & chunk_words)
+            if score > 0:
+                scored_chunks.append((score, chunk, doc_id))
+
+    scored_chunks.sort(key=lambda x: x[0], reverse=True)
+    return scored_chunks[:top_k]
+
+
+@router.post("/query")
 async def query_rag(request: QueryRequest):
-    """Query RAG pipeline - retrieve from ChromaDB then generate with Groq."""
+    """
+    Answer a question using RAG:
+    1. Keyword search over in-memory chunks
+    2. Build context from top results
+    3. Send to Groq LLM for final answer
+    """
     try:
-        from groq import Groq
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="GROQ_API_KEY not configured")
+        if not chunk_store:
+            raise HTTPException(
+                status_code=400,
+                detail="No documents uploaded yet. Please upload a document first."
+            )
 
-        context = ""
-        try:
-            results = collection.query(query_texts=[request.question], n_results=3)
-            if results and results.get("documents") and results["documents"][0]:
-                context = "\n\n".join(results["documents"][0])
-        except Exception:
-            context = ""
+        top_chunks = keyword_search(request.question, request.document_id)
 
-        if context:
-            system_prompt = f"""You are EduMind AI using {request.pipeline_type.upper()} RAG pipeline.
+        if not top_chunks:
+            context = "No relevant content found in uploaded documents."
+        else:
+            context = "\n\n".join([chunk for _, chunk, _ in top_chunks])
+
+        prompt = f"""You are EduMind AI, an intelligent education assistant.
 Use the following context from uploaded documents to answer the question.
-If the answer is in the context, use it. Otherwise use your knowledge.
+If the answer is not in the context, say so honestly.
 
 CONTEXT:
-{context}"""
-        else:
-            system_prompt = f"You are EduMind AI using {request.pipeline_type.upper()} RAG pipeline. Answer the student question clearly."
+{context}
 
-        client = Groq(api_key=api_key)
-        completion = client.chat.completions.create(
+QUESTION:
+{request.question}
+
+ANSWER:"""
+
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": request.question}
-            ],
-            max_tokens=1024,
-            temperature=0.7
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1024
         )
-        answer = completion.choices[0].message.content
+
+        answer = response.choices[0].message.content
+
         return JSONResponse({
-            "answer": answer,
-            "pipeline": request.pipeline_type,
+            "status": "success",
             "question": request.question,
-            "context_used": bool(context),
-            "model": "llama-3.3-70b-versatile"
+            "answer": answer,
+            "chunks_used": len(top_chunks),
+            "sources": list(set([doc_id for _, _, doc_id in top_chunks]))
         })
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/rag/pipelines")
-async def get_pipelines():
-    """Get list of all available RAG pipelines."""
-    return JSONResponse({"pipelines": ALL_PIPELINE_NAMES})

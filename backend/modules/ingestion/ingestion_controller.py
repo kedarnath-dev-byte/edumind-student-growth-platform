@@ -1,57 +1,77 @@
 """
-ingestion_controller.py
-FastAPI router for document ingestion endpoints.
-Stores document chunks in ChromaDB for RAG retrieval.
+@module IngestionController
+@description FastAPI router for document ingestion endpoints.
+             Stores chunks in a shared in-memory store instead of
+             ChromaDB to avoid OOM on Render free tier (512MB limit).
+             Follows Controller -> Service -> Repository pattern.
+@author      EduMind AI Engineering
 """
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-import tempfile, os, shutil, chromadb
+import tempfile
+import os
 
-from modules.ingestion.ingestion_service import IngestionService
+# Shared in-memory chunk store — imported by rag_controller too
+chunk_store: dict = {}
 
-router = APIRouter()
-service = IngestionService()
-ingested_docs = []
+router = APIRouter(prefix="/api/v1/ingestion", tags=["Ingestion"])
 
-# ChromaDB client - persistent storage
-chroma_client = chromadb.Client()
-collection = chroma_client.get_or_create_collection("edumind_docs")
 
-@router.post("/ingestion/upload")
+@router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    """Upload, chunk, and store document in ChromaDB."""
+    """Upload a PDF or text document and store its chunks in memory."""
     try:
-        suffix = os.path.splitext(file.filename)[1]
+        suffix = os.path.splitext(file.filename)[-1]
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            shutil.copyfileobj(file.file, tmp)
+            content = await file.read()
+            tmp.write(content)
             tmp_path = tmp.name
-        result = service.ingest(tmp_path)
+
+        text = ""
+        if suffix.lower() == ".pdf":
+            import fitz
+            doc = fitz.open(tmp_path)
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+        else:
+            with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+
         os.unlink(tmp_path)
 
-        if result.get("success") and result.get("chunks"):
-            chunks = result["chunks"]
-            texts = [c["content"] for c in chunks]
-            ids = [f"{file.filename}_chunk_{c['chunk_index']}" for c in chunks]
-            metadatas = [{"filename": file.filename, "chunk_index": c["chunk_index"]} for c in chunks]
-            collection.upsert(documents=texts, ids=ids, metadatas=metadatas)
+        chunk_size = 500
+        overlap = 50
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = start + chunk_size
+            chunks.append(text[start:end])
+            start += chunk_size - overlap
 
-        ingested_docs.append({
-            "filename": file.filename,
-            "chunks": result.get("total_chunks", 0),
-            "status": "success"
-        })
+        doc_id = file.filename
+        chunk_store[doc_id] = chunks
+
         return JSONResponse({
-            "success": True,
-            "message": f"Ingested {file.filename}",
-            "chunks_stored": result.get("total_chunks", 0)
+            "status": "success",
+            "document_id": doc_id,
+            "chunks": len(chunks),
+            "message": f"Document ingested with {len(chunks)} chunks"
         })
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/ingestion/documents")
-async def get_documents():
-    """Get list of all ingested documents."""
+
+@router.get("/documents")
+async def list_documents():
+    """List all documents currently stored in memory."""
     try:
-        return JSONResponse(ingested_docs)
+        documents = [
+            {"document_id": doc_id, "chunks": len(chunks)}
+            for doc_id, chunks in chunk_store.items()
+        ]
+        return JSONResponse({"status": "success", "documents": documents})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
