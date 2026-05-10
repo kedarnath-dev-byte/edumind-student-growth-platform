@@ -1,4 +1,4 @@
-﻿"""
+"""
 @module    ingestion_controller
 @description FastAPI router for document ingestion endpoints.
              Handles file upload and document listing.
@@ -39,6 +39,7 @@ async def upload_document(file: UploadFile = File(...)):
 async def get_documents():
     """Get list of all ingested documents."""
     try:
-        return JSONResponse({"documents": ingested_docs})
+        return JSONResponse(ingested_docs)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
