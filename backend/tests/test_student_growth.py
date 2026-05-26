@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from core.database import Base
+from modules.student_growth.learning_log_controller import serialize_learning_log
 from modules.student_growth.learning_log_service import LearningLogService
 from modules.student_growth.models import RewardEvent, RevisionTask
 from modules.student_growth.revision_service import RevisionService
@@ -112,3 +113,44 @@ def test_completing_revision_changes_status_and_creates_reward(db_session):
     assert completed["revision_task"].completed_at is not None
     assert len(rewards) == 1
     assert rewards[0].event_type == "REVISION_COMPLETED"
+
+
+def test_learning_log_controller_serializes_clean_response(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        LearningLogCreate(
+            student_id=1,
+            school_id=1,
+            classroom_id=1,
+            subject_id=1,
+            topic_id=1,
+            taught_today=(
+                "Teacher explained Newton's first law of motion with examples "
+                "of bus movement and inertia."
+            ),
+            understood=(
+                "I understood that an object continues in rest or motion unless "
+                "an external force acts on it."
+            ),
+            not_understood=(
+                "I am still confused about why passengers move forward when a "
+                "bus suddenly stops."
+            ),
+            confidence_level="MEDIUM",
+        )
+    )
+
+    response = serialize_learning_log(
+        result["learning_log"],
+        revision_tasks=result["revision_tasks"],
+        rewards=result["rewards"],
+    )
+    data = response.model_dump()
+
+    assert data["student_id"] == 1
+    assert data["confidence_level"] == "MEDIUM"
+    assert "_sa_instance_state" not in data
+    assert len(data["revision_tasks"]) == 5
+    assert len(data["rewards"]) == 2
+    assert data["rewards"][1]["message"] == (
+        "Great honesty. Now we know what to improve."
+    )
