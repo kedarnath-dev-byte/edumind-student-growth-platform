@@ -31,6 +31,9 @@ Build Command: pip install -r requirements.txt
 Start Command: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
+The repository also includes a root `main.py` compatibility wrapper, so
+`uvicorn main:app --host 0.0.0.0 --port $PORT` can work from the repo root.
+
 5. Add environment variables in Render:
 
 ```text
