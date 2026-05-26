@@ -18,6 +18,7 @@ from modules.evaluation.evaluation_controller import router as evaluation_router
 from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.learning_log_controller import router as learning_log_router
 from modules.student_growth.revision_controller import router as revision_router
+from modules.student_growth.setup_controller import router as setup_router
 
 # ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -45,6 +46,7 @@ app.include_router(ingestion_router)
 app.include_router(rag_router)
 app.include_router(learning_log_router)
 app.include_router(revision_router)
+app.include_router(setup_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
