@@ -120,3 +120,23 @@ class RewardEvent(Base):
     points = Column(Integer, default=0)
     message = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RevisionAttempt(Base):
+    """Permanent proof/history for a completed revision."""
+
+    __tablename__ = "revision_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    revision_task_id = Column(Integer, index=True, nullable=False)
+    student_id = Column(Integer, index=True, nullable=False)
+    learning_log_id = Column(Integer, index=True, nullable=False)
+    attempt_number = Column(Integer, default=1)
+    completed_at = Column(DateTime, nullable=False)
+    completed_on_due_date = Column(Boolean, default=False)
+    days_late = Column(Integer, default=0)
+    difficulty_after_revision = Column(String, nullable=True)
+    revision_text_summary = Column(Text, nullable=True)
+    revision_video_url = Column(String, nullable=True)
+    points_awarded = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)

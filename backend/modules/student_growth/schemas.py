@@ -65,3 +65,23 @@ class LearningLogResponse(BaseModel):
 
 class RevisionCompleteRequest(BaseModel):
     difficulty_after_revision: Optional[str] = None
+    revision_text_summary: Optional[str] = None
+    revision_video_url: Optional[str] = None
+
+
+class RevisionAttemptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    revision_task_id: int
+    student_id: int
+    learning_log_id: int
+    attempt_number: int
+    completed_at: datetime
+    completed_on_due_date: bool
+    days_late: int
+    difficulty_after_revision: Optional[str] = None
+    revision_text_summary: Optional[str] = None
+    revision_video_url: Optional[str] = None
+    points_awarded: int
+    created_at: datetime

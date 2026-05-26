@@ -71,6 +71,7 @@ def init_db():
         LearningLog,
         RevisionTask,
         RewardEvent,
+        RevisionAttempt,
     )
     Base.metadata.create_all(bind=engine)
 

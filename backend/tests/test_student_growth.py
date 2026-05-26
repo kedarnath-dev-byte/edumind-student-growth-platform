@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from core.database import Base
 from modules.student_growth.learning_log_controller import serialize_learning_log
 from modules.student_growth.learning_log_service import LearningLogService
-from modules.student_growth.models import RewardEvent, RevisionTask
+from modules.student_growth.models import RewardEvent, RevisionAttempt, RevisionTask
 from modules.student_growth.revision_service import RevisionService
 from modules.student_growth.schemas import LearningLogCreate
 
@@ -113,6 +113,110 @@ def test_completing_revision_changes_status_and_creates_reward(db_session):
     assert completed["revision_task"].completed_at is not None
     assert len(rewards) == 1
     assert rewards[0].event_type == "REVISION_COMPLETED"
+
+
+def test_completing_revision_creates_revision_attempt(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = result["revision_tasks"][0]
+
+    completed = RevisionService(db_session).complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="EASY",
+        revision_text_summary="I revised the main idea and can explain it.",
+    )
+
+    attempt = (
+        db_session.query(RevisionAttempt)
+        .filter(RevisionAttempt.revision_task_id == revision_task.id)
+        .first()
+    )
+
+    assert completed["attempt"].id == attempt.id
+    assert attempt.revision_task_id == revision_task.id
+    assert attempt.student_id == revision_task.student_id
+    assert attempt.learning_log_id == revision_task.learning_log_id
+    assert attempt.attempt_number == 1
+    assert attempt.difficulty_after_revision == "EASY"
+    assert attempt.revision_text_summary == "I revised the main idea and can explain it."
+    assert attempt.points_awarded == RevisionService.REVISION_COMPLETION_POINTS
+
+
+def test_revision_attempt_stores_due_date_status_and_days_late(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = result["revision_tasks"][0]
+
+    RevisionService(db_session).complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="MEDIUM",
+    )
+    attempt = (
+        db_session.query(RevisionAttempt)
+        .filter(RevisionAttempt.revision_task_id == revision_task.id)
+        .first()
+    )
+
+    expected_days_late = max(
+        (attempt.completed_at.date() - revision_task.due_at.date()).days,
+        0,
+    )
+    assert attempt.completed_on_due_date == (
+        attempt.completed_at.date() == revision_task.due_at.date()
+    )
+    assert attempt.days_late == expected_days_late
+
+
+def test_completing_already_completed_revision_does_not_duplicate_attempt(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = result["revision_tasks"][0]
+    service = RevisionService(db_session)
+
+    first = service.complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="MEDIUM",
+    )
+    second = service.complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="EASY",
+    )
+
+    attempts = (
+        db_session.query(RevisionAttempt)
+        .filter(RevisionAttempt.revision_task_id == revision_task.id)
+        .all()
+    )
+    rewards = (
+        db_session.query(RewardEvent)
+        .filter(RewardEvent.revision_task_id == revision_task.id)
+        .all()
+    )
+
+    assert first["attempt"].id == second["attempt"].id
+    assert second["already_completed"] is True
+    assert len(attempts) == 1
+    assert len(rewards) == 1
+
+
+def test_list_attempts_for_revision_returns_attempt(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = result["revision_tasks"][0]
+    service = RevisionService(db_session)
+
+    service.complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="HARD",
+    )
+    attempts = service.list_attempts_for_revision(revision_task.id)
+
+    assert len(attempts) == 1
+    assert attempts[0].revision_task_id == revision_task.id
 
 
 def test_learning_log_controller_serializes_clean_response(db_session):
