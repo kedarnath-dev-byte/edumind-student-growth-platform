@@ -22,6 +22,8 @@ Python Version: 3.11.9
 Health Check Path: /api/v1/health
 ```
 
+If Render shows Python `3.14` in the logs, the service is misconfigured. Set the backend service to Python `3.11.9` and make sure the root directory is `backend`.
+
 5. Add environment variables in Render:
 
 ```text
