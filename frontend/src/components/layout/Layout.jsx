@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext'
 // ─── Navigation Items ─────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { path: '/dashboard',   label: 'Dashboard',   icon: '🏠' },
+  { path: '/student-growth', label: 'Daily Learning Log', icon: '📝' },
   { path: '/chat',        label: 'AI Tutor',    icon: '🤖' },
   { path: '/upload',      label: 'Upload Docs', icon: '📄' },
   { path: '/finetuning',  label: 'Fine-Tuning', icon: '⚙️'  },
