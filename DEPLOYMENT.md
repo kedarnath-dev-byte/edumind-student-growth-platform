@@ -24,6 +24,13 @@ Health Check Path: /api/v1/health
 
 If Render shows Python `3.14` in the logs, the service is misconfigured. Set the backend service to Python `3.11.9` and make sure the root directory is `backend`.
 
+If you already created the Render service from the repo root, use these commands instead:
+
+```text
+Build Command: pip install -r requirements.txt
+Start Command: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
 5. Add environment variables in Render:
 
 ```text
