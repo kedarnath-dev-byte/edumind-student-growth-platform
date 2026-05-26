@@ -16,6 +16,7 @@ import Upload     from './pages/Upload'
 import FineTuning from './pages/FineTuning'
 import Admin      from './pages/Admin'
 import StudentLearningLog from './pages/StudentLearningLog'
+import StudentRevisions from './pages/StudentRevisions'
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 import Layout from './components/layout/Layout'
@@ -60,6 +61,7 @@ const AppRoutes = () => {
         <Route path="chat"       element={<Chat />}       />
         <Route path="upload"     element={<Upload />}     />
         <Route path="student-growth" element={<StudentLearningLog />} />
+        <Route path="student-revisions" element={<StudentRevisions />} />
         <Route path="finetuning" element={<FineTuning />} />
         <Route path="admin"      element={<Admin />}      />
       </Route>

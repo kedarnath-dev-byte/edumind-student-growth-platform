@@ -86,6 +86,36 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to save learning log'))
     }
   },
+
+  async getRevisionsForStudent(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/revisions/student/${studentId}`)
+      return normalizeList(response, ['revisions', 'revision_tasks'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load revisions'))
+    }
+  },
+
+  async completeRevision(revisionTaskId, difficulty_after_revision) {
+    try {
+      const response = await api.patch(
+        `${apiPrefix}/revisions/${revisionTaskId}/complete`,
+        { difficulty_after_revision }
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to complete revision'))
+    }
+  },
+
+  async getRewardsForStudent(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/rewards/student/${studentId}`)
+      return normalizeList(response, ['rewards'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load rewards'))
+    }
+  },
 }
 
 export default studentGrowthService
