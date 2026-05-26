@@ -16,6 +16,8 @@ from modules.rag.rag_controller import router as rag_router
 from core.database import init_db
 from modules.evaluation.evaluation_controller import router as evaluation_router
 from modules.evaluation.timing_middleware import TimingMiddleware
+from modules.student_growth.learning_log_controller import router as learning_log_router
+from modules.student_growth.revision_controller import router as revision_router
 
 # ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -41,6 +43,8 @@ app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 app.include_router(ingestion_router)
 app.include_router(rag_router)
+app.include_router(learning_log_router)
+app.include_router(revision_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():

@@ -62,5 +62,15 @@ def init_db():
         RAGEvaluation,
         APIMetric,
     )
+    from modules.student_growth.models import (  # noqa: F401
+        User,
+        School,
+        Classroom,
+        Subject,
+        Topic,
+        LearningLog,
+        RevisionTask,
+        RewardEvent,
+    )
     Base.metadata.create_all(bind=engine)
 
