@@ -1,9 +1,3 @@
-"""
-render.yaml
-Render deployment configuration for EduMind AI backend.
-Defines build command, start command, and environment for FastAPI service.
-"""
-
 services:
   - type: web
     name: edumind-ai-backend
