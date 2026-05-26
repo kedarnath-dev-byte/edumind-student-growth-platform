@@ -52,3 +52,11 @@ uvicorn backend.main:app --reload
 - Add `.env.example`
 - Add tests for health, ingestion, and RAG routes
 - Rename the repository from `edumind-ai-` to `edumind-ai-platform`
+
+## EduMind Student Growth Platform Direction
+
+EduMind AI is evolving into the EduMind Student Growth Platform: a school and college product for daily learning logs, honest understanding tracking, short student explanation videos, spaced revision, teacher visibility, and parent progress monitoring.
+
+The core student loop is: teacher teaches a topic, student records what was taught, what they understood, what they did not understand yet, and a short explanation video. The app then creates revision tasks after 24H, 7D, 1M, 3M, and 6M so students build memory, confidence, and communication through consistent revision.
+
+Future work should preserve the existing RAG, ingestion, health, and evaluation modules while adding new student-growth features through FastAPI, modular services, SQLAlchemy, Pydantic, React/Vite/Tailwind, and `/api/v1` APIs. Student benefit comes first: avoid shame, fear, fake understanding, and unhealthy comparison. Reward honesty, revision, improvement, consistency, and communication.
