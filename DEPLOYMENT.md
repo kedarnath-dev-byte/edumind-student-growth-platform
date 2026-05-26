@@ -130,6 +130,8 @@ For a real pilot, prepare:
 - privacy and student-data handling policy
 - monitoring for API errors and usage
 
+The Render backend requirements intentionally avoid heavyweight local model packages such as PyTorch/CUDA. The deployed API uses Groq for generation and a lightweight document retrieval path suitable for web-service hosting.
+
 ## 5. Common Confusion
 
 `localhost:8000` is not the public website. It is only the local backend API address while developing on your own computer.
