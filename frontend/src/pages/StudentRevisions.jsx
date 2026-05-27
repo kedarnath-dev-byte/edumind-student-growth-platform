@@ -13,6 +13,13 @@ const DIFFICULTY_OPTIONS = [
   { value: 'EASY', label: 'I can explain confidently' },
 ]
 
+const emptyProof = {
+  revised: '',
+  understoodBetter: '',
+  stillNeedsSupport: '',
+  difficulty: 'MEDIUM',
+}
+
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
 const startOfDay = (date) => {
@@ -97,9 +104,13 @@ const RevisionCard = ({
   actionLabel,
   canComplete,
   lockedLabel,
-  selectedDifficulty,
-  onDifficultyChange,
-  onComplete,
+  proof,
+  isProofOpen,
+  validationMessage,
+  onOpenProof,
+  onCloseProof,
+  onProofChange,
+  onSubmitProof,
   completing,
 }) => (
   <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -120,20 +131,108 @@ const RevisionCard = ({
 
     {canComplete ? (
       <div className="mt-4 space-y-3">
-        <DifficultyPicker
-          value={selectedDifficulty}
-          onChange={onDifficultyChange}
-        />
-        <button
-          type="button"
-          onClick={onComplete}
-          disabled={completing}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60
-          disabled:cursor-not-allowed text-white text-sm font-semibold
-          rounded-lg py-2.5 transition-colors"
-        >
-          {completing ? 'Saving revision...' : actionLabel}
-        </button>
+        {!isProofOpen ? (
+          <button
+            type="button"
+            onClick={onOpenProof}
+            disabled={completing}
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60
+            disabled:cursor-not-allowed text-white text-sm font-semibold
+            rounded-lg py-2.5 transition-colors"
+          >
+            {actionLabel}
+          </button>
+        ) : (
+          <div className="bg-gray-950 border border-gray-800 rounded-xl p-4 space-y-3">
+            <div>
+              <p className="text-white text-sm font-semibold">
+                Your explanation is your learning proof.
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                It is okay if you still need support.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">
+                What did you revise?
+              </label>
+              <textarea
+                value={proof.revised}
+                onChange={(event) => onProofChange('revised', event.target.value)}
+                rows={3}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg
+                text-white px-3 py-2 text-sm resize-none focus:outline-none
+                focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">
+                What do you understand better now?
+              </label>
+              <textarea
+                value={proof.understoodBetter}
+                onChange={(event) => onProofChange('understoodBetter', event.target.value)}
+                rows={3}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg
+                text-white px-3 py-2 text-sm resize-none focus:outline-none
+                focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">
+                What still needs support?
+              </label>
+              <textarea
+                value={proof.stillNeedsSupport}
+                onChange={(event) => onProofChange('stillNeedsSupport', event.target.value)}
+                rows={3}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg
+                text-white px-3 py-2 text-sm resize-none focus:outline-none
+                focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-300 mb-1">
+                Clarity after revision
+              </label>
+              <DifficultyPicker
+                value={proof.difficulty}
+                onChange={(value) => onProofChange('difficulty', value)}
+              />
+            </div>
+
+            {validationMessage && (
+              <p className="text-amber-300 text-xs">{validationMessage}</p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={onSubmitProof}
+                disabled={completing}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-60
+                disabled:cursor-not-allowed text-white text-sm font-semibold
+                rounded-lg py-2.5 transition-colors"
+              >
+                {completing ? 'Saving proof...' : 'Save Revision Proof'}
+              </button>
+              <button
+                type="button"
+                onClick={onCloseProof}
+                disabled={completing}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-60
+                disabled:cursor-not-allowed text-gray-200 text-sm font-semibold
+                rounded-lg py-2.5 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     ) : (
       <div className="mt-4 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2">
@@ -153,9 +252,13 @@ const RevisionSection = ({
   actionLabel,
   canComplete,
   lockedLabel,
-  difficulties,
-  setDifficulty,
-  onComplete,
+  proofDrafts,
+  activeProofTaskId,
+  proofValidation,
+  onOpenProof,
+  onCloseProof,
+  onProofChange,
+  onSubmitProof,
   completingId,
 }) => (
   <section>
@@ -176,9 +279,13 @@ const RevisionSection = ({
             actionLabel={actionLabel}
             canComplete={canComplete}
             lockedLabel={lockedLabel}
-            selectedDifficulty={difficulties[task.id] || 'MEDIUM'}
-            onDifficultyChange={(value) => setDifficulty(task.id, value)}
-            onComplete={() => onComplete(task.id)}
+            proof={proofDrafts[task.id] || emptyProof}
+            isProofOpen={activeProofTaskId === task.id}
+            validationMessage={proofValidation[task.id] || ''}
+            onOpenProof={() => onOpenProof(task.id)}
+            onCloseProof={onCloseProof}
+            onProofChange={(field, value) => onProofChange(task.id, field, value)}
+            onSubmitProof={() => onSubmitProof(task.id)}
             completing={completingId === task.id}
           />
         ))}
@@ -241,7 +348,9 @@ const RewardSummary = ({ rewards }) => {
 const StudentRevisions = () => {
   const [revisions, setRevisions] = useState([])
   const [rewards, setRewards] = useState([])
-  const [difficulties, setDifficulties] = useState({})
+  const [proofDrafts, setProofDrafts] = useState({})
+  const [proofValidation, setProofValidation] = useState({})
+  const [activeProofTaskId, setActiveProofTaskId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -271,23 +380,81 @@ const StudentRevisions = () => {
     loadDashboard()
   }, [])
 
-  const setDifficulty = (taskId, value) => {
-    setDifficulties((prev) => ({ ...prev, [taskId]: value }))
+  const openProof = (taskId) => {
+    setActiveProofTaskId(taskId)
+    setProofValidation((prev) => ({ ...prev, [taskId]: '' }))
+    setProofDrafts((prev) => ({
+      ...prev,
+      [taskId]: prev[taskId] || emptyProof,
+    }))
   }
 
-  const handleComplete = async (taskId) => {
+  const closeProof = () => {
+    setActiveProofTaskId(null)
+  }
+
+  const updateProof = (taskId, field, value) => {
+    setProofValidation((prev) => ({ ...prev, [taskId]: '' }))
+    setProofDrafts((prev) => ({
+      ...prev,
+      [taskId]: {
+        ...(prev[taskId] || emptyProof),
+        [field]: value,
+      },
+    }))
+  }
+
+  const buildRevisionSummary = (proof) => {
+    const sections = [
+      ['What I revised', proof.revised],
+      ['What I understand better now', proof.understoodBetter],
+      ['What still needs support', proof.stillNeedsSupport],
+    ]
+
+    return sections
+      .filter(([, value]) => value.trim())
+      .map(([label, value]) => `${label}: ${value.trim()}`)
+      .join('\n')
+  }
+
+  const handleSubmitProof = async (taskId) => {
+    const proof = proofDrafts[taskId] || emptyProof
+    const hasExplanation = [
+      proof.revised,
+      proof.understoodBetter,
+      proof.stillNeedsSupport,
+    ].some((value) => value.trim())
+
+    if (!proof.difficulty) {
+      setProofValidation((prev) => ({
+        ...prev,
+        [taskId]: 'Please select your clarity after revision.',
+      }))
+      return
+    }
+
+    if (!hasExplanation) {
+      setProofValidation((prev) => ({
+        ...prev,
+        [taskId]: 'Please write at least one sentence as your revision proof.',
+      }))
+      return
+    }
+
     setCompletingId(taskId)
     setError('')
     setSuccess('')
     try {
-      await studentGrowthService.completeRevision(
-        taskId,
-        difficulties[taskId] || 'MEDIUM'
-      )
-      setSuccess('Revision completed. You are strengthening your memory.')
+      await studentGrowthService.completeRevision(taskId, {
+        difficulty_after_revision: proof.difficulty,
+        revision_text_summary: buildRevisionSummary(proof),
+        revision_video_url: null,
+      })
+      setSuccess('Revision proof saved. You are strengthening your memory.')
+      setActiveProofTaskId(null)
       await loadDashboard()
     } catch (err) {
-      console.error('Failed to complete revision:', err)
+      console.error('Failed to save revision proof:', err)
       setError(err.message)
     } finally {
       setCompletingId(null)
@@ -332,9 +499,13 @@ const StudentRevisions = () => {
             emptyText="No revision is due today."
             actionLabel="Complete Revision"
             canComplete
-            difficulties={difficulties}
-            setDifficulty={setDifficulty}
-            onComplete={handleComplete}
+            proofDrafts={proofDrafts}
+            activeProofTaskId={activeProofTaskId}
+            proofValidation={proofValidation}
+            onOpenProof={openProof}
+            onCloseProof={closeProof}
+            onProofChange={updateProof}
+            onSubmitProof={handleSubmitProof}
             completingId={completingId}
           />
 
@@ -345,9 +516,13 @@ const StudentRevisions = () => {
             emptyText="No memory rescue tasks right now."
             actionLabel="Complete Memory Rescue"
             canComplete
-            difficulties={difficulties}
-            setDifficulty={setDifficulty}
-            onComplete={handleComplete}
+            proofDrafts={proofDrafts}
+            activeProofTaskId={activeProofTaskId}
+            proofValidation={proofValidation}
+            onOpenProof={openProof}
+            onCloseProof={closeProof}
+            onProofChange={updateProof}
+            onSubmitProof={handleSubmitProof}
             completingId={completingId}
           />
 
@@ -358,9 +533,13 @@ const StudentRevisions = () => {
             emptyText="No revisions scheduled in the next 7 days."
             canComplete={false}
             lockedLabel="Locked until due date"
-            difficulties={difficulties}
-            setDifficulty={setDifficulty}
-            onComplete={handleComplete}
+            proofDrafts={proofDrafts}
+            activeProofTaskId={activeProofTaskId}
+            proofValidation={proofValidation}
+            onOpenProof={openProof}
+            onCloseProof={closeProof}
+            onProofChange={updateProof}
+            onSubmitProof={handleSubmitProof}
             completingId={completingId}
           />
 
@@ -371,9 +550,13 @@ const StudentRevisions = () => {
             emptyText="No future locked revisions yet."
             canComplete={false}
             lockedLabel="Locked until due date"
-            difficulties={difficulties}
-            setDifficulty={setDifficulty}
-            onComplete={handleComplete}
+            proofDrafts={proofDrafts}
+            activeProofTaskId={activeProofTaskId}
+            proofValidation={proofValidation}
+            onOpenProof={openProof}
+            onCloseProof={closeProof}
+            onProofChange={updateProof}
+            onSubmitProof={handleSubmitProof}
             completingId={completingId}
           />
 
@@ -384,9 +567,13 @@ const StudentRevisions = () => {
             emptyText="No completed revisions yet."
             canComplete={false}
             lockedLabel="Completed"
-            difficulties={difficulties}
-            setDifficulty={setDifficulty}
-            onComplete={handleComplete}
+            proofDrafts={proofDrafts}
+            activeProofTaskId={activeProofTaskId}
+            proofValidation={proofValidation}
+            onOpenProof={openProof}
+            onCloseProof={closeProof}
+            onProofChange={updateProof}
+            onSubmitProof={handleSubmitProof}
             completingId={completingId}
           />
 

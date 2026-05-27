@@ -96,11 +96,11 @@ const studentGrowthService = {
     }
   },
 
-  async completeRevision(revisionTaskId, difficulty_after_revision) {
+  async completeRevision(revisionTaskId, payload) {
     try {
       const response = await api.patch(
         `${apiPrefix}/revisions/${revisionTaskId}/complete`,
-        { difficulty_after_revision }
+        payload
       )
       return response.data
     } catch (error) {
