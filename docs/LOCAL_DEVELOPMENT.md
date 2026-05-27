@@ -52,9 +52,19 @@ If Vite says port `5173` is busy, use the new port shown in the terminal.
 ## URLs
 
 - Backend Swagger: `http://127.0.0.1:8000/docs`
+- Student Dashboard: `http://localhost:<vite-port>/student-dashboard`
 - Student Learning Log: `http://localhost:<vite-port>/student-growth`
 - Student Revisions: `http://localhost:<vite-port>/student-revisions`
 - Successful Habits: `http://localhost:<vite-port>/student-habits`
+- Peer Learning Circle: `http://localhost:<vite-port>/student-peer-learning`
+
+## Recommended Demo Path
+
+1. Open `/student-dashboard` first.
+2. Open `/student-growth`.
+3. Open `/student-revisions`.
+4. Open `/student-habits`.
+5. Open `/student-peer-learning`.
 
 ## Demo Data
 

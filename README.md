@@ -74,6 +74,7 @@ npm run dev
 ### Useful URLs
 
 - Backend Swagger: `http://127.0.0.1:8000/docs`
+- Student Dashboard: `http://localhost:<vite-port>/student-dashboard`
 - Student Learning Log: `http://localhost:<vite-port>/student-growth`
 - Student Revisions: `http://localhost:<vite-port>/student-revisions`
 - Successful Habits: `http://localhost:<vite-port>/student-habits`
@@ -83,6 +84,19 @@ For demo data, start the backend, open Swagger, run
 
 See [Local Development Guide](docs/LOCAL_DEVELOPMENT.md) for cleanup and
 troubleshooting notes.
+
+## Demo Flow
+
+1. Start the backend using the project venv Python 3.11.
+2. Open Swagger at `http://127.0.0.1:8000/docs`.
+3. Run `POST /api/v1/dev/seed-demo-data`.
+4. Start the frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`.
+5. Open `/student-dashboard`.
+6. Demo the student flow:
+   - Daily Learning Log
+   - Today's Revision
+   - Successful Habits
+   - Peer Learning Circle
 
 ## Tech Stack
 

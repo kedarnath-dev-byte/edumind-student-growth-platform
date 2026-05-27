@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { path: '/student-dashboard', label: 'Student Dashboard', icon: '🎓' },
   { path: '/student-growth', label: 'Daily Learning Log', icon: '📝' },
   { path: '/student-revisions', label: "Today's Revision", icon: '🧠' },
-  { path: '/student-habits', label: 'Habit Summary', icon: '✨' },
+  { path: '/student-habits', label: 'Successful Habits', icon: '✨' },
   { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: '🤝' },
   { path: '/chat',        label: 'AI Tutor',    icon: '🤖' },
   { path: '/upload',      label: 'Upload Docs', icon: '📄' },

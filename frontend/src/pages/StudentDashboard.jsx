@@ -191,6 +191,9 @@ const StudentDashboard = () => {
         <p className="text-blue-300 text-sm font-semibold mb-2">
           Student MVP home
         </p>
+        <p className="text-green-300 text-sm font-semibold mb-2">
+          Start here: this dashboard connects learning, revision, habits, and peer help.
+        </p>
         <h1 className="text-3xl font-bold text-white">
           EduMind Student Dashboard
         </h1>

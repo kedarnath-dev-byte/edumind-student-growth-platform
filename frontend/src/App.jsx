@@ -59,7 +59,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to="/student-dashboard" replace />} />
         <Route path="dashboard"  element={<Dashboard />}  />
         <Route path="chat"       element={<Chat />}       />
         <Route path="upload"     element={<Upload />}     />
