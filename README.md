@@ -87,6 +87,9 @@ troubleshooting notes.
 
 ## Demo Flow
 
+For a founder-facing school demo script, see
+[EduMind Demo Script](docs/DEMO_SCRIPT.md).
+
 1. Start the backend using the project venv Python 3.11.
 2. Open Swagger at `http://127.0.0.1:8000/docs`.
 3. Run `POST /api/v1/dev/seed-demo-data`.
