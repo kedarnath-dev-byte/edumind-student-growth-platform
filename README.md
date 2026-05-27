@@ -29,12 +29,60 @@ The FastAPI app registers:
 - Evaluation routes
 - Timing middleware
 
-## Suggested Local Run
+## Local Development Quickstart
 
-```bash
-pip install -r requirements.txt
-uvicorn backend.main:app --reload
+Use the project virtual environment Python, not a system Python install. The
+expected backend Python is `Python 3.11.x`.
+
+### Backend
+
+CMD, using the project venv directly:
+
+```cmd
+cd C:\Users\mkeda\edumind-ai-\backend
+C:\Users\mkeda\edumind-ai-\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+Activated venv:
+
+```cmd
+cd C:\Users\mkeda\edumind-ai-
+.venv\Scripts\activate
+cd backend
+python --version
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+### Frontend
+
+CMD:
+
+```cmd
+cd C:\Users\mkeda\edumind-ai-\frontend
+set VITE_API_BASE_URL=http://127.0.0.1:8000
+npm run dev
+```
+
+PowerShell:
+
+```powershell
+cd C:\Users\mkeda\edumind-ai-\frontend
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
+npm run dev
+```
+
+### Useful URLs
+
+- Backend Swagger: `http://127.0.0.1:8000/docs`
+- Student Learning Log: `http://localhost:<vite-port>/student-growth`
+- Student Revisions: `http://localhost:<vite-port>/student-revisions`
+- Successful Habits: `http://localhost:<vite-port>/student-habits`
+
+For demo data, start the backend, open Swagger, run
+`POST /api/v1/dev/seed-demo-data`, then open the frontend pages.
+
+See [Local Development Guide](docs/LOCAL_DEVELOPMENT.md) for cleanup and
+troubleshooting notes.
 
 ## Tech Stack
 
