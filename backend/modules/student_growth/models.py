@@ -140,3 +140,59 @@ class RevisionAttempt(Base):
     revision_video_url = Column(String, nullable=True)
     points_awarded = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PeerHelpRequest(Base):
+    """A safe request for peer support on a topic."""
+
+    __tablename__ = "peer_help_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    requester_student_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=False)
+    classroom_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=False)
+    topic_id = Column(Integer, index=True, nullable=False)
+    learning_log_id = Column(Integer, index=True, nullable=True)
+    message = Column(Text, nullable=False)
+    status = Column(String, index=True, default="OPEN")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class PeerHelpOffer(Base):
+    """A student's offer to explain a topic to peers."""
+
+    __tablename__ = "peer_help_offers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    helper_student_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=False)
+    classroom_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=False)
+    topic_id = Column(Integer, index=True, nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String, index=True, default="AVAILABLE")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class PeerHelpSession(Base):
+    """A peer learning session between a requester and a helper."""
+
+    __tablename__ = "peer_help_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    help_request_id = Column(Integer, index=True, nullable=False)
+    help_offer_id = Column(Integer, index=True, nullable=True)
+    requester_student_id = Column(Integer, index=True, nullable=False)
+    helper_student_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=False)
+    classroom_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=False)
+    topic_id = Column(Integer, index=True, nullable=False)
+    status = Column(String, index=True, default="ACTIVE")
+    requester_feedback = Column(Text, nullable=True)
+    helper_reflection = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
