@@ -18,6 +18,7 @@ import Admin      from './pages/Admin'
 import StudentLearningLog from './pages/StudentLearningLog'
 import StudentRevisions from './pages/StudentRevisions'
 import StudentHabits from './pages/StudentHabits'
+import StudentPeerLearning from './pages/StudentPeerLearning'
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
 import Layout from './components/layout/Layout'
@@ -64,6 +65,7 @@ const AppRoutes = () => {
         <Route path="student-growth" element={<StudentLearningLog />} />
         <Route path="student-revisions" element={<StudentRevisions />} />
         <Route path="student-habits" element={<StudentHabits />} />
+        <Route path="student-peer-learning" element={<StudentPeerLearning />} />
         <Route path="finetuning" element={<FineTuning />} />
         <Route path="admin"      element={<Admin />}      />
       </Route>

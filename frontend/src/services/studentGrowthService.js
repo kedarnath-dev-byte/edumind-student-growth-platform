@@ -125,6 +125,88 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to load habit summary'))
     }
   },
+
+  async createPeerHelpRequest(payload) {
+    try {
+      const response = await api.post(`${apiPrefix}/peer-learning/requests`, payload)
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to ask for peer support'))
+    }
+  },
+
+  async getOpenPeerHelpRequests(filters = {}) {
+    try {
+      const response = await api.get(`${apiPrefix}/peer-learning/requests/open`, {
+        params: filters,
+      })
+      return normalizeList(response, ['requests', 'open_requests'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load open support requests'))
+    }
+  },
+
+  async createPeerHelpOffer(payload) {
+    try {
+      const response = await api.post(`${apiPrefix}/peer-learning/offers`, payload)
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to offer peer help'))
+    }
+  },
+
+  async getAvailablePeerHelpOffers(filters = {}) {
+    try {
+      const response = await api.get(`${apiPrefix}/peer-learning/offers/available`, {
+        params: filters,
+      })
+      return normalizeList(response, ['offers', 'available_offers'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load available helpers'))
+    }
+  },
+
+  async acceptPeerHelpRequest(helpRequestId, payload) {
+    try {
+      const response = await api.post(
+        `${apiPrefix}/peer-learning/requests/${helpRequestId}/accept`,
+        payload
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to start peer learning session'))
+    }
+  },
+
+  async completePeerHelpSession(sessionId, payload) {
+    try {
+      const response = await api.patch(
+        `${apiPrefix}/peer-learning/sessions/${sessionId}/complete`,
+        payload
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to complete peer help session'))
+    }
+  },
+
+  async getPeerLearningSessionsForStudent(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/peer-learning/student/${studentId}/sessions`)
+      return normalizeList(response, ['sessions'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load peer learning sessions'))
+    }
+  },
+
+  async getPeerLearningTopicCircle(topicId) {
+    try {
+      const response = await api.get(`${apiPrefix}/peer-learning/topic/${topicId}/circle`)
+      return response?.data && typeof response.data === 'object' ? response.data : null
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load topic support circle'))
+    }
+  },
 }
 
 export default studentGrowthService
