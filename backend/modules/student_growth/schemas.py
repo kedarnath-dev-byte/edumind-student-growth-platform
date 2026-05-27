@@ -85,3 +85,25 @@ class RevisionAttemptResponse(BaseModel):
     revision_video_url: Optional[str] = None
     points_awarded: int
     created_at: datetime
+
+
+class HabitCardResponse(BaseModel):
+    name: str
+    value: int
+    message: str
+
+
+class HabitSummaryResponse(BaseModel):
+    student_id: int
+    message: str
+    daily_learning_logs_count: int
+    honest_confusion_count: int
+    revision_completed_count: int
+    on_time_revision_completed_count: int
+    memory_rescue_completed_count: int
+    total_reward_points: int
+    today_due_revisions_count: int
+    today_completed_revisions_count: int
+    today_pending_revisions_count: int
+    today_habit_status: str
+    habit_cards: List[HabitCardResponse]
