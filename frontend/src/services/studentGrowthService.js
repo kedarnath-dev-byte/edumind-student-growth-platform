@@ -116,6 +116,15 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to load rewards'))
     }
   },
+
+  async getHabitSummary(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/habits/student/${studentId}/summary`)
+      return response?.data && typeof response.data === 'object' ? response.data : null
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load habit summary'))
+    }
+  },
 }
 
 export default studentGrowthService
