@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 from modules.student_growth.models import RevisionAttempt, RevisionTask, RewardEvent
 
 
+class FutureRevisionLockedError(Exception):
+    """Raised when a student tries to complete a revision before its due date."""
+
+
 class RevisionService:
     """Lists and completes revision tasks for students."""
 
@@ -53,6 +57,11 @@ class RevisionService:
             }
 
         completed_at = datetime.utcnow()
+        if task.due_at.date() > completed_at.date():
+            raise FutureRevisionLockedError(
+                "Future revision is locked until its due date."
+            )
+
         task.status = "COMPLETED"
         task.completed_at = completed_at
         if difficulty_after_revision:

@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from modules.student_growth.revision_service import RevisionService
+from modules.student_growth.revision_service import (
+    FutureRevisionLockedError,
+    RevisionService,
+)
 from modules.student_growth.schemas import (
     RevisionCompleteRequest,
     RevisionAttemptResponse,
@@ -34,6 +37,8 @@ async def complete_revision(
             revision_video_url=payload.revision_video_url,
         )
         return result["revision_task"]
+    except FutureRevisionLockedError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

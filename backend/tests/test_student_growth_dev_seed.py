@@ -11,6 +11,8 @@ from main import app
 from modules.student_growth.models import (
     Classroom,
     LearningLog,
+    RewardEvent,
+    RevisionAttempt,
     RevisionTask,
     School,
     Subject,
@@ -118,3 +120,48 @@ def test_seed_demo_twice_reuses_setup_data(client, db_session):
     assert db_session.query(Topic).filter(
         Topic.name == "Newton's First Law"
     ).count() == 1
+
+
+def test_future_revision_completion_returns_400_without_side_effects(
+    client,
+    db_session,
+):
+    response = client.post("/api/v1/dev/seed-demo-data")
+    data = response.json()
+    future_task = (
+        db_session.query(RevisionTask)
+        .filter(
+            RevisionTask.learning_log_id == data["learning_log_id"],
+            RevisionTask.revision_stage == "1M",
+        )
+        .first()
+    )
+
+    completion_response = client.patch(
+        f"/api/v1/revisions/{future_task.id}/complete",
+        json={
+            "difficulty_after_revision": "EASY",
+            "revision_text_summary": "I tried to complete this future revision early.",
+            "revision_video_url": None,
+        },
+    )
+
+    db_session.refresh(future_task)
+    attempts = (
+        db_session.query(RevisionAttempt)
+        .filter(RevisionAttempt.revision_task_id == future_task.id)
+        .all()
+    )
+    rewards = (
+        db_session.query(RewardEvent)
+        .filter(RewardEvent.revision_task_id == future_task.id)
+        .all()
+    )
+
+    assert completion_response.status_code == 400
+    assert completion_response.json()["detail"] == (
+        "Future revision is locked until its due date."
+    )
+    assert future_task.status == "PENDING"
+    assert attempts == []
+    assert rewards == []

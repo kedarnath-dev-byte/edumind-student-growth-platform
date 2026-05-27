@@ -3,6 +3,7 @@ Tests for the EduMind Student Growth Platform MVP core loop.
 """
 
 import pytest
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -10,7 +11,10 @@ from core.database import Base
 from modules.student_growth.learning_log_controller import serialize_learning_log
 from modules.student_growth.learning_log_service import LearningLogService
 from modules.student_growth.models import RewardEvent, RevisionAttempt, RevisionTask
-from modules.student_growth.revision_service import RevisionService
+from modules.student_growth.revision_service import (
+    FutureRevisionLockedError,
+    RevisionService,
+)
 from modules.student_growth.schemas import LearningLogCreate
 
 
@@ -40,6 +44,20 @@ def make_learning_log_payload(not_understood="Need help with examples."):
         not_understood=not_understood,
         confidence_level="MEDIUM",
     )
+
+
+def make_revision_due_today(db_session, revision_task):
+    revision_task.due_at = datetime.utcnow()
+    db_session.commit()
+    db_session.refresh(revision_task)
+    return revision_task
+
+
+def make_revision_overdue(db_session, revision_task):
+    revision_task.due_at = datetime.utcnow() - timedelta(days=1)
+    db_session.commit()
+    db_session.refresh(revision_task)
+    return revision_task
 
 
 def test_creating_learning_log_creates_exactly_five_revision_tasks(db_session):
@@ -96,6 +114,7 @@ def test_completing_revision_changes_status_and_creates_reward(db_session):
         make_learning_log_payload()
     )
     revision_task = result["revision_tasks"][0]
+    make_revision_due_today(db_session, revision_task)
 
     completed = RevisionService(db_session).complete_revision(
         revision_task_id=revision_task.id,
@@ -120,6 +139,7 @@ def test_completing_revision_creates_revision_attempt(db_session):
         make_learning_log_payload()
     )
     revision_task = result["revision_tasks"][0]
+    make_revision_due_today(db_session, revision_task)
 
     completed = RevisionService(db_session).complete_revision(
         revision_task_id=revision_task.id,
@@ -148,6 +168,7 @@ def test_revision_attempt_stores_due_date_status_and_days_late(db_session):
         make_learning_log_payload()
     )
     revision_task = result["revision_tasks"][0]
+    make_revision_due_today(db_session, revision_task)
 
     RevisionService(db_session).complete_revision(
         revision_task_id=revision_task.id,
@@ -174,6 +195,7 @@ def test_completing_already_completed_revision_does_not_duplicate_attempt(db_ses
         make_learning_log_payload()
     )
     revision_task = result["revision_tasks"][0]
+    make_revision_due_today(db_session, revision_task)
     service = RevisionService(db_session)
 
     first = service.complete_revision(
@@ -207,6 +229,7 @@ def test_list_attempts_for_revision_returns_attempt(db_session):
         make_learning_log_payload()
     )
     revision_task = result["revision_tasks"][0]
+    make_revision_due_today(db_session, revision_task)
     service = RevisionService(db_session)
 
     service.complete_revision(
@@ -217,6 +240,66 @@ def test_list_attempts_for_revision_returns_attempt(db_session):
 
     assert len(attempts) == 1
     assert attempts[0].revision_task_id == revision_task.id
+
+
+def test_completing_future_revision_is_locked_without_side_effects(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = result["revision_tasks"][0]
+    service = RevisionService(db_session)
+
+    with pytest.raises(FutureRevisionLockedError) as exc_info:
+        service.complete_revision(
+            revision_task_id=revision_task.id,
+            difficulty_after_revision="EASY",
+        )
+
+    db_session.refresh(revision_task)
+    attempts = (
+        db_session.query(RevisionAttempt)
+        .filter(RevisionAttempt.revision_task_id == revision_task.id)
+        .all()
+    )
+    rewards = (
+        db_session.query(RewardEvent)
+        .filter(RewardEvent.revision_task_id == revision_task.id)
+        .all()
+    )
+
+    assert str(exc_info.value) == "Future revision is locked until its due date."
+    assert revision_task.status == "PENDING"
+    assert attempts == []
+    assert rewards == []
+
+
+def test_completing_due_today_revision_succeeds(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = make_revision_due_today(db_session, result["revision_tasks"][0])
+
+    completed = RevisionService(db_session).complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="MEDIUM",
+    )
+
+    assert completed["revision_task"].status == "COMPLETED"
+
+
+def test_completing_overdue_revision_succeeds_as_memory_rescue(db_session):
+    result = LearningLogService(db_session).create_learning_log(
+        make_learning_log_payload()
+    )
+    revision_task = make_revision_overdue(db_session, result["revision_tasks"][0])
+
+    completed = RevisionService(db_session).complete_revision(
+        revision_task_id=revision_task.id,
+        difficulty_after_revision="HARD",
+    )
+
+    assert completed["revision_task"].status == "COMPLETED"
+    assert completed["attempt"].days_late >= 1
 
 
 def test_learning_log_controller_serializes_clean_response(db_session):
