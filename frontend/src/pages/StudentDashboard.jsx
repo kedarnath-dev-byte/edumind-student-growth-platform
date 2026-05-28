@@ -146,28 +146,67 @@ const StudentDashboard = () => {
   const [topicCircle, setTopicCircle] = useState(defaultTopicCircle)
   const [loading, setLoading] = useState(true)
   const [warning, setWarning] = useState('')
+  const [sectionWarnings, setSectionWarnings] = useState({
+    habits: '',
+    revisions: '',
+    peerLearning: '',
+  })
 
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true)
       setWarning('')
+      setSectionWarnings({
+        habits: '',
+        revisions: '',
+        peerLearning: '',
+      })
 
-      try {
-        const [habitData, revisionData, circleData] = await Promise.all([
-          studentGrowthService.getHabitSummary(STUDENT_ID),
-          studentGrowthService.getRevisionsForStudent(STUDENT_ID),
-          studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID),
-        ])
+      const [habitResult, revisionResult, circleResult] = await Promise.allSettled([
+        studentGrowthService.getHabitSummary(STUDENT_ID),
+        studentGrowthService.getRevisionsForStudent(STUDENT_ID),
+        studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID),
+      ])
 
-        setHabitSummary(normalizeHabitSummary(habitData))
-        setRevisions(toSafeArray(revisionData))
-        setTopicCircle(normalizeTopicCircle(circleData))
-      } catch (err) {
-        console.error('Failed to load student dashboard:', err)
-        setWarning('Backend is not reachable. Please start the backend server.')
-      } finally {
-        setLoading(false)
+      const nextWarnings = {
+        habits: '',
+        revisions: '',
+        peerLearning: '',
       }
+      let failedCount = 0
+
+      if (habitResult.status === 'fulfilled') {
+        setHabitSummary(normalizeHabitSummary(habitResult.value))
+      } else {
+        failedCount += 1
+        console.error('Failed to load habit snapshot:', habitResult.reason)
+        setHabitSummary(defaultHabitSummary)
+        nextWarnings.habits = 'Habit snapshot could not refresh.'
+      }
+
+      if (revisionResult.status === 'fulfilled') {
+        setRevisions(toSafeArray(revisionResult.value))
+      } else {
+        failedCount += 1
+        console.error('Failed to load revision snapshot:', revisionResult.reason)
+        setRevisions([])
+        nextWarnings.revisions = 'Revision snapshot could not refresh.'
+      }
+
+      if (circleResult.status === 'fulfilled') {
+        setTopicCircle(normalizeTopicCircle(circleResult.value))
+      } else {
+        failedCount += 1
+        console.error('Failed to load peer learning snapshot:', circleResult.reason)
+        setTopicCircle(defaultTopicCircle)
+        nextWarnings.peerLearning = 'Peer learning snapshot could not refresh.'
+      }
+
+      setSectionWarnings(nextWarnings)
+      if (failedCount === 3) {
+        setWarning('Backend is not reachable. Please start the backend server.')
+      }
+      setLoading(false)
     }
 
     loadDashboard()
@@ -259,6 +298,11 @@ const StudentDashboard = () => {
             <p className="text-gray-400 text-sm">Loading habit snapshot...</p>
           ) : (
             <>
+              {sectionWarnings.habits && (
+                <p className="text-amber-200 text-sm mb-4">
+                  {sectionWarnings.habits}
+                </p>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <StatCard
                   label="Learning logs"
@@ -297,18 +341,25 @@ const StudentDashboard = () => {
           {loading ? (
             <p className="text-gray-400 text-sm mt-5">Loading help circle...</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 mt-5">
-              <StatCard
-                label="Open requests"
-                value={topicCircle.open_requests_count}
-                helper="Needs support"
-              />
-              <StatCard
-                label="Ready helpers"
-                value={topicCircle.available_helpers_count}
-                helper="Ready to explain"
-              />
-            </div>
+            <>
+              {sectionWarnings.peerLearning && (
+                <p className="text-amber-200 text-sm mt-4">
+                  {sectionWarnings.peerLearning}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                <StatCard
+                  label="Open requests"
+                  value={topicCircle.open_requests_count}
+                  helper="Needs support"
+                />
+                <StatCard
+                  label="Ready helpers"
+                  value={topicCircle.available_helpers_count}
+                  helper="Ready to explain"
+                />
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -331,28 +382,35 @@ const StudentDashboard = () => {
         {loading ? (
           <p className="text-gray-400 text-sm">Loading revision snapshot...</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <StatCard
-              label="Due today"
-              value={revisionSnapshot.dueTodayPending}
-              helper="Ready for attention"
-            />
-            <StatCard
-              label="Memory rescue"
-              value={revisionSnapshot.overduePending}
-              helper="Recover gently"
-            />
-            <StatCard
-              label="Future locked"
-              value={revisionSnapshot.futureLocked}
-              helper="Planned for later"
-            />
-            <StatCard
-              label="Completed"
-              value={revisionSnapshot.completed}
-              helper="Memory protected"
-            />
-          </div>
+          <>
+            {sectionWarnings.revisions && (
+              <p className="text-amber-200 text-sm mb-4">
+                {sectionWarnings.revisions}
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <StatCard
+                label="Due today"
+                value={revisionSnapshot.dueTodayPending}
+                helper="Ready for attention"
+              />
+              <StatCard
+                label="Memory rescue"
+                value={revisionSnapshot.overduePending}
+                helper="Recover gently"
+              />
+              <StatCard
+                label="Future locked"
+                value={revisionSnapshot.futureLocked}
+                helper="Planned for later"
+              />
+              <StatCard
+                label="Completed"
+                value={revisionSnapshot.completed}
+                helper="Memory protected"
+              />
+            </div>
+          </>
         )}
       </section>
 
