@@ -22,6 +22,10 @@ foundation.
 - Demo Seed Endpoint
 - Local Development Docs
 - Demo Script
+- Pilot Safety Docs
+- Auth Planning
+- Deployment Planning
+- Mobile/PWA Planning
 
 ## Pitch And Marketing Assets Note
 
@@ -46,6 +50,17 @@ foundation.
 - No payment system
 - No advanced analytics
 - No AI video analysis
+
+## Next Readiness Items
+
+- Pilot safety docs
+- Auth planning
+- Deployment planning
+- Mobile/PWA planning
+- Parent consent process
+- Real user and role mapping
+- Cloud database migration
+- Safe social media update process
 
 ## Demo Readiness Notes
 

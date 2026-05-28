@@ -206,6 +206,8 @@ Built:
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
 - [Demo Script](docs/DEMO_SCRIPT.md)
 - [MVP Checklist](docs/MVP_CHECKLIST.md)
+- [Pilot Safety And Parent Consent](docs/PILOT_SAFETY_AND_CONSENT.md)
+- [Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md)
 
 ## Product Principle
 
