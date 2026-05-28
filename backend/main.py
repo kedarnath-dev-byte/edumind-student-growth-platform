@@ -17,6 +17,7 @@ from core.database import init_db
 from modules.evaluation.evaluation_controller import router as evaluation_router
 from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.dev_seed_controller import router as dev_seed_router
+from modules.student_growth.auth_controller import router as auth_router
 from modules.student_growth.habit_controller import router as habit_router
 from modules.student_growth.learning_log_controller import router as learning_log_router
 from modules.student_growth.parent_dashboard_controller import (
@@ -58,6 +59,7 @@ app.include_router(learning_log_router)
 app.include_router(revision_router)
 app.include_router(setup_router)
 app.include_router(dev_seed_router)
+app.include_router(auth_router)
 app.include_router(habit_router)
 app.include_router(peer_learning_router)
 app.include_router(teacher_dashboard_router)

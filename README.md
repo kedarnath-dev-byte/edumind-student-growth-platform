@@ -220,6 +220,10 @@ Frontend login foundation uses Supabase Email + Password for manually created
 pilot accounts. Existing MVP dashboards are not protected yet. See
 [Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md).
 
+Backend Supabase JWT verification foundation is available through
+`GET /api/v1/auth/me`. Existing dashboard APIs are not protected yet. See
+[Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -230,6 +234,7 @@ pilot accounts. Existing MVP dashboards are not protected yet. See
 - [Render Backend Deployment](docs/RENDER_BACKEND_DEPLOYMENT.md)
 - [Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md)
 - [Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md)
+- [Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md)
 
 ## Product Principle
 

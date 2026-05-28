@@ -33,6 +33,8 @@ foundation.
 - Login Route `/login`
 - Login/Logout Layout State
 - Backend JWT Verification Pending
+- Backend Supabase JWT Verification Foundation
+- Auth Test Endpoint `/api/v1/auth/me`
 - Role-Aware Access Pending
 - Plan/Access-Level Gating Pending
 
