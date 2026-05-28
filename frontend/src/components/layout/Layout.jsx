@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { path: '/dashboard',   label: 'Dashboard',   icon: '🏠' },
   { path: '/student-dashboard', label: 'Student Dashboard', icon: '🎓' },
   { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: '📊' },
+  { path: '/parent-dashboard', label: 'Parent Dashboard', icon: '👪' },
   { path: '/student-growth', label: 'Daily Learning Log', icon: '📝' },
   { path: '/student-revisions', label: "Today's Revision", icon: '🧠' },
   { path: '/student-habits', label: 'Successful Habits', icon: '✨' },

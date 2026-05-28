@@ -17,6 +17,7 @@ import FineTuning from './pages/FineTuning'
 import Admin      from './pages/Admin'
 import StudentDashboard from './pages/StudentDashboard'
 import TeacherDashboard from './pages/TeacherDashboard'
+import ParentDashboard from './pages/ParentDashboard'
 import StudentLearningLog from './pages/StudentLearningLog'
 import StudentRevisions from './pages/StudentRevisions'
 import StudentHabits from './pages/StudentHabits'
@@ -66,6 +67,7 @@ const AppRoutes = () => {
         <Route path="upload"     element={<Upload />}     />
         <Route path="student-dashboard" element={<StudentDashboard />} />
         <Route path="teacher-dashboard" element={<TeacherDashboard />} />
+        <Route path="parent-dashboard" element={<ParentDashboard />} />
         <Route path="student-growth" element={<StudentLearningLog />} />
         <Route path="student-revisions" element={<StudentRevisions />} />
         <Route path="student-habits" element={<StudentHabits />} />

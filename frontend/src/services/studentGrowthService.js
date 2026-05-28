@@ -219,6 +219,18 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to load teacher dashboard summary'))
     }
   },
+
+  async getParentStudentSummary(studentId, filters = {}) {
+    try {
+      const response = await api.get(
+        `${apiPrefix}/parent-dashboard/student/${studentId}/summary`,
+        { params: filters }
+      )
+      return response?.data && typeof response.data === 'object' ? response.data : null
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load parent dashboard summary'))
+    }
+  },
 }
 
 export default studentGrowthService
