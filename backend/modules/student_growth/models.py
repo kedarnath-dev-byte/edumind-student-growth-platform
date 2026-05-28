@@ -26,6 +26,99 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class AppUser(Base):
+    """Pilot-ready user identity without auth credentials yet."""
+
+    __tablename__ = "app_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=True)
+    phone = Column(String, unique=True, index=True, nullable=True)
+    role = Column(String, index=True, nullable=False)
+    status = Column(String, index=True, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class StudentProfile(Base):
+    """Privacy-safe student profile linked to an AppUser."""
+
+    __tablename__ = "student_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=True)
+    classroom_id = Column(Integer, index=True, nullable=True)
+    display_name = Column(String, nullable=False)
+    guardian_contact = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class TeacherProfile(Base):
+    """Teacher profile linked to an AppUser."""
+
+    __tablename__ = "teacher_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=True)
+    display_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class ParentProfile(Base):
+    """Parent or guardian profile linked to an AppUser."""
+
+    __tablename__ = "parent_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    display_name = Column(String, nullable=False)
+    phone = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class ParentStudentLink(Base):
+    """Safe parent-to-student relationship mapping."""
+
+    __tablename__ = "parent_student_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parent_profile_id = Column(Integer, index=True, nullable=False)
+    student_profile_id = Column(Integer, index=True, nullable=False)
+    relationship = Column(String, nullable=True)
+    status = Column(String, index=True, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ClassroomStudent(Base):
+    """Classroom membership for a student profile."""
+
+    __tablename__ = "classroom_students"
+
+    id = Column(Integer, primary_key=True, index=True)
+    classroom_id = Column(Integer, index=True, nullable=False)
+    student_profile_id = Column(Integer, index=True, nullable=False)
+    status = Column(String, index=True, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TeacherClassroom(Base):
+    """Classroom assignment for a teacher profile."""
+
+    __tablename__ = "teacher_classrooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_profile_id = Column(Integer, index=True, nullable=False)
+    classroom_id = Column(Integer, index=True, nullable=False)
+    status = Column(String, index=True, default="ACTIVE")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class School(Base):
     """School or college using EduMind."""
 

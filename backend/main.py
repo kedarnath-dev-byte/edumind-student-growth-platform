@@ -28,6 +28,7 @@ from modules.student_growth.setup_controller import router as setup_router
 from modules.student_growth.teacher_dashboard_controller import (
     router as teacher_dashboard_router,
 )
+from modules.student_growth.user_controller import router as user_router
 
 # ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -61,6 +62,7 @@ app.include_router(habit_router)
 app.include_router(peer_learning_router)
 app.include_router(teacher_dashboard_router)
 app.include_router(parent_dashboard_router)
+app.include_router(user_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
