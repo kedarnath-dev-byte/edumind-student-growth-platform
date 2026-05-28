@@ -19,6 +19,9 @@ from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.dev_seed_controller import router as dev_seed_router
 from modules.student_growth.habit_controller import router as habit_router
 from modules.student_growth.learning_log_controller import router as learning_log_router
+from modules.student_growth.parent_dashboard_controller import (
+    router as parent_dashboard_router,
+)
 from modules.student_growth.peer_learning_controller import router as peer_learning_router
 from modules.student_growth.revision_controller import router as revision_router
 from modules.student_growth.setup_controller import router as setup_router
@@ -57,6 +60,7 @@ app.include_router(dev_seed_router)
 app.include_router(habit_router)
 app.include_router(peer_learning_router)
 app.include_router(teacher_dashboard_router)
+app.include_router(parent_dashboard_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
