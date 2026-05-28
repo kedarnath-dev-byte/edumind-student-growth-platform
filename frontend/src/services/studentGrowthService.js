@@ -207,6 +207,18 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to load topic support circle'))
     }
   },
+
+  async getTeacherClassroomSummary(classroomId, filters = {}) {
+    try {
+      const response = await api.get(
+        `${apiPrefix}/teacher-dashboard/classroom/${classroomId}/summary`,
+        { params: filters }
+      )
+      return response?.data && typeof response.data === 'object' ? response.data : null
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load teacher dashboard summary'))
+    }
+  },
 }
 
 export default studentGrowthService
