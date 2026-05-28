@@ -208,6 +208,12 @@ Backend deployment preparation for Render + Supabase Postgres is documented in
 database, and deployment planning is tracked in
 [Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md).
 
+## Mobile/PWA
+
+EduMind can be opened from a mobile browser and added to the home screen before
+building native Android or iPhone apps. See the
+[Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -216,6 +222,7 @@ database, and deployment planning is tracked in
 - [Pilot Safety And Parent Consent](docs/PILOT_SAFETY_AND_CONSENT.md)
 - [Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md)
 - [Render Backend Deployment](docs/RENDER_BACKEND_DEPLOYMENT.md)
+- [Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md)
 
 ## Product Principle
 

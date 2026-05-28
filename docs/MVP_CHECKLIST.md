@@ -26,6 +26,9 @@ foundation.
 - Auth Planning
 - Deployment Planning
 - Mobile/PWA Planning
+- Mobile/PWA Manifest
+- Android Add to Home Screen Guide
+- iPhone Add to Home Screen Guide
 
 ## Pitch And Marketing Assets Note
 
