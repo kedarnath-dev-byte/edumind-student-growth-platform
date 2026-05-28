@@ -1,95 +1,68 @@
-﻿# edumind-ai
+# EduMind Student Growth Platform
 
-An intelligent education platform built around RAG, LangGraph-style workflows, evaluation, ingestion, and a FastAPI backend with a frontend workspace.
+EduMind helps students build successful learning habits by connecting daily
+learning reflection, spaced revision, honest confusion sharing, successful
+habits, and peer support.
 
-## Portfolio Role
+> "There are no permanently successful people. There are only successful habits."
 
-This repository is maintained by Mamani Kedarnath as an applied AI education platform project. It demonstrates backend API structure, document ingestion, RAG flow design, evaluation endpoints, and full-stack project organization.
+Schools teach. EduMind protects learning.
 
-## Core Capabilities
+## MVP Foundation
 
-- FastAPI backend with modular routers
-- Health, ingestion, RAG, and evaluation APIs
-- Database initialization on application startup
-- Timing middleware for evaluation/latency visibility
-- Frontend workspace for the education UI
-- Environment and dependency structure for local development
+This repository is an MVP foundation for the EduMind Student Growth Platform. It
+is not a finished production product yet. The current build demonstrates the
+core Student -> Teacher -> Parent learning visibility loop.
 
-## Backend Entry Point
+## Problem EduMind Solves
 
-```text
-backend/main.py
-```
+Students often forget what they learn after class or after exams. Many students
+also hesitate to say what they did not understand, because confusion can feel
+unsafe or embarrassing.
 
-The FastAPI app registers:
+Teachers and parents usually see marks, homework, or attendance, but they do not
+always see the daily learning process:
 
-- Health routes
-- Ingestion routes
-- RAG routes
-- Evaluation routes
-- Timing middleware
+- What was taught today
+- What the student understood
+- What still needs support
+- Whether revision happened at the right time
+- Whether the student is building consistent learning habits
 
-## Local Development Quickstart
+EduMind focuses on learning growth without shame, ranking, or public comparison.
 
-Use the project virtual environment Python, not a system Python install. The
-expected backend Python is `Python 3.11.x`.
+## MVP Feature Overview
 
-### Backend
+- Student Dashboard as the main demo entry point
+- Daily Learning Log for what was taught, understood, and needs support
+- Automatic revision schedule after 24H, 7D, 1M, 3M, and 6M
+- Today's Revision Mission
+- Memory Rescue for overdue revisions
+- Revision proof text and RevisionAttempt history
+- Future revision lock to protect spaced repetition
+- Successful Habits dashboard
+- Peer Learning Circle for safe support and explanation
+- Teacher Dashboard for class-level support signals
+- Parent Dashboard for child learning growth signals
+- Demo seed endpoint for local demos
 
-CMD, using the project venv directly:
+## Screenshot Gallery
 
-```cmd
-cd C:\Users\mkeda\edumind-ai-\backend
-C:\Users\mkeda\edumind-ai-\.venv\Scripts\python.exe -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
+![Student Dashboard](docs/screenshots/student-dashboard.png)
 
-Activated venv:
+![Daily Learning Log](docs/screenshots/daily-learning-log.png)
 
-```cmd
-cd C:\Users\mkeda\edumind-ai-
-.venv\Scripts\activate
-cd backend
-python --version
-python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
+![Revision Dashboard](docs/screenshots/revision-dashboard.png)
 
-### Frontend
+![Successful Habits](docs/screenshots/successful-habits.png)
 
-CMD:
+![Peer Learning Circle](docs/screenshots/peer-learning-circle.png)
 
-```cmd
-cd C:\Users\mkeda\edumind-ai-\frontend
-set VITE_API_BASE_URL=http://127.0.0.1:8000
-npm run dev
-```
+![Teacher Dashboard](docs/screenshots/teacher-dashboard.png)
 
-PowerShell:
+![Parent Dashboard](docs/screenshots/parent-dashboard.png)
 
-```powershell
-cd C:\Users\mkeda\edumind-ai-\frontend
-$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
-npm run dev
-```
-
-### Useful URLs
-
-- Backend Swagger: `http://127.0.0.1:8000/docs`
-- Student Dashboard: `http://localhost:<vite-port>/student-dashboard`
-- Student Learning Log: `http://localhost:<vite-port>/student-growth`
-- Student Revisions: `http://localhost:<vite-port>/student-revisions`
-- Successful Habits: `http://localhost:<vite-port>/student-habits`
-
-For demo data, start the backend, open Swagger, run
-`POST /api/v1/dev/seed-demo-data`, then open the frontend pages.
-
-See [Local Development Guide](docs/LOCAL_DEVELOPMENT.md) for cleanup and
-troubleshooting notes.
-
-## Complete MVP Demo Flow
-
-For a founder-facing school demo script, see
-[EduMind Demo Script](docs/DEMO_SCRIPT.md).
-For a build-status checklist, see [MVP Checklist](docs/MVP_CHECKLIST.md).
+## Complete Demo Flow
 
 1. Start the backend using the project venv Python 3.11.
 2. Open Swagger at `http://127.0.0.1:8000/docs`.
@@ -112,25 +85,129 @@ For a build-status checklist, see [MVP Checklist](docs/MVP_CHECKLIST.md).
 
 ## Tech Stack
 
-- Python
+- Python 3.11
 - FastAPI
-- RAG architecture
-- LangGraph-oriented workflow design
-- Database-backed backend modules
-- JavaScript frontend workspace
+- SQLAlchemy
+- Pydantic
+- SQLite for local MVP development
+- React
+- Vite
+- Tailwind CSS
+- Existing RAG, ingestion, health, and evaluation modules preserved
 
-## Future Improvements
+## Architecture Overview
 
-- Add API examples for ingestion and RAG endpoints
-- Add screenshots or a demo video
-- Add `.env.example`
-- Add tests for health, ingestion, and RAG routes
-- Rename the repository from `edumind-ai-` to `edumind-ai-platform`
+```text
+backend/
+  main.py
+  core/
+    database.py
+  modules/
+    health/
+    ingestion/
+    rag/
+    evaluation/
+    student_growth/
+      learning logs
+      revisions
+      habits
+      peer learning
+      teacher dashboard
+      parent dashboard
 
-## EduMind Student Growth Platform Direction
+frontend/
+  src/
+    pages/
+    services/
+    components/
+```
 
-EduMind AI is evolving into the EduMind Student Growth Platform: a school and college product for daily learning logs, honest understanding tracking, short student explanation videos, spaced revision, teacher visibility, and parent progress monitoring.
+The Student Growth MVP uses a simple service-layer structure:
 
-The core student loop is: teacher teaches a topic, student records what was taught, what they understood, what they did not understand yet, and a short explanation video. The app then creates revision tasks after 24H, 7D, 1M, 3M, and 6M so students build memory, confidence, and communication through consistent revision.
+- Routes/controllers handle HTTP
+- Services handle business logic
+- SQLAlchemy models represent data
+- Pydantic schemas validate API input and output
 
-Future work should preserve the existing RAG, ingestion, health, and evaluation modules while adding new student-growth features through FastAPI, modular services, SQLAlchemy, Pydantic, React/Vite/Tailwind, and `/api/v1` APIs. Student benefit comes first: avoid shame, fear, fake understanding, and unhealthy comparison. Reward honesty, revision, improvement, consistency, and communication.
+## Main Frontend Routes
+
+- `/student-dashboard`
+- `/student-growth`
+- `/student-revisions`
+- `/student-habits`
+- `/student-peer-learning`
+- `/teacher-dashboard`
+- `/parent-dashboard`
+
+The protected root route redirects to `/student-dashboard` for the demo flow.
+
+## Backend API Groups
+
+- Health APIs
+- Ingestion APIs
+- RAG APIs
+- Evaluation APIs
+- School setup APIs
+- Learning log APIs
+- Revision APIs
+- Reward APIs
+- Habit summary APIs
+- Peer learning APIs
+- Teacher dashboard APIs
+- Parent dashboard APIs
+- Development demo seed API
+
+## Current MVP Status
+
+Built:
+
+- Student Dashboard
+- Daily Learning Log frontend/backend
+- Revision Dashboard frontend/backend
+- Revision proof text
+- RevisionAttempt history
+- Future revision backend lock
+- Successful Habits backend/frontend
+- Peer Learning Circle backend/frontend
+- Teacher Dashboard backend/frontend
+- Parent Dashboard backend/frontend
+- Demo seed endpoint
+- Local development documentation
+- Demo script
+- MVP checklist
+
+## Known Limitations
+
+- No auth/login yet
+- Hardcoded MVP demo IDs
+- Local SQLite database
+- No production deployment yet
+- No video upload yet
+- No notifications or reminders yet
+- No real teacher/parent role mapping yet
+- No mobile app
+- No payment system
+- No public leaderboard or ranking
+- No AI video analysis
+
+## Roadmap
+
+1. Stabilize the MVP demo.
+2. Add authentication and real student/teacher/parent roles.
+3. Improve Teacher Dashboard with filters, names, and classroom workflows.
+4. Improve Parent Dashboard with real parent-child mapping.
+5. Add video proof upload.
+6. Add reminders and notifications.
+7. Prepare AWS/cloud deployment.
+8. Run a small school or coaching-center pilot.
+
+## Documentation
+
+- [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
+- [Demo Script](docs/DEMO_SCRIPT.md)
+- [MVP Checklist](docs/MVP_CHECKLIST.md)
+
+## Product Principle
+
+EduMind is not a ranking platform. It is designed to help students learn
+honestly, revise scientifically, explain clearly, and help each other grow.
