@@ -201,6 +201,13 @@ Built:
 7. Prepare AWS/cloud deployment.
 8. Run a small school or coaching-center pilot.
 
+## Deployment
+
+Backend deployment preparation for Render + Supabase Postgres is documented in
+[Render Backend Deployment](docs/RENDER_BACKEND_DEPLOYMENT.md). Broader auth,
+database, and deployment planning is tracked in
+[Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -208,6 +215,7 @@ Built:
 - [MVP Checklist](docs/MVP_CHECKLIST.md)
 - [Pilot Safety And Parent Consent](docs/PILOT_SAFETY_AND_CONSENT.md)
 - [Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md)
+- [Render Backend Deployment](docs/RENDER_BACKEND_DEPLOYMENT.md)
 
 ## Product Principle
 

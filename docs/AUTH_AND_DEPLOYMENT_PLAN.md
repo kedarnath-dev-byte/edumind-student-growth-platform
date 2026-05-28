@@ -185,12 +185,31 @@ Step 28: Backend user/role/profile tables
 
 Step 29: Database URL readiness for Supabase Postgres deployment
 
-Step 30: Login + JWT or Supabase auth integration
+Step 30: Student Dashboard partial API failure handling
 
-Step 31: Replace hardcoded IDs in frontend/service layer
+Step 31: Backend deployment preparation for Render + Supabase Postgres
 
-Step 32: Deploy backend + database
+Step 32: Login + JWT or Supabase auth integration
 
-Step 33: Deploy frontend
+Step 33: Replace hardcoded IDs in frontend/service layer
 
-Step 34: PWA/mobile install
+Step 34: Deploy backend + database
+
+Step 35: Deploy frontend
+
+Step 36: PWA/mobile install
+
+## L. Step 31 Backend Deployment Preparation Status
+
+The backend is prepared for Render deployment using Supabase Postgres through
+`DATABASE_URL`.
+
+- Render backend guide: `docs/RENDER_BACKEND_DEPLOYMENT.md`
+- Render root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Optional helper script: `backend/render_start.sh`
+- Required deployment database variable: `DATABASE_URL`
+
+Auth is still not implemented. The demo seed endpoint should be protected or
+disabled before public production usage.
