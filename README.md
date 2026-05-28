@@ -85,21 +85,30 @@ For demo data, start the backend, open Swagger, run
 See [Local Development Guide](docs/LOCAL_DEVELOPMENT.md) for cleanup and
 troubleshooting notes.
 
-## Demo Flow
+## Complete MVP Demo Flow
 
 For a founder-facing school demo script, see
 [EduMind Demo Script](docs/DEMO_SCRIPT.md).
+For a build-status checklist, see [MVP Checklist](docs/MVP_CHECKLIST.md).
 
 1. Start the backend using the project venv Python 3.11.
 2. Open Swagger at `http://127.0.0.1:8000/docs`.
 3. Run `POST /api/v1/dev/seed-demo-data`.
 4. Start the frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`.
 5. Open `/student-dashboard`.
-6. Demo the student flow:
+6. Demo the Student journey:
    - Daily Learning Log
    - Today's Revision
    - Successful Habits
    - Peer Learning Circle
+7. Demo the Teacher Dashboard at `/teacher-dashboard`:
+   - Topics needing support
+   - Students to support
+   - Revision health
+8. Demo the Parent Dashboard at `/parent-dashboard`:
+   - Latest learning logs
+   - Revision summary
+   - Parent support suggestions
 
 ## Tech Stack
 

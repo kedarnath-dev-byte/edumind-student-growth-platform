@@ -38,6 +38,8 @@ The current MVP foundation shows how EduMind can build successful habits through
 - Revision proof text
 - Successful Habits dashboard
 - Peer Learning Circle
+- Teacher Dashboard
+- Parent Dashboard
 - Demo seed data endpoint for local demos
 
 The app avoids labels like weak, failure, topper, or ranker. It focuses on
@@ -166,6 +168,40 @@ Say:
 "If one student understands, they can help another student. Helping strengthens
 the helper's own learning too. There is no public ranking or competition here."
 
+### F. Teacher Dashboard
+
+Open Teacher Dashboard.
+
+Show:
+
+- Topics needing support
+- Students to support
+- Revision health
+- Peer learning activity
+- Suggested teacher actions
+
+Say:
+
+"This gives the teacher class-level support signals. It does not rank students.
+It shows where support, review, Memory Rescue, or peer explanation may help."
+
+### G. Parent Dashboard
+
+Open Parent Dashboard.
+
+Show:
+
+- Latest learning logs
+- Revision summary
+- Successful habits
+- Topics to support
+- Parent support suggestions
+
+Say:
+
+"This helps parents see the learning process without marks pressure. The parent
+can ask better questions and support revision without scolding."
+
 ## 6. What To Say To Principal
 
 "Sir/Madam, this is not just an LMS. LMS stores content. EduMind tracks whether
@@ -177,19 +213,17 @@ reflection, spaced revision, memory rescue, revision proof, and peer support."
 
 ## 7. What To Say To Teacher
 
-"For teachers, EduMind can later show difficult topics, repeated confusion,
-revision gaps, peer helpers, and students who need support. The aim is not to
-increase teacher workload, but to make hidden learning problems visible earlier."
-
-Teacher dashboard is roadmap, not fully built yet.
+"For teachers, EduMind now has a frontend MVP dashboard showing topics needing
+support, students to support, revision health, peer learning activity, and
+suggested teacher actions. The aim is not to increase teacher workload, but to
+make hidden learning problems visible earlier."
 
 ## 8. What To Say To Parent
 
-"For parents, EduMind can later show what the child learned, what the child
-understood, what still needs support, revision discipline, and confidence through
-explanation. Instead of only seeing marks, parents can see the learning process."
-
-Parent dashboard is roadmap, not fully built yet.
+"For parents, EduMind now has a frontend MVP dashboard showing what the child
+learned, what the child understood, what still needs support, revision
+discipline, successful habits, and support suggestions. Instead of only seeing
+marks, parents can see the learning process."
 
 ## 9. What To Say To Investor Or Mentor
 
@@ -199,6 +233,8 @@ Parent dashboard is roadmap, not fully built yet.
 - Revision scheduling loop
 - Habit measurement loop
 - Peer help loop
+- Teacher support visibility loop
+- Parent learning visibility loop
 
 Future monetization can come from school SaaS, coaching centers, tuition
 centers, parent progress reports, and teacher support analytics. The early wedge
@@ -217,14 +253,18 @@ is daily student learning visibility plus revision discipline."
 - Demo seed data endpoint
 - Successful Habits backend and frontend
 - Peer Learning Circle backend and frontend
+- Teacher Dashboard backend and frontend
+- Parent Dashboard backend and frontend
 - Local development docs
+
+The Student, Teacher, and Parent visible triangle is now complete for MVP demo:
+students record and revise learning, teachers see support signals, and parents
+see growth signals without marks pressure.
 
 ## 11. What Is Not Built Yet
 
 - Auth/login
 - Real student profiles
-- Teacher dashboard
-- Parent dashboard
 - Video upload
 - Notifications
 - Production deployment
@@ -235,9 +275,9 @@ is daily student learning visibility plus revision discipline."
 
 Phase 1: Stabilize MVP and demo.
 
-Phase 2: Teacher dashboard.
+Phase 2: Improve teacher dashboard with filters, names, and classroom workflows.
 
-Phase 3: Parent dashboard.
+Phase 3: Improve parent dashboard with real parent-child mapping.
 
 Phase 4: Video proof upload.
 

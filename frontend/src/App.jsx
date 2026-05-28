@@ -77,7 +77,7 @@ const AppRoutes = () => {
       </Route>
 
       {/* Catch all — redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/student-dashboard" replace />} />
     </Routes>
   )
 }

@@ -65,6 +65,32 @@ If Vite says port `5173` is busy, use the new port shown in the terminal.
 3. Open `/student-revisions`.
 4. Open `/student-habits`.
 5. Open `/student-peer-learning`.
+6. Open `/teacher-dashboard`.
+7. Open `/parent-dashboard`.
+
+## Complete MVP Demo Flow
+
+Use `docs/DEMO_SCRIPT.md` for the spoken walkthrough and
+`docs/MVP_CHECKLIST.md` for the current MVP completion checklist.
+
+1. Start the backend with the project venv Python 3.11.
+2. Open Swagger at `http://127.0.0.1:8000/docs`.
+3. Run `POST /api/v1/dev/seed-demo-data`.
+4. Start the frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`.
+5. Open `/student-dashboard`.
+6. Demo Student journey:
+   - Daily Learning Log
+   - Today's Revision
+   - Successful Habits
+   - Peer Learning Circle
+7. Demo Teacher Dashboard at `/teacher-dashboard`:
+   - Topics needing support
+   - Students to support
+   - Revision health
+8. Demo Parent Dashboard at `/parent-dashboard`:
+   - Latest learning logs
+   - Revision summary
+   - Parent support suggestions.
 
 ## Demo Data
 
