@@ -125,7 +125,27 @@ VITE_API_BASE_URL=https://your-backend-url
 This keeps the first deployment simple while still being close to production
 patterns.
 
-## G. Mobile Readiness Plan
+## G. Database Deployment Readiness
+
+The backend now supports a deployment-ready `DATABASE_URL` setting while
+preserving the local SQLite workflow.
+
+- Local development works without `DATABASE_URL`; the backend falls back to
+  `sqlite:///./edumind.db`.
+- Supabase Postgres can be used by setting `DATABASE_URL` in the deployment
+  environment.
+- Render should store `DATABASE_URL` as an environment variable, not inside the
+  repository.
+- Postgres URLs in `postgres://` or `postgresql://` format are normalized to
+  `postgresql+psycopg2://` for SQLAlchemy.
+- Never commit real database passwords, Supabase credentials, or production
+  secrets.
+
+Migration strategy is not fully implemented yet. For a real pilot, add a proper
+schema migration tool such as Alembic before making frequent production database
+changes.
+
+## H. Mobile Readiness Plan
 
 ### Phase 1
 
@@ -146,29 +166,31 @@ patterns.
 
 Do not start APK work before auth because all data may mix under hardcoded IDs.
 
-## H. Android APK Note
+## I. Android APK Note
 
 - APK can be shared on WhatsApp later.
 - Parents may see security warnings when installing an APK directly.
 - A web/PWA link is safer for the first pilot.
 - Capacitor can wrap the React app later.
 
-## I. iPhone Note
+## J. iPhone Note
 
 - iPhone cannot install APK files.
 - First use a web link or Add to Home Screen.
 - Later use Apple Developer/TestFlight if needed.
 
-## J. Next Implementation Steps
+## K. Next Implementation Steps
 
 Step 28: Backend user/role/profile tables
 
-Step 29: Login + JWT or Supabase auth integration
+Step 29: Database URL readiness for Supabase Postgres deployment
 
-Step 30: Replace hardcoded IDs in frontend/service layer
+Step 30: Login + JWT or Supabase auth integration
 
-Step 31: Deploy backend + database
+Step 31: Replace hardcoded IDs in frontend/service layer
 
-Step 32: Deploy frontend
+Step 32: Deploy backend + database
 
-Step 33: PWA/mobile install
+Step 33: Deploy frontend
+
+Step 34: PWA/mobile install

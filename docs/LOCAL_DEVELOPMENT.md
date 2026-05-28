@@ -27,6 +27,11 @@ python --version
 python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+Local development works without setting `DATABASE_URL`; the backend falls back
+to `sqlite:///./edumind.db`. If `DATABASE_URL` is set, the backend uses that
+database instead. For Postgres deployment URLs, keep secrets in environment
+variables and do not commit real passwords.
+
 ## Frontend
 
 The frontend must call the FastAPI backend at `http://127.0.0.1:8000`.

@@ -1,39 +1,47 @@
-"""
-@module    core.database
-@description SQLAlchemy database engine, session factory, and Base class.
-             All ORM models inherit from Base defined here.
-             Call create_all() on startup to auto-create tables.
-             Supports SQLite (dev) → PostgreSQL (prod) via .env switch.
-@author    EduMind AI Engineering
-"""
-
 import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
 
 load_dotenv()
 
-# ─── Database URL ─────────────────────────────────────────────────────────────
-# Reads from .env — defaults to SQLite for local dev
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./edumind.db")
+SQLITE_DATABASE_URL = "sqlite:///./edumind.db"
 
-# ─── Engine ───────────────────────────────────────────────────────────────────
-# connect_args only needed for SQLite (disables same-thread check)
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+def normalize_database_url(raw_url: str) -> str:
+    """Normalize deployment Postgres URLs to the installed psycopg2 driver."""
+    if raw_url.startswith("postgresql+psycopg2://"):
+        return raw_url
+    if raw_url.startswith("postgresql://"):
+        return raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    if raw_url.startswith("postgres://"):
+        return raw_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    return raw_url
 
-# ─── Session Factory ──────────────────────────────────────────────────────────
+
+def get_database_url() -> str:
+    """Use DATABASE_URL when provided, otherwise keep local SQLite fallback."""
+    raw_url = os.getenv("DATABASE_URL") or SQLITE_DATABASE_URL
+    return normalize_database_url(raw_url)
+
+
+DATABASE_URL = get_database_url()
+
+engine_kwargs = {}
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs["pool_pre_ping"] = True
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# ─── Base Class ───────────────────────────────────────────────────────────────
-# All ORM models inherit from this Base
+# All ORM models inherit from this Base.
 Base = declarative_base()
 
 
-# ─── Dependency Injection ─────────────────────────────────────────────────────
 def get_db():
     """
     FastAPI dependency that yields a DB session per request.
@@ -47,31 +55,40 @@ def get_db():
         db.close()
 
 
-# ─── Table Creation ───────────────────────────────────────────────────────────
 def init_db():
     """
     Creates all tables in the database.
     Called once on application startup.
-    Safe to call multiple times — skips existing tables.
+    Safe to call multiple times and skips existing tables.
     """
-    # Import all models here so Base knows about them before create_all()
+    # Import all models here so Base knows about them before create_all().
     from modules.evaluation.models import (  # noqa: F401
-        StudentSession,
+        APIMetric,
         DocumentHistory,
         QuestionHistory,
         RAGEvaluation,
-        APIMetric,
+        StudentSession,
     )
     from modules.student_growth.models import (  # noqa: F401
-        User,
-        School,
+        AppUser,
         Classroom,
-        Subject,
-        Topic,
+        ClassroomStudent,
         LearningLog,
-        RevisionTask,
+        ParentProfile,
+        ParentStudentLink,
+        PeerHelpOffer,
+        PeerHelpRequest,
+        PeerHelpSession,
         RewardEvent,
         RevisionAttempt,
+        RevisionTask,
+        School,
+        StudentProfile,
+        Subject,
+        TeacherClassroom,
+        TeacherProfile,
+        Topic,
+        User,
     )
-    Base.metadata.create_all(bind=engine)
 
+    Base.metadata.create_all(bind=engine)
