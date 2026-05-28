@@ -29,6 +29,12 @@ foundation.
 - Mobile/PWA Manifest
 - Android Add to Home Screen Guide
 - iPhone Add to Home Screen Guide
+- Frontend Supabase Email + Password Login Foundation
+- Login Route `/login`
+- Login/Logout Layout State
+- Backend JWT Verification Pending
+- Role-Aware Access Pending
+- Plan/Access-Level Gating Pending
 
 ## Pitch And Marketing Assets Note
 

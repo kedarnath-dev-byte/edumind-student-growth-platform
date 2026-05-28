@@ -1,96 +1,52 @@
-/**
- * @file App.jsx
- * @description Root component for EduMind AI frontend.
- *              Configures React Router with all page routes.
- *              Wraps entire app with AuthProvider for global auth state.
- *              Protected routes redirect to login if not authenticated.
- */
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthContext'
 
-// ─── Pages ───────────────────────────────────────────────────────────────────
-import Login      from './pages/Login'
-import Dashboard  from './pages/Dashboard'
-import Chat       from './pages/Chat'
-import Upload     from './pages/Upload'
+import Admin from './pages/Admin'
+import Chat from './pages/Chat'
+import Dashboard from './pages/Dashboard'
 import FineTuning from './pages/FineTuning'
-import Admin      from './pages/Admin'
-import StudentDashboard from './pages/StudentDashboard'
-import TeacherDashboard from './pages/TeacherDashboard'
+import Login from './pages/Login'
 import ParentDashboard from './pages/ParentDashboard'
-import StudentLearningLog from './pages/StudentLearningLog'
-import StudentRevisions from './pages/StudentRevisions'
+import StudentDashboard from './pages/StudentDashboard'
 import StudentHabits from './pages/StudentHabits'
+import StudentLearningLog from './pages/StudentLearningLog'
 import StudentPeerLearning from './pages/StudentPeerLearning'
+import StudentRevisions from './pages/StudentRevisions'
+import TeacherDashboard from './pages/TeacherDashboard'
+import Upload from './pages/Upload'
 
-// ─── Layout ──────────────────────────────────────────────────────────────────
 import Layout from './components/layout/Layout'
 
-// ─── Protected Route ──────────────────────────────────────────────────────────
-// Redirects to /login if user is not authenticated
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth()
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/login" element={<Login />} />
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
-          <span className="text-5xl">🧠</span>
-          <p className="text-gray-400 mt-4 text-sm">Loading EduMind AI...</p>
-        </div>
-      </div>
-    )
-  }
+    <Route path="/" element={<Layout />}>
+      <Route index element={<Navigate to="/student-dashboard" replace />} />
+      <Route path="dashboard" element={<Dashboard />} />
+      <Route path="chat" element={<Chat />} />
+      <Route path="upload" element={<Upload />} />
+      <Route path="student-dashboard" element={<StudentDashboard />} />
+      <Route path="teacher-dashboard" element={<TeacherDashboard />} />
+      <Route path="parent-dashboard" element={<ParentDashboard />} />
+      <Route path="student-growth" element={<StudentLearningLog />} />
+      <Route path="student-revisions" element={<StudentRevisions />} />
+      <Route path="student-habits" element={<StudentHabits />} />
+      <Route path="student-peer-learning" element={<StudentPeerLearning />} />
+      <Route path="finetuning" element={<FineTuning />} />
+      <Route path="admin" element={<Admin />} />
+    </Route>
 
-  return isAuthenticated ? children : <Navigate to="/login" replace />
-}
+    <Route path="*" element={<Navigate to="/student-dashboard" replace />} />
+  </Routes>
+)
 
-// ─── App Routes ───────────────────────────────────────────────────────────────
-const AppRoutes = () => {
-  return (
-    <Routes>
-      {/* Public Route */}
-      <Route path="/login" element={<Login />} />
-
-      {/* Protected Routes — all inside Layout */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/student-dashboard" replace />} />
-        <Route path="dashboard"  element={<Dashboard />}  />
-        <Route path="chat"       element={<Chat />}       />
-        <Route path="upload"     element={<Upload />}     />
-        <Route path="student-dashboard" element={<StudentDashboard />} />
-        <Route path="teacher-dashboard" element={<TeacherDashboard />} />
-        <Route path="parent-dashboard" element={<ParentDashboard />} />
-        <Route path="student-growth" element={<StudentLearningLog />} />
-        <Route path="student-revisions" element={<StudentRevisions />} />
-        <Route path="student-habits" element={<StudentHabits />} />
-        <Route path="student-peer-learning" element={<StudentPeerLearning />} />
-        <Route path="finetuning" element={<FineTuning />} />
-        <Route path="admin"      element={<Admin />}      />
-      </Route>
-
-      {/* Catch all — redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/student-dashboard" replace />} />
-    </Routes>
-  )
-}
-
-// ─── Root App Component ───────────────────────────────────────────────────────
-const App = () => {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
-  )
-}
+const App = () => (
+  <BrowserRouter>
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  </BrowserRouter>
+)
 
 export default App

@@ -214,6 +214,12 @@ EduMind can be opened from a mobile browser and added to the home screen before
 building native Android or iPhone apps. See the
 [Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md).
 
+## Auth
+
+Frontend login foundation uses Supabase Email + Password for manually created
+pilot accounts. Existing MVP dashboards are not protected yet. See
+[Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -223,6 +229,7 @@ building native Android or iPhone apps. See the
 - [Auth And Deployment Plan](docs/AUTH_AND_DEPLOYMENT_PLAN.md)
 - [Render Backend Deployment](docs/RENDER_BACKEND_DEPLOYMENT.md)
 - [Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md)
+- [Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md)
 
 ## Product Principle
 
