@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { getDefaultRouteForRole } from '../auth/roleRoutes'
 
 const Login = () => {
   const navigate = useNavigate()
-  const { authError, isConfigured, loading, signIn } = useAuth()
+  const {
+    authError,
+    isConfigured,
+    loading,
+    profileLoading,
+    signIn,
+    refreshProfile,
+  } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState('')
@@ -20,7 +28,24 @@ const Login = () => {
 
     const result = await signIn(email.trim(), password)
     if (!result?.error) {
-      navigate('/student-dashboard')
+      const accessToken = result.data?.session?.access_token
+      const profileResult = await refreshProfile(accessToken)
+
+      if (profileResult?.app_user?.role) {
+        navigate(getDefaultRouteForRole(profileResult.app_user.role))
+        return
+      }
+
+      if (profileResult?.errorCode === 'PROFILE_LOAD_FAILED') {
+        setFormError(
+          'Login successful, but EduMind profile could not be loaded. Please try again.'
+        )
+        return
+      }
+
+      setFormError(
+        'Login successful, but your EduMind profile is not linked yet. Please contact EduMind admin.'
+      )
     }
   }
 
@@ -83,12 +108,12 @@ const Login = () => {
 
           <button
             type="submit"
-            disabled={loading || !isConfigured}
+            disabled={loading || profileLoading || !isConfigured}
             className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700
             disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
             transition-colors"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading || profileLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

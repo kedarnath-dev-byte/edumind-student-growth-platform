@@ -228,6 +228,10 @@ Verified Supabase users can now be mapped to EduMind `AppUser` and profile
 records through `GET /api/v1/auth/me/profile`. See
 [Auth User Profile Mapping](docs/AUTH_USER_PROFILE_MAPPING.md).
 
+After login, the frontend now uses the mapped EduMind role to redirect students,
+teachers, and parents to the right dashboard. Existing routes remain open. See
+[Role-Aware Frontend Routing](docs/ROLE_AWARE_FRONTEND_ROUTING.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -240,6 +244,7 @@ records through `GET /api/v1/auth/me/profile`. See
 - [Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md)
 - [Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md)
 - [Auth User Profile Mapping](docs/AUTH_USER_PROFILE_MAPPING.md)
+- [Role-Aware Frontend Routing](docs/ROLE_AWARE_FRONTEND_ROUTING.md)
 
 ## Product Principle
 

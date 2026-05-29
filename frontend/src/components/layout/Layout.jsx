@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL' },
   { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD' },
   { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD' },
+  { path: '/profile-status', label: 'Profile Status', icon: 'PS' },
   { path: '/dashboard', label: 'Dashboard', icon: 'DB' },
   { path: '/chat', label: 'AI Tutor', icon: 'AI' },
   { path: '/upload', label: 'Upload Docs', icon: 'UP' },
@@ -18,9 +19,10 @@ const NAV_ITEMS = [
 ]
 
 const Layout = () => {
-  const { isAuthenticated, signOut, user } = useAuth()
+  const { isAuthenticated, profile, profileError, signOut, user } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const role = profile?.app_user?.role
 
   const handleLogout = async () => {
     await signOut()
@@ -69,6 +71,16 @@ const Layout = () => {
             {isAuthenticated ? (
               <>
                 <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                {role ? (
+                  <p className="mt-2 inline-block rounded bg-blue-500/10 px-2 py-1
+                  text-xs font-semibold text-blue-300">
+                    {role}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-200">
+                    {profileError || 'Profile not linked'}
+                  </p>
+                )}
                 <button
                   onClick={handleLogout}
                   className="mt-2 w-full text-xs text-red-400
@@ -104,6 +116,12 @@ const Layout = () => {
             <span className="text-sm text-gray-400">
               {isAuthenticated ? user.email : 'Demo mode'}
             </span>
+            {isAuthenticated && role && (
+              <span className="rounded bg-blue-500/10 px-2 py-1 text-xs
+              font-semibold text-blue-300">
+                {role}
+              </span>
+            )}
             <div className="w-8 h-8 bg-blue-600 rounded-full
               flex items-center justify-center text-sm font-bold">
               {user?.email?.[0]?.toUpperCase() || 'E'}

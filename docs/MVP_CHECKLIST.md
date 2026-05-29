@@ -37,6 +37,8 @@ foundation.
 - Auth Test Endpoint `/api/v1/auth/me`
 - Auth User/Profile Mapping Foundation
 - Profile Endpoint `/api/v1/auth/me/profile`
+- Role-Aware Frontend Redirect After Login
+- Profile Status Route `/profile-status`
 - Role-Aware Access Pending
 - Plan/Access-Level Gating Pending
 

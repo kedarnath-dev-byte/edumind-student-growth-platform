@@ -6,14 +6,20 @@ import {
   useState,
 } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient'
+import authService from '../services/authService'
 
 const AuthContext = createContext(null)
+const profileNotLinkedMessage =
+  'EduMind profile is not linked yet. Please contact EduMind admin.'
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState('')
+  const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileError, setProfileError] = useState('')
 
   const refreshSession = async () => {
     if (!isSupabaseConfigured || !supabase) {
@@ -36,6 +42,39 @@ export const AuthProvider = ({ children }) => {
     return data.session
   }
 
+  const getAccessToken = () => session?.access_token || null
+
+  const refreshProfile = async (accessToken = null) => {
+    const token = accessToken || getAccessToken()
+
+    if (!token) {
+      setProfile(null)
+      setProfileError('')
+      return null
+    }
+
+    setProfileLoading(true)
+    setProfileError('')
+
+    try {
+      const currentProfile = await authService.getCurrentEduMindProfile(token)
+      setProfile(currentProfile)
+      return currentProfile
+    } catch (error) {
+      setProfile(null)
+      if (error.code === 'PROFILE_NOT_LINKED') {
+        setProfileError(profileNotLinkedMessage)
+      } else {
+        setProfileError(
+          'EduMind profile could not be loaded. Please try again.'
+        )
+      }
+      return { errorCode: error.code || 'PROFILE_LOAD_FAILED' }
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
   useEffect(() => {
     let subscription
 
@@ -54,6 +93,10 @@ export const AuthProvider = ({ children }) => {
         setSession(nextSession)
         setUser(nextSession?.user || null)
         setAuthError('')
+        if (!nextSession) {
+          setProfile(null)
+          setProfileError('')
+        }
       })
       subscription = data.subscription
     }
@@ -62,6 +105,15 @@ export const AuthProvider = ({ children }) => {
       subscription?.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    if (session?.access_token) {
+      refreshProfile(session.access_token)
+    } else {
+      setProfile(null)
+      setProfileError('')
+    }
+  }, [session?.access_token])
 
   const signIn = async (email, password) => {
     if (!isSupabaseConfigured || !supabase) {
@@ -110,6 +162,8 @@ export const AuthProvider = ({ children }) => {
       }
       setSession(null)
       setUser(null)
+      setProfile(null)
+      setProfileError('')
     } finally {
       setLoading(false)
     }
@@ -120,12 +174,17 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     authError,
+    profile,
+    profileLoading,
+    profileError,
     isConfigured: isSupabaseConfigured,
     isAuthenticated: Boolean(user),
+    getAccessToken,
     signIn,
     signOut,
     refreshSession,
-  }), [session, user, loading, authError])
+    refreshProfile,
+  }), [session, user, loading, authError, profile, profileLoading, profileError])
 
   return (
     <AuthContext.Provider value={value}>
