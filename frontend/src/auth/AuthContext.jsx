@@ -12,6 +12,11 @@ const AuthContext = createContext(null)
 const profileNotLinkedMessage =
   'EduMind profile is not linked yet. Please contact EduMind admin.'
 
+const clearProfileState = (setProfile, setProfileError) => {
+  setProfile(null)
+  setProfileError('')
+}
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
@@ -25,6 +30,7 @@ export const AuthProvider = ({ children }) => {
     if (!isSupabaseConfigured || !supabase) {
       setSession(null)
       setUser(null)
+      clearProfileState(setProfile, setProfileError)
       setLoading(false)
       return null
     }
@@ -34,9 +40,11 @@ export const AuthProvider = ({ children }) => {
       setAuthError(error.message || 'Could not refresh login session.')
       setSession(null)
       setUser(null)
+      clearProfileState(setProfile, setProfileError)
       return null
     }
 
+    clearProfileState(setProfile, setProfileError)
     setSession(data.session)
     setUser(data.session?.user || null)
     return data.session
@@ -90,13 +98,12 @@ export const AuthProvider = ({ children }) => {
 
     if (isSupabaseConfigured && supabase) {
       const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        clearProfileState(setProfile, setProfileError)
+        setProfileLoading(Boolean(nextSession?.access_token))
         setSession(nextSession)
         setUser(nextSession?.user || null)
         setAuthError('')
-        if (!nextSession) {
-          setProfile(null)
-          setProfileError('')
-        }
+        if (!nextSession) setProfileLoading(false)
       })
       subscription = data.subscription
     }
@@ -110,8 +117,8 @@ export const AuthProvider = ({ children }) => {
     if (session?.access_token) {
       refreshProfile(session.access_token)
     } else {
-      setProfile(null)
-      setProfileError('')
+      clearProfileState(setProfile, setProfileError)
+      setProfileLoading(false)
     }
   }, [session?.access_token])
 
@@ -124,6 +131,7 @@ export const AuthProvider = ({ children }) => {
 
     setLoading(true)
     setAuthError('')
+    clearProfileState(setProfile, setProfileError)
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -148,6 +156,8 @@ export const AuthProvider = ({ children }) => {
     if (!isSupabaseConfigured || !supabase) {
       setSession(null)
       setUser(null)
+      clearProfileState(setProfile, setProfileError)
+      setProfileLoading(false)
       return
     }
 
@@ -162,9 +172,9 @@ export const AuthProvider = ({ children }) => {
       }
       setSession(null)
       setUser(null)
-      setProfile(null)
-      setProfileError('')
+      clearProfileState(setProfile, setProfileError)
     } finally {
+      setProfileLoading(false)
       setLoading(false)
     }
   }

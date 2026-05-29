@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { normalizeRole } from './roleRoutes'
 
 const LoadingAccess = () => (
   <div className="min-h-[50vh] flex items-center justify-center">
@@ -29,6 +30,11 @@ const ProtectedRoute = ({
     session,
     user,
   } = useAuth()
+  const profileSupabaseUserId = profile?.supabase_user_id
+    || profile?.app_user?.supabase_user_id
+  const profileBelongsToCurrentUser = Boolean(
+    profile && user?.id && profileSupabaseUserId === user.id
+  )
 
   if (loading || profileLoading) {
     return <LoadingAccess />
@@ -38,7 +44,7 @@ const ProtectedRoute = ({
     return <Navigate to="/login" replace state={{ from: location }} />
   }
 
-  if (!profile) {
+  if (!profile || !profileBelongsToCurrentUser) {
     if (allowUnlinkedProfile) {
       return children
     }
@@ -55,12 +61,12 @@ const ProtectedRoute = ({
     )
   }
 
-  const role = String(profile.app_user?.role || '').toUpperCase()
-  const normalizedAllowedRoles = allowedRoles?.map((item) => item.toUpperCase())
+  const role = normalizeRole(profile.app_user?.role)
+  const normalizedAllowedRoles = allowedRoles?.map(normalizeRole)
 
   if (
     normalizedAllowedRoles?.length
-    && !normalizedAllowedRoles.includes(role)
+    && (!role || !normalizedAllowedRoles.includes(role))
   ) {
     return <Navigate to="/unauthorized" replace />
   }

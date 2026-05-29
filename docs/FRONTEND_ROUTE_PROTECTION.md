@@ -17,6 +17,14 @@ later.
 If a signed-in user tries to open a dashboard outside their role, the frontend
 sends them to `/unauthorized`.
 
+Role comparison is strict and normalized with trim + uppercase, so values such
+as `teacher`, `TEACHER`, or ` TEACHER ` are treated consistently.
+
+The guard also verifies that the loaded EduMind profile belongs to the current
+Supabase user before allowing access. Stale profile state is cleared on
+logout/session changes so switching from one account to another cannot reuse the
+previous user's role.
+
 ## Public Routes
 
 - `/login`

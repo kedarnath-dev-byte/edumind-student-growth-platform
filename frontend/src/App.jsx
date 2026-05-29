@@ -30,6 +30,7 @@ const AppRoutes = () => (
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="chat" element={<Chat />} />
       <Route path="upload" element={<Upload />} />
+      {/* STUDENT only */}
       <Route
         path="student-dashboard"
         element={(
@@ -38,6 +39,7 @@ const AppRoutes = () => (
           </ProtectedRoute>
         )}
       />
+      {/* TEACHER only */}
       <Route
         path="teacher-dashboard"
         element={(
@@ -46,6 +48,7 @@ const AppRoutes = () => (
           </ProtectedRoute>
         )}
       />
+      {/* PARENT only */}
       <Route
         path="parent-dashboard"
         element={(

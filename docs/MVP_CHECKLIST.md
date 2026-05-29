@@ -46,6 +46,8 @@ foundation.
 - Dev Seed Endpoint Protection Pending
 - Frontend Role Dashboard Route Protection
 - Unauthorized Page
+- Strict Normalized Role Checks
+- Stale Profile Cleared On Auth Switch
 - Backend API Route Protection Pending
 
 ## Pitch And Marketing Assets Note

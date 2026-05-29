@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { getDefaultRouteForRole } from '../auth/roleRoutes'
+import { getDefaultRouteForRole, normalizeRole } from '../auth/roleRoutes'
 
 const Unauthorized = () => {
   const navigate = useNavigate()
   const { profile, signOut } = useAuth()
-  const role = profile?.app_user?.role
+  const role = normalizeRole(profile?.app_user?.role)
   const dashboardPath = getDefaultRouteForRole(role)
 
   const handleLogout = async () => {

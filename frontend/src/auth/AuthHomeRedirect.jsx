@@ -21,6 +21,12 @@ const AuthHomeRedirect = () => {
     return <Navigate to="/profile-status" replace />
   }
 
+  const profileSupabaseUserId = profile?.supabase_user_id
+    || profile?.app_user?.supabase_user_id
+  if (user?.id && profileSupabaseUserId !== user.id) {
+    return <Navigate to="/profile-status" replace />
+  }
+
   return <Navigate to={getDefaultRouteForRole(profile.app_user?.role)} replace />
 }
 
