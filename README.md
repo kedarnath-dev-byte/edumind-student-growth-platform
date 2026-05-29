@@ -224,6 +224,10 @@ Backend Supabase JWT verification foundation is available through
 `GET /api/v1/auth/me`. Existing dashboard APIs are not protected yet. See
 [Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md).
 
+Verified Supabase users can now be mapped to EduMind `AppUser` and profile
+records through `GET /api/v1/auth/me/profile`. See
+[Auth User Profile Mapping](docs/AUTH_USER_PROFILE_MAPPING.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -235,6 +239,7 @@ Backend Supabase JWT verification foundation is available through
 - [Mobile Install Guide](docs/MOBILE_INSTALL_GUIDE.md)
 - [Frontend Supabase Login](docs/AUTH_FRONTEND_LOGIN.md)
 - [Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md)
+- [Auth User Profile Mapping](docs/AUTH_USER_PROFILE_MAPPING.md)
 
 ## Product Principle
 

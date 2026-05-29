@@ -35,6 +35,8 @@ foundation.
 - Backend JWT Verification Pending
 - Backend Supabase JWT Verification Foundation
 - Auth Test Endpoint `/api/v1/auth/me`
+- Auth User/Profile Mapping Foundation
+- Profile Endpoint `/api/v1/auth/me/profile`
 - Role-Aware Access Pending
 - Plan/Access-Level Gating Pending
 
