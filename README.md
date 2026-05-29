@@ -232,6 +232,10 @@ After login, the frontend now uses the mapped EduMind role to redirect students,
 teachers, and parents to the right dashboard. Existing routes remain open. See
 [Role-Aware Frontend Routing](docs/ROLE_AWARE_FRONTEND_ROUTING.md).
 
+Production-readiness notes for pilot onboarding are tracked in
+[Production Readiness Audit](docs/PRODUCTION_READINESS_AUDIT.md) and
+[Production Database Migration Notes](docs/PRODUCTION_DATABASE_MIGRATION_NOTES.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -245,6 +249,8 @@ teachers, and parents to the right dashboard. Existing routes remain open. See
 - [Backend Supabase JWT Verification](docs/BACKEND_SUPABASE_JWT_VERIFICATION.md)
 - [Auth User Profile Mapping](docs/AUTH_USER_PROFILE_MAPPING.md)
 - [Role-Aware Frontend Routing](docs/ROLE_AWARE_FRONTEND_ROUTING.md)
+- [Production Readiness Audit](docs/PRODUCTION_READINESS_AUDIT.md)
+- [Production Database Migration Notes](docs/PRODUCTION_DATABASE_MIGRATION_NOTES.md)
 
 ## Product Principle
 

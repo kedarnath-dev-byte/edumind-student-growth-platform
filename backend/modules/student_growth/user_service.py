@@ -2,6 +2,7 @@
 
 from typing import List, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from modules.student_growth.models import (
@@ -29,6 +30,18 @@ class UserNotFoundError(Exception):
     """Raised when a user/profile/link lookup cannot be completed."""
 
 
+class DuplicateUserError(Exception):
+    """Raised when a pilot user email or phone already exists."""
+
+
+class DuplicateProfileError(Exception):
+    """Raised when a role profile already exists for an AppUser."""
+
+
+class UserConstraintError(Exception):
+    """Raised for unexpected user database constraint failures."""
+
+
 class UserService:
     """Creates and reads pilot identity foundation data."""
 
@@ -36,11 +49,34 @@ class UserService:
         self.db = db
 
     def create_user(self, payload: AppUserCreate) -> AppUser:
-        user = AppUser(**payload.model_dump(), status="ACTIVE")
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
+        data = payload.model_dump()
+        email = data.get("email")
+        phone = data.get("phone")
+
+        if email and self.db.query(AppUser).filter(AppUser.email == email).first():
+            raise DuplicateUserError("A user with this email already exists.")
+
+        if phone and self.db.query(AppUser).filter(AppUser.phone == phone).first():
+            raise DuplicateUserError("A user with this phone number already exists.")
+
+        try:
+            user = AppUser(**data, status="ACTIVE")
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except IntegrityError as exc:
+            self.db.rollback()
+            message = str(exc.orig).lower()
+            if "email" in message:
+                raise DuplicateUserError("A user with this email already exists.")
+            if "phone" in message:
+                raise DuplicateUserError(
+                    "A user with this phone number already exists."
+                )
+            raise UserConstraintError(
+                "User could not be created due to a database constraint."
+            )
 
     def list_users(self, role: Optional[str] = None) -> List[AppUser]:
         query = self.db.query(AppUser)
@@ -49,6 +85,7 @@ class UserService:
         return query.order_by(AppUser.created_at.desc()).all()
 
     def create_student_profile(self, payload: StudentProfileCreate) -> StudentProfile:
+        self._ensure_profile_does_not_exist(StudentProfile, payload.user_id)
         profile = StudentProfile(**payload.model_dump())
         self.db.add(profile)
         self.db.commit()
@@ -66,6 +103,7 @@ class UserService:
         return profile
 
     def create_teacher_profile(self, payload: TeacherProfileCreate) -> TeacherProfile:
+        self._ensure_profile_does_not_exist(TeacherProfile, payload.user_id)
         profile = TeacherProfile(**payload.model_dump())
         self.db.add(profile)
         self.db.commit()
@@ -73,6 +111,7 @@ class UserService:
         return profile
 
     def create_parent_profile(self, payload: ParentProfileCreate) -> ParentProfile:
+        self._ensure_profile_does_not_exist(ParentProfile, payload.user_id)
         profile = ParentProfile(**payload.model_dump())
         self.db.add(profile)
         self.db.commit()
@@ -146,3 +185,8 @@ class UserService:
             .order_by(Classroom.name.asc())
             .all()
         )
+
+    def _ensure_profile_does_not_exist(self, model, user_id: int) -> None:
+        existing_profile = self.db.query(model).filter(model.user_id == user_id).first()
+        if existing_profile is not None:
+            raise DuplicateProfileError("Profile already exists for this user.")

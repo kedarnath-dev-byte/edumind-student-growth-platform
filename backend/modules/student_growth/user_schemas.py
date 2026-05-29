@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from modules.student_growth.setup_schemas import ClassroomResponse
 
@@ -14,6 +14,14 @@ class AppUserCreate(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     role: str
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value):
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
 
 
 class AppUserResponse(BaseModel):
@@ -72,6 +80,14 @@ class ParentProfileCreate(BaseModel):
     user_id: int
     display_name: str = Field(..., min_length=1)
     phone: Optional[str] = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value):
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
 
 
 class ParentProfileResponse(BaseModel):

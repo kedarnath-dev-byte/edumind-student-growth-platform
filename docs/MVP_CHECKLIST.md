@@ -41,6 +41,9 @@ foundation.
 - Profile Status Route `/profile-status`
 - Role-Aware Access Pending
 - Plan/Access-Level Gating Pending
+- Production User Onboarding Safety Fixes
+- Production Database Migration Notes
+- Dev Seed Endpoint Protection Pending
 
 ## Pitch And Marketing Assets Note
 

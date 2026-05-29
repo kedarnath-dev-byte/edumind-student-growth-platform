@@ -23,14 +23,25 @@ from modules.student_growth.user_schemas import (
     TeacherProfileCreate,
     TeacherProfileResponse,
 )
-from modules.student_growth.user_service import UserNotFoundError, UserService
+from modules.student_growth.user_service import (
+    DuplicateProfileError,
+    DuplicateUserError,
+    UserConstraintError,
+    UserNotFoundError,
+    UserService,
+)
 
 router = APIRouter(prefix="/api/v1/users", tags=["Pilot Users & Profiles"])
 
 
 @router.post("", response_model=AppUserResponse)
 async def create_user(payload: AppUserCreate, db: Session = Depends(get_db)):
-    return UserService(db).create_user(payload)
+    try:
+        return UserService(db).create_user(payload)
+    except DuplicateUserError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except UserConstraintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("", response_model=list[AppUserResponse])
@@ -46,7 +57,10 @@ async def create_student_profile(
     payload: StudentProfileCreate,
     db: Session = Depends(get_db),
 ):
-    return UserService(db).create_student_profile(payload)
+    try:
+        return UserService(db).create_student_profile(payload)
+    except DuplicateProfileError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.get(
@@ -68,7 +82,10 @@ async def create_teacher_profile(
     payload: TeacherProfileCreate,
     db: Session = Depends(get_db),
 ):
-    return UserService(db).create_teacher_profile(payload)
+    try:
+        return UserService(db).create_teacher_profile(payload)
+    except DuplicateProfileError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/parent-profiles", response_model=ParentProfileResponse)
@@ -76,7 +93,10 @@ async def create_parent_profile(
     payload: ParentProfileCreate,
     db: Session = Depends(get_db),
 ):
-    return UserService(db).create_parent_profile(payload)
+    try:
+        return UserService(db).create_parent_profile(payload)
+    except DuplicateProfileError as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post(
