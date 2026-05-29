@@ -7,6 +7,8 @@
 @author    EduMind AI Engineering
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from modules.health.health_controller import router as health_router
@@ -39,9 +41,27 @@ app = FastAPI(
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://edumind-student-growth-platform.vercel.app",
+]
+
+
+def get_cors_origins():
+    configured_origins = os.getenv("CORS_ORIGINS", "")
+    extra_origins = [
+        origin.strip()
+        for origin in configured_origins.split(",")
+        if origin.strip()
+    ]
+    return [*DEFAULT_CORS_ORIGINS, *extra_origins]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten in production
+    allow_origins=get_cors_origins(),
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

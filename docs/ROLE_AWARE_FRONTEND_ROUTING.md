@@ -26,6 +26,9 @@ Authorization: Bearer <supabase_access_token>
 The backend returns the linked EduMind `AppUser` and any matching student,
 teacher, or parent profile data.
 
+For deployed Vercel previews, the Render backend must allow the Vercel origin
+through CORS. See `docs/CORS_DEPLOYMENT_NOTES.md`.
+
 ## Role Redirects
 
 - `STUDENT` -> `/student-dashboard`
