@@ -44,6 +44,9 @@ foundation.
 - Production User Onboarding Safety Fixes
 - Production Database Migration Notes
 - Dev Seed Endpoint Protection Pending
+- Frontend Role Dashboard Route Protection
+- Unauthorized Page
+- Backend API Route Protection Pending
 
 ## Pitch And Marketing Assets Note
 

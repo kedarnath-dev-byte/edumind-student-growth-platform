@@ -236,6 +236,9 @@ Production-readiness notes for pilot onboarding are tracked in
 [Production Readiness Audit](docs/PRODUCTION_READINESS_AUDIT.md) and
 [Production Database Migration Notes](docs/PRODUCTION_DATABASE_MIGRATION_NOTES.md).
 
+Frontend role dashboards are now protected using Supabase login and EduMind
+profile roles. See [Frontend Route Protection](docs/FRONTEND_ROUTE_PROTECTION.md).
+
 ## Documentation
 
 - [Local Development Guide](docs/LOCAL_DEVELOPMENT.md)
@@ -251,6 +254,7 @@ Production-readiness notes for pilot onboarding are tracked in
 - [Role-Aware Frontend Routing](docs/ROLE_AWARE_FRONTEND_ROUTING.md)
 - [Production Readiness Audit](docs/PRODUCTION_READINESS_AUDIT.md)
 - [Production Database Migration Notes](docs/PRODUCTION_DATABASE_MIGRATION_NOTES.md)
+- [Frontend Route Protection](docs/FRONTEND_ROUTE_PROTECTION.md)
 
 ## Product Principle
 

@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AuthHomeRedirect from './auth/AuthHomeRedirect'
 import { AuthProvider } from './auth/AuthContext'
+import ProtectedRoute from './auth/ProtectedRoute'
 
 import Admin from './pages/Admin'
 import Chat from './pages/Chat'
@@ -14,6 +16,7 @@ import StudentLearningLog from './pages/StudentLearningLog'
 import StudentPeerLearning from './pages/StudentPeerLearning'
 import StudentRevisions from './pages/StudentRevisions'
 import TeacherDashboard from './pages/TeacherDashboard'
+import Unauthorized from './pages/Unauthorized'
 import Upload from './pages/Upload'
 
 import Layout from './components/layout/Layout'
@@ -23,14 +26,43 @@ const AppRoutes = () => (
     <Route path="/login" element={<Login />} />
 
     <Route path="/" element={<Layout />}>
-      <Route index element={<Navigate to="/student-dashboard" replace />} />
+      <Route index element={<AuthHomeRedirect />} />
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="chat" element={<Chat />} />
       <Route path="upload" element={<Upload />} />
-      <Route path="student-dashboard" element={<StudentDashboard />} />
-      <Route path="teacher-dashboard" element={<TeacherDashboard />} />
-      <Route path="parent-dashboard" element={<ParentDashboard />} />
-      <Route path="profile-status" element={<ProfileStatus />} />
+      <Route
+        path="student-dashboard"
+        element={(
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentDashboard />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="teacher-dashboard"
+        element={(
+          <ProtectedRoute allowedRoles={['TEACHER']}>
+            <TeacherDashboard />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="parent-dashboard"
+        element={(
+          <ProtectedRoute allowedRoles={['PARENT']}>
+            <ParentDashboard />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="profile-status"
+        element={(
+          <ProtectedRoute allowUnlinkedProfile>
+            <ProfileStatus />
+          </ProtectedRoute>
+        )}
+      />
+      <Route path="unauthorized" element={<Unauthorized />} />
       <Route path="student-growth" element={<StudentLearningLog />} />
       <Route path="student-revisions" element={<StudentRevisions />} />
       <Route path="student-habits" element={<StudentHabits />} />

@@ -8,12 +8,14 @@
 - Backend can verify Supabase JWTs through JWKS.
 - EduMind `AppUser` can map to student, teacher, and parent profiles.
 - Role-aware frontend redirect exists after login.
+- Frontend role dashboard route protection exists for student, teacher, and
+  parent dashboards.
 - Existing dashboards remain available for MVP demo use.
 
 ## Current Known Risks
 
 - Existing dashboard data still uses hardcoded MVP IDs.
-- Existing dashboard routes are not protected yet.
+- Backend API routes are not protected yet.
 - `POST /api/v1/dev/seed-demo-data` is still public and must be disabled or
   protected before public school rollout.
 - `Base.metadata.create_all` creates missing tables but does not alter existing
