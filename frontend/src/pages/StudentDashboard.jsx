@@ -63,6 +63,37 @@ const startOfDay = (date) => {
   return next
 }
 
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const getDueDateKey = (value) => {
+  if (typeof value === 'string') {
+    const dateOnly = value.match(/^(\d{4}-\d{2}-\d{2})/)
+    if (dateOnly) return dateOnly[1]
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return toLocalDateKey(parsed)
+}
+
+const formatDateKey = (dateKey) => {
+  if (!dateKey) return ''
+
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return dateKey
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day))
+}
+
 const normalizeHabitSummary = (payload) => {
   if (!payload || typeof payload !== 'object') return defaultHabitSummary
 
@@ -99,9 +130,7 @@ const getHabitStatusMessage = (status) => {
 }
 
 const categorizeRevisions = (tasks) => {
-  const today = startOfDay(new Date())
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  const todayKey = toLocalDateKey(startOfDay(new Date()))
 
   return toSafeArray(tasks).reduce((counts, task) => {
     if (task.status === 'COMPLETED') {
@@ -109,27 +138,45 @@ const categorizeRevisions = (tasks) => {
       return counts
     }
 
-    const dueDate = new Date(task.due_at)
-    if (Number.isNaN(dueDate.getTime())) {
-      counts.futureLocked += 1
+    if (task.status !== 'PENDING') {
       return counts
     }
 
-    if (task.status === 'PENDING' && dueDate < today) {
+    const dueDateKey = getDueDateKey(task.due_at)
+    if (!dueDateKey) {
+      counts.upcoming += 1
+      return counts
+    }
+
+    if (dueDateKey < todayKey) {
       counts.overduePending += 1
-    } else if (task.status === 'PENDING' && dueDate >= today && dueDate < tomorrow) {
+    } else if (dueDateKey === todayKey) {
       counts.dueTodayPending += 1
-    } else if (task.status === 'PENDING') {
-      counts.futureLocked += 1
+    } else {
+      counts.upcoming += 1
+      if (!counts.nextUpcomingDateKey || dueDateKey < counts.nextUpcomingDateKey) {
+        counts.nextUpcomingDateKey = dueDateKey
+      }
     }
 
     return counts
   }, {
     dueTodayPending: 0,
     overduePending: 0,
-    futureLocked: 0,
+    upcoming: 0,
     completed: 0,
+    nextUpcomingDateKey: '',
   })
+}
+
+const getRevisionStatusMessage = (snapshot) => {
+  if (snapshot.overduePending > 0) {
+    return "You have revision tasks waiting. Let's rescue your memory."
+  }
+  if (snapshot.dueTodayPending > 0) {
+    return 'You have revision tasks ready for today.'
+  }
+  return 'You are on track. Your next revision is planned ahead.'
 }
 
 const StatCard = ({ label, value, helper }) => (
@@ -213,16 +260,12 @@ const StudentDashboard = () => {
   }, [])
 
   const revisionSnapshot = useMemo(() => categorizeRevisions(revisions), [revisions])
-
-  const revisionMessage = (() => {
-    if (revisionSnapshot.overduePending > 0) {
-      return 'Some topics are waiting for Memory Rescue. No shame, recover gently.'
-    }
-    if (revisionSnapshot.dueTodayPending > 0) {
-      return 'You have revision missions waiting today.'
-    }
-    return 'No revision due right now. Your habit is protected.'
-  })()
+  const hasRevisionTasks = revisions.length > 0
+  const revisionStatusMessage = getRevisionStatusMessage(revisionSnapshot)
+  const revisionCtaLabel = revisionSnapshot.dueTodayPending > 0
+    || revisionSnapshot.overduePending > 0
+    ? "Start Today's Revision"
+    : 'View Revision Plan'
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -365,22 +408,13 @@ const StudentDashboard = () => {
       </section>
 
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Revision Snapshot</h2>
-            <p className="text-gray-400 text-sm mt-1">{revisionMessage}</p>
-          </div>
-          <Link
-            to="/student-revisions"
-            className="self-start lg:self-center bg-blue-600 hover:bg-blue-500
-            text-white text-sm font-semibold rounded-lg px-4 py-2 transition-colors"
-          >
-            Open revision mission
-          </Link>
-        </div>
-
         {loading ? (
-          <p className="text-gray-400 text-sm">Loading revision snapshot...</p>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Today's Revision</h2>
+            <p className="text-gray-400 text-sm mt-2">
+              Loading today's revision plan...
+            </p>
+          </div>
         ) : (
           <>
             {sectionWarnings.revisions && (
@@ -388,28 +422,85 @@ const StudentDashboard = () => {
                 {sectionWarnings.revisions}
               </p>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <StatCard
-                label="Due today"
-                value={revisionSnapshot.dueTodayPending}
-                helper="Ready for attention"
-              />
-              <StatCard
-                label="Memory rescue"
-                value={revisionSnapshot.overduePending}
-                helper="Recover gently"
-              />
-              <StatCard
-                label="Future locked"
-                value={revisionSnapshot.futureLocked}
-                helper="Planned for later"
-              />
-              <StatCard
-                label="Completed"
-                value={revisionSnapshot.completed}
-                helper="Memory protected"
-              />
-            </div>
+
+            {!hasRevisionTasks ? (
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Today's Revision</h2>
+                  <p className="text-gray-400 text-sm mt-2">
+                    No revision tasks yet. Submit a daily learning log to create your
+                    24H, 7D, 1M, 3M, and 6M revision plan.
+                  </p>
+                </div>
+                <Link
+                  to="/student-revisions"
+                  aria-label="View Revision Plan"
+                  className="self-start lg:self-center bg-blue-600 hover:bg-blue-500
+                  text-white text-sm font-semibold rounded-lg px-4 py-2 transition-colors"
+                >
+                  View Revision Plan
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Today's Revision</h2>
+                    <p className="text-gray-300 text-sm mt-2">
+                      {revisionStatusMessage}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                      <p className="text-gray-500 text-xs">Today pending</p>
+                      <p className="text-2xl font-bold text-white mt-1">
+                        {revisionSnapshot.dueTodayPending}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-2">Ready for attention</p>
+                    </div>
+
+                    {revisionSnapshot.overduePending > 0 && (
+                      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                        <p className="text-amber-200 text-xs">Memory Rescue</p>
+                        <p className="text-2xl font-bold text-white mt-1">
+                          {revisionSnapshot.overduePending}
+                        </p>
+                        <p className="text-amber-100/80 text-xs mt-2">
+                          Recover gently
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                      <p className="text-gray-500 text-xs">Completed</p>
+                      <p className="text-2xl font-bold text-white mt-1">
+                        {revisionSnapshot.completed}
+                      </p>
+                      <p className="text-gray-500 text-xs mt-2">Memory protected</p>
+                    </div>
+                  </div>
+
+                  {revisionSnapshot.nextUpcomingDateKey && (
+                    <p className="text-gray-400 text-sm">
+                      Next upcoming revision:{' '}
+                      <span className="text-white font-semibold">
+                        {formatDateKey(revisionSnapshot.nextUpcomingDateKey)}
+                      </span>
+                    </p>
+                  )}
+                </div>
+
+                <Link
+                  to="/student-revisions"
+                  aria-label={revisionCtaLabel}
+                  className="self-start xl:self-center bg-blue-600 hover:bg-blue-500
+                  text-white text-sm font-semibold rounded-lg px-4 py-2 transition-colors"
+                >
+                  {revisionCtaLabel}
+                </Link>
+              </div>
+            )}
           </>
         )}
       </section>
