@@ -191,7 +191,9 @@ const StudentDashboard = () => {
   const [habitSummary, setHabitSummary] = useState(defaultHabitSummary)
   const [revisions, setRevisions] = useState([])
   const [topicCircle, setTopicCircle] = useState(defaultTopicCircle)
-  const [loading, setLoading] = useState(true)
+  const [habitsLoading, setHabitsLoading] = useState(true)
+  const [revisionsLoading, setRevisionsLoading] = useState(true)
+  const [peerLearningLoading, setPeerLearningLoading] = useState(true)
   const [warning, setWarning] = useState('')
   const [sectionWarnings, setSectionWarnings] = useState({
     habits: '',
@@ -200,63 +202,96 @@ const StudentDashboard = () => {
   })
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      setLoading(true)
-      setWarning('')
-      setSectionWarnings({
-        habits: '',
-        revisions: '',
-        peerLearning: '',
-      })
+    let isMounted = true
+    let completedRequests = 0
+    let failedRequests = 0
 
-      const [habitResult, revisionResult, circleResult] = await Promise.allSettled([
-        studentGrowthService.getHabitSummary(STUDENT_ID),
-        studentGrowthService.getRevisionsForStudent(STUDENT_ID),
-        studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID),
-      ])
+    const markRequestDone = (failed = false) => {
+      completedRequests += 1
+      if (failed) failedRequests += 1
 
-      const nextWarnings = {
-        habits: '',
-        revisions: '',
-        peerLearning: '',
-      }
-      let failedCount = 0
-
-      if (habitResult.status === 'fulfilled') {
-        setHabitSummary(normalizeHabitSummary(habitResult.value))
-      } else {
-        failedCount += 1
-        console.error('Failed to load habit snapshot:', habitResult.reason)
-        setHabitSummary(defaultHabitSummary)
-        nextWarnings.habits = 'Habit snapshot could not refresh.'
-      }
-
-      if (revisionResult.status === 'fulfilled') {
-        setRevisions(toSafeArray(revisionResult.value))
-      } else {
-        failedCount += 1
-        console.error('Failed to load revision snapshot:', revisionResult.reason)
-        setRevisions([])
-        nextWarnings.revisions = 'Revision snapshot could not refresh.'
-      }
-
-      if (circleResult.status === 'fulfilled') {
-        setTopicCircle(normalizeTopicCircle(circleResult.value))
-      } else {
-        failedCount += 1
-        console.error('Failed to load peer learning snapshot:', circleResult.reason)
-        setTopicCircle(defaultTopicCircle)
-        nextWarnings.peerLearning = 'Peer learning snapshot could not refresh.'
-      }
-
-      setSectionWarnings(nextWarnings)
-      if (failedCount === 3) {
+      if (isMounted && completedRequests === 3 && failedRequests === 3) {
         setWarning('Backend is not reachable. Please start the backend server.')
       }
-      setLoading(false)
     }
 
-    loadDashboard()
+    const loadHabits = async () => {
+      setHabitsLoading(true)
+      setSectionWarnings((current) => ({ ...current, habits: '' }))
+
+      try {
+        const payload = await studentGrowthService.getHabitSummary(STUDENT_ID)
+        if (!isMounted) return
+        setHabitSummary(normalizeHabitSummary(payload))
+        markRequestDone(false)
+      } catch (error) {
+        console.error('Failed to load habit snapshot:', error)
+        if (!isMounted) return
+        setHabitSummary(defaultHabitSummary)
+        setSectionWarnings((current) => ({
+          ...current,
+          habits: 'Habit snapshot could not refresh.',
+        }))
+        markRequestDone(true)
+      } finally {
+        if (isMounted) setHabitsLoading(false)
+      }
+    }
+
+    const loadRevisions = async () => {
+      setRevisionsLoading(true)
+      setSectionWarnings((current) => ({ ...current, revisions: '' }))
+
+      try {
+        const tasks = await studentGrowthService.getRevisionsForStudent(STUDENT_ID)
+        if (!isMounted) return
+        setRevisions(toSafeArray(tasks))
+        markRequestDone(false)
+      } catch (error) {
+        console.error('Failed to load revision snapshot:', error)
+        if (!isMounted) return
+        setRevisions([])
+        setSectionWarnings((current) => ({
+          ...current,
+          revisions: 'Revision snapshot could not refresh.',
+        }))
+        markRequestDone(true)
+      } finally {
+        if (isMounted) setRevisionsLoading(false)
+      }
+    }
+
+    const loadPeerLearning = async () => {
+      setPeerLearningLoading(true)
+      setSectionWarnings((current) => ({ ...current, peerLearning: '' }))
+
+      try {
+        const payload = await studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID)
+        if (!isMounted) return
+        setTopicCircle(normalizeTopicCircle(payload))
+        markRequestDone(false)
+      } catch (error) {
+        console.error('Failed to load peer learning snapshot:', error)
+        if (!isMounted) return
+        setTopicCircle(defaultTopicCircle)
+        setSectionWarnings((current) => ({
+          ...current,
+          peerLearning: 'Peer learning snapshot could not refresh.',
+        }))
+        markRequestDone(true)
+      } finally {
+        if (isMounted) setPeerLearningLoading(false)
+      }
+    }
+
+    setWarning('')
+    loadRevisions()
+    loadHabits()
+    loadPeerLearning()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const revisionSnapshot = useMemo(() => categorizeRevisions(revisions), [revisions])
@@ -337,7 +372,7 @@ const StudentDashboard = () => {
             </span>
           </div>
 
-          {loading ? (
+          {habitsLoading ? (
             <p className="text-gray-400 text-sm">Loading habit snapshot...</p>
           ) : (
             <>
@@ -381,7 +416,7 @@ const StudentDashboard = () => {
             If you understand, explain. If you need support, ask.
           </p>
 
-          {loading ? (
+          {peerLearningLoading ? (
             <p className="text-gray-400 text-sm mt-5">Loading help circle...</p>
           ) : (
             <>
@@ -408,7 +443,7 @@ const StudentDashboard = () => {
       </section>
 
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        {loading ? (
+        {revisionsLoading ? (
           <div>
             <h2 className="text-lg font-semibold text-white">Today's Revision</h2>
             <p className="text-gray-400 text-sm mt-2">
