@@ -24,6 +24,8 @@ def normalize_database_url(raw_url: str) -> str:
 def get_database_url() -> str:
     """Use DATABASE_URL when provided, otherwise keep local SQLite fallback."""
     raw_url = os.getenv("DATABASE_URL") or SQLITE_DATABASE_URL
+    if os.getenv("ENVIRONMENT") == "production" and raw_url.startswith("sqlite"):
+        raise RuntimeError("Production requires a persistent PostgreSQL DATABASE_URL")
     return normalize_database_url(raw_url)
 
 

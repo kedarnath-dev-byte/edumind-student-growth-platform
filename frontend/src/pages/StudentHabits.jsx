@@ -3,9 +3,9 @@
  * @description Student habit summary page for healthy learning progress.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/authContext'
 import studentGrowthService from '../services/studentGrowthService'
 
-const STUDENT_ID = 1
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
@@ -22,7 +22,7 @@ const statusMessages = {
 }
 
 const defaultSummary = {
-  student_id: STUDENT_ID,
+  student_id: 0,
   message: 'Success is built through daily habits.',
   daily_learning_logs_count: 0,
   honest_confusion_count: 0,
@@ -45,7 +45,7 @@ const normalizeSummary = (payload) => {
   return {
     ...defaultSummary,
     ...payload,
-    student_id: toNumber(payload.student_id || STUDENT_ID),
+    student_id: toNumber(payload.student_id || 0),
     daily_learning_logs_count: toNumber(payload.daily_learning_logs_count),
     honest_confusion_count: toNumber(payload.honest_confusion_count),
     revision_completed_count: toNumber(payload.revision_completed_count),
@@ -86,6 +86,9 @@ const HabitCard = ({ card }) => (
 )
 
 const StudentHabits = () => {
+  const { profile } = useAuth()
+  const STUDENT_ID = profile?.student_profile?.id
+
   const [summary, setSummary] = useState(defaultSummary)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -104,7 +107,7 @@ const StudentHabits = () => {
       } catch (err) {
         console.error('Failed to load habit summary:', err)
         setError(
-          err.message || 'Backend is not reachable. Please start the backend server.'
+          err.message || 'Could not connect. Check your internet and try again.'
         )
       } finally {
         setLoading(false)
@@ -112,7 +115,7 @@ const StudentHabits = () => {
     }
 
     loadHabitSummary()
-  }, [])
+  }, [STUDENT_ID])
 
   const habitCards = useMemo(() => toSafeArray(summary.habit_cards), [summary])
   const hasNoData = (
@@ -137,7 +140,7 @@ const StudentHabits = () => {
       {error && (
         <div className="mb-4 bg-red-500/10 border border-red-500/30
           text-red-300 text-sm px-4 py-3 rounded-lg">
-          Backend is not reachable. Please start the backend server.
+          Could not connect. Check your internet and try again.
         </div>
       )}
 

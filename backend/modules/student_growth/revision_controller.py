@@ -1,3 +1,4 @@
+from core.access import authorize_growth
 """HTTP endpoints for revisions and reward events."""
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,16 +16,16 @@ from modules.student_growth.schemas import (
     RewardEventResponse,
 )
 
-router = APIRouter(prefix="/api/v1", tags=["Student Revisions & Rewards"])
+router = APIRouter(dependencies=[Depends(authorize_growth)], prefix="/api/v1", tags=["Student Revisions & Rewards"])
 
 
 @router.get("/revisions/student/{student_id}", response_model=list[RevisionTaskResponse])
-async def get_revisions_for_student(student_id: int, db: Session = Depends(get_db)):
+def get_revisions_for_student(student_id: int, db: Session = Depends(get_db)):
     return RevisionService(db).list_revisions_for_student(student_id)
 
 
 @router.patch("/revisions/{revision_task_id}/complete", response_model=RevisionTaskResponse)
-async def complete_revision(
+def complete_revision(
     revision_task_id: int,
     payload: RevisionCompleteRequest,
     db: Session = Depends(get_db),
@@ -46,7 +47,7 @@ async def complete_revision(
 
 
 @router.get("/rewards/student/{student_id}", response_model=list[RewardEventResponse])
-async def get_rewards_for_student(student_id: int, db: Session = Depends(get_db)):
+def get_rewards_for_student(student_id: int, db: Session = Depends(get_db)):
     return RevisionService(db).list_rewards_for_student(student_id)
 
 
@@ -54,7 +55,7 @@ async def get_rewards_for_student(student_id: int, db: Session = Depends(get_db)
     "/revisions/{revision_task_id}/attempts",
     response_model=list[RevisionAttemptResponse],
 )
-async def get_attempts_for_revision(
+def get_attempts_for_revision(
     revision_task_id: int,
     db: Session = Depends(get_db),
 ):
@@ -65,5 +66,5 @@ async def get_attempts_for_revision(
     "/revisions/student/{student_id}/attempts",
     response_model=list[RevisionAttemptResponse],
 )
-async def get_attempts_for_student(student_id: int, db: Session = Depends(get_db)):
+def get_attempts_for_student(student_id: int, db: Session = Depends(get_db)):
     return RevisionService(db).list_attempts_for_student(student_id)

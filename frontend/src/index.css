@@ -1,1 +1,33 @@
 @import "tailwindcss";
+:root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #030712; color: #f8fafc; }
+* { box-sizing: border-box; }
+body { margin: 0; font-size: 16px; }
+a { text-underline-offset: 4px; }
+button, input, select, textarea { font: inherit; }
+button { min-height: 44px; padding: .65rem 1rem; border: 1px solid #475569; border-radius: .65rem; cursor: pointer; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+label { display: block; font-weight: 500; }
+select, textarea, input:not([type=checkbox]) { display: block; width: 100%; margin-top: .5rem; padding: .75rem; background: #0f172a; border: 1px solid #475569; border-radius: .65rem; color: #f8fafc; }
+textarea { min-height: 110px; resize: vertical; }
+:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }
+.app-header { min-height: 76px; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #263247; background: #0b1220; }
+.brand { display:flex; gap:.7rem; align-items:center; font-size: 1.4rem; font-weight: 800; color:#60a5fa; text-decoration:none; }
+.brand span { color: white; }
+.app-body { display: flex; }
+.app-nav { width: 220px; flex-shrink:0; padding: 1.5rem 1rem; display:flex; flex-direction:column; gap:.5rem; }
+.app-nav a { padding:.8rem 1rem; border-radius:.65rem; color:#cbd5e1; text-decoration:none; }
+.app-nav a.active { color:white; background:#1d4ed8; }
+.app-main { flex:1; min-width:0; padding:2rem; }
+.growth-page { max-width: 960px; margin:0 auto; display:grid; gap:1.5rem; }
+.growth-page h1 { font-size:clamp(1.8rem,4vw,2.5rem); font-weight:750; line-height:1.2; }
+.growth-page h2 { font-size:1.25rem; font-weight:650; }
+.panel { padding:1.5rem; background:#0f172a; border:1px solid #2b3850; border-radius:1rem; }
+.action-card { text-decoration:none; display:grid; gap:.6rem; }
+.action-card:hover { border-color:#60a5fa; }
+.eyebrow { font-size:.875rem; font-weight:700; letter-spacing:.1em; color:#7dd3fc; }
+.muted { color:#a8b7ce; font-size:.875rem; }
+.primary { background:#2563eb; border-color:#2563eb; color:white; font-weight:600; }
+.notice { background:#123329; padding:1rem; border-radius:.75rem; }
+.error { background:#431d25; color:#fecdd3; padding:1rem; border-radius:.75rem; }
+.list-row { border-top:1px solid #334155; margin-top:1rem; padding-top:1rem; display:grid; gap:.75rem; }
+@media(max-width:639px) { .app-header { padding:1rem; } .app-body { display:block; } .app-nav { display:none; width:100%; } .app-nav.is-open { display:flex; } .app-main { padding:1rem; } .account-name { max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.875rem; } .panel { padding:1rem; } }

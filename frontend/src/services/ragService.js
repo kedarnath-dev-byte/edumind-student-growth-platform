@@ -27,7 +27,7 @@ const ragService = {
       })
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'RAG query failed')
+      throw new Error(error.response?.data?.detail || 'RAG query failed', { cause: error })
     }
   },
 
@@ -42,7 +42,7 @@ const ragService = {
       const response = await api.get(url)
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch documents')
+      throw new Error(error.response?.data?.detail || 'Failed to fetch documents', { cause: error })
     }
   },
 
@@ -57,7 +57,7 @@ const ragService = {
       const response = await api.get(url)
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch history')
+      throw new Error(error.response?.data?.detail || 'Failed to fetch history', { cause: error })
     }
   },
 
@@ -72,7 +72,7 @@ const ragService = {
       const response = await api.get(url)
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch analytics')
+      throw new Error(error.response?.data?.detail || 'Failed to fetch analytics', { cause: error })
     }
   },
 }

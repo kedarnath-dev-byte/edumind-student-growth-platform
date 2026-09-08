@@ -1,10 +1,13 @@
 """Business logic for student daily learning logs."""
 
 from typing import List
+import hashlib
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session
 
-from modules.student_growth.models import LearningLog, RevisionTask, RewardEvent
+from modules.student_growth.models import LearningLog, RevisionTask, RewardEvent, LearningSubmission
 from modules.student_growth.revision_schedule_factory import RevisionScheduleFactory
 from modules.student_growth.schemas import LearningLogCreate
 
@@ -18,26 +21,45 @@ class LearningLogService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_learning_log(self, payload: LearningLogCreate) -> dict:
-        learning_log = LearningLog(**payload.model_dump())
-        self.db.add(learning_log)
-        self.db.commit()
-        self.db.refresh(learning_log)
-
-        revision_tasks = self._create_revision_tasks(learning_log)
-        rewards = self._create_learning_log_rewards(learning_log)
-
-        self.db.commit()
-        for task in revision_tasks:
-            self.db.refresh(task)
-        for reward in rewards:
-            self.db.refresh(reward)
-
-        return {
-            "learning_log": learning_log,
-            "revision_tasks": revision_tasks,
-            "rewards": rewards,
-        }
+    def create_learning_log(self, payload: LearningLogCreate, request_key=None) -> dict:
+        digest = hashlib.sha256(payload.model_dump_json().encode()).hexdigest()
+        def existing_result():
+            receipt = self.db.get(LearningSubmission, (payload.student_id, request_key))
+            if receipt is None:
+                return None
+            if receipt.payload_hash != digest:
+                raise HTTPException(409, "This submission key was already used for different content.")
+            log = self.db.get(LearningLog, receipt.learning_log_id)
+            return {
+                "learning_log": log,
+                "revision_tasks": self.db.query(RevisionTask).filter_by(learning_log_id=log.id).all(),
+                "rewards": self.db.query(RewardEvent).filter_by(learning_log_id=log.id, revision_task_id=None).all(),
+            }
+        if request_key:
+            result = existing_result()
+            if result:
+                return result
+        try:
+            learning_log = LearningLog(**payload.model_dump())
+            self.db.add(learning_log)
+            self.db.flush()
+            revision_tasks = self._create_revision_tasks(learning_log)
+            rewards = self._create_learning_log_rewards(learning_log)
+            if request_key:
+                self.db.add(LearningSubmission(student_id=payload.student_id,
+                    request_key=request_key, payload_hash=digest, learning_log_id=learning_log.id))
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            if request_key:
+                result = existing_result()
+                if result:
+                    return result
+            raise
+        except Exception:
+            self.db.rollback()
+            raise
+        return {"learning_log": learning_log, "revision_tasks": revision_tasks, "rewards": rewards}
 
     def get_learning_logs_for_student(self, student_id: int) -> List[LearningLog]:
         return (

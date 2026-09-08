@@ -2,11 +2,11 @@
   "name": "EduMind Student Growth",
   "short_name": "EduMind",
   "description": "Build successful learning habits through reflection, revision, and support.",
-  "start_url": "/student-dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#030712",
+  "theme_color": "#030712",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -21,5 +21,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "/"
 }

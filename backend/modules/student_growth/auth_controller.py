@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
 
 @router.get("/me")
-async def read_current_user(payload: dict = Depends(get_current_supabase_user)):
+def read_current_user(payload: dict = Depends(get_current_supabase_user)):
     return {
         "authenticated": True,
         "supabase_user_id": payload.get("sub"),
@@ -25,7 +25,7 @@ async def read_current_user(payload: dict = Depends(get_current_supabase_user)):
 
 
 @router.get("/me/profile", response_model=CurrentEduMindUserResponse)
-async def read_current_user_profile(
+def read_current_user_profile(
     payload: dict = Depends(get_current_supabase_user),
     db: Session = Depends(get_db),
 ):
@@ -33,7 +33,7 @@ async def read_current_user_profile(
 
 
 @router.post("/link-current-user", response_model=AppUserResponse)
-async def link_current_user(
+def link_current_user(
     request: LinkSupabaseUserRequest,
     payload: dict = Depends(get_current_supabase_user),
     db: Session = Depends(get_db),

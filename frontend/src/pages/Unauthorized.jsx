@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/authContext'
 import { getDefaultRouteForRole, normalizeRole } from '../auth/roleRoutes'
 
 const Unauthorized = () => {

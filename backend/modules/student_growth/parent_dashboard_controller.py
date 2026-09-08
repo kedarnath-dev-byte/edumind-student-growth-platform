@@ -1,3 +1,4 @@
+from core.access import authorize_growth
 """HTTP endpoints for parent dashboard summaries."""
 
 from typing import Optional
@@ -11,14 +12,14 @@ from modules.student_growth.parent_dashboard_schemas import (
 )
 from modules.student_growth.parent_dashboard_service import ParentDashboardService
 
-router = APIRouter(prefix="/api/v1", tags=["Parent Dashboard"])
+router = APIRouter(dependencies=[Depends(authorize_growth)], prefix="/api/v1", tags=["Parent Dashboard"])
 
 
 @router.get(
     "/parent-dashboard/student/{student_id}/summary",
     response_model=ParentStudentSummaryResponse,
 )
-async def get_parent_student_summary(
+def get_parent_student_summary(
     student_id: int,
     school_id: Optional[int] = Query(default=None),
     classroom_id: Optional[int] = Query(default=None),

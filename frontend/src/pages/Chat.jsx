@@ -49,7 +49,7 @@ const Chat = () => {
   useEffect(() => {
     try {
       localStorage.setItem('edumind_chat_history', JSON.stringify(messages))
-    } catch {}
+    } catch { /* Ignore an unavailable local preference. */ }
   }, [messages])
 
   // Auto scroll to bottom on new message
@@ -63,7 +63,7 @@ const Chat = () => {
       try {
         const result = await ragService.getDocuments()
         setDocuments(result?.documents || [])
-      } catch {}
+      } catch { /* Ignore an unavailable local preference. */ }
     }
     loadDocs()
   }, [])

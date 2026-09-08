@@ -1,3 +1,4 @@
+from core.learning_time import school_date, school_day_bounds
 """Business logic for revision tasks and reward events."""
 
 from datetime import datetime
@@ -38,6 +39,7 @@ class RevisionService:
         task = (
             self.db.query(RevisionTask)
             .filter(RevisionTask.id == revision_task_id)
+            .with_for_update()
             .first()
         )
         if task is None:
@@ -57,7 +59,7 @@ class RevisionService:
             }
 
         completed_at = datetime.utcnow()
-        if task.due_at.date() > completed_at.date():
+        if school_date(task.due_at) > school_date(completed_at):
             raise FutureRevisionLockedError(
                 "Future revision is locked until its due date."
             )
@@ -67,14 +69,14 @@ class RevisionService:
         if difficulty_after_revision:
             task.difficulty_after_revision = difficulty_after_revision
 
-        days_late = max((completed_at.date() - task.due_at.date()).days, 0)
+        days_late = max((school_date(completed_at) - school_date(task.due_at)).days, 0)
         attempt = RevisionAttempt(
             revision_task_id=task.id,
             student_id=task.student_id,
             learning_log_id=task.learning_log_id,
             attempt_number=1,
             completed_at=completed_at,
-            completed_on_due_date=completed_at.date() == task.due_at.date(),
+            completed_on_due_date=school_date(completed_at) == school_date(task.due_at),
             days_late=days_late,
             difficulty_after_revision=difficulty_after_revision,
             revision_text_summary=revision_text_summary,

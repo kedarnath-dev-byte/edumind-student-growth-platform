@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from './AuthContext'
+import { useAuth } from './authContext'
 import { normalizeRole } from './roleRoutes'
 
 const LoadingAccess = () => (
@@ -62,6 +62,9 @@ const ProtectedRoute = ({
   }
 
   const role = normalizeRole(profile.app_user?.role)
+  if (role === 'STUDENT' && !profile.student_profile && !allowUnlinkedProfile) {
+    return <Navigate to="/profile-status" replace />
+  }
   const normalizedAllowedRoles = allowedRoles?.map(normalizeRole)
 
   if (

@@ -4,9 +4,9 @@
  *              Shows student stats, recent activity, and quick actions.
  *              First page student sees after Gmail OAuth login.
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authContext'
 
 // ─── Stats Card Component ─────────────────────────────────────────────────────
 const StatsCard = ({ icon, label, value, color }) => (
@@ -48,27 +48,12 @@ const ActionCard = ({ icon, title, description, onClick, color }) => (
 const Dashboard = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [stats, setStats] = useState({
-    documents: 0,
-    queries: 0,
+  const [stats] = useState({
+    documents: "—",
+    queries: "—",
     pipelines: 16,
     agents: 7,
   })
-
-  // Simulate loading stats
-  useEffect(() => {
-    try {
-      // Will connect to real API in Feature 9
-      setStats({
-        documents: 12,
-        queries: 48,
-        pipelines: 16,
-        agents: 7,
-      })
-    } catch (error) {
-      console.error('Failed to load stats:', error)
-    }
-  }, [])
 
   return (
     <div className="max-w-6xl mx-auto">

@@ -1,3 +1,4 @@
+from core.learning_time import school_date, school_day_bounds
 """Habit summary metrics for student growth."""
 
 from datetime import datetime, timedelta
@@ -20,9 +21,8 @@ class HabitService:
         self.db = db
 
     def get_student_habit_summary(self, student_id: int) -> dict:
-        today = datetime.utcnow().date()
-        today_start = datetime.combine(today, datetime.min.time())
-        tomorrow_start = today_start + timedelta(days=1)
+        today = school_date()
+        today_start, tomorrow_start = school_day_bounds()
 
         daily_learning_logs_count = (
             self.db.query(LearningLog)

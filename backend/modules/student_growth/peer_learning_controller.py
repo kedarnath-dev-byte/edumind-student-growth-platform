@@ -1,3 +1,4 @@
+from core.access import authorize_growth, current_actor, student_profile
 """HTTP endpoints for Peer Learning Circle."""
 
 from typing import Optional
@@ -22,11 +23,11 @@ from modules.student_growth.peer_learning_service import (
     PeerLearningService,
 )
 
-router = APIRouter(prefix="/api/v1/peer-learning", tags=["Peer Learning Circle"])
+router = APIRouter(dependencies=[Depends(authorize_growth)], prefix="/api/v1/peer-learning", tags=["Peer Learning Circle"])
 
 
 @router.post("/requests", response_model=PeerHelpRequestResponse)
-async def create_help_request(
+def create_help_request(
     payload: PeerHelpRequestCreate,
     db: Session = Depends(get_db),
 ):
@@ -34,13 +35,16 @@ async def create_help_request(
 
 
 @router.get("/requests/open", response_model=list[PeerHelpRequestResponse])
-async def list_open_requests(
+def list_open_requests(
     school_id: Optional[int] = Query(default=None),
     classroom_id: Optional[int] = Query(default=None),
     subject_id: Optional[int] = Query(default=None),
     topic_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
+    actor=Depends(current_actor),
 ):
+    p = student_profile(db, actor)
+    school_id, classroom_id = p.school_id, p.classroom_id
     return PeerLearningService(db).list_open_requests(
         school_id=school_id,
         classroom_id=classroom_id,
@@ -50,7 +54,7 @@ async def list_open_requests(
 
 
 @router.post("/offers", response_model=PeerHelpOfferResponse)
-async def create_help_offer(
+def create_help_offer(
     payload: PeerHelpOfferCreate,
     db: Session = Depends(get_db),
 ):
@@ -58,13 +62,16 @@ async def create_help_offer(
 
 
 @router.get("/offers/available", response_model=list[PeerHelpOfferResponse])
-async def list_available_offers(
+def list_available_offers(
     school_id: Optional[int] = Query(default=None),
     classroom_id: Optional[int] = Query(default=None),
     subject_id: Optional[int] = Query(default=None),
     topic_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
+    actor=Depends(current_actor),
 ):
+    p = student_profile(db, actor)
+    school_id, classroom_id = p.school_id, p.classroom_id
     return PeerLearningService(db).list_available_offers(
         school_id=school_id,
         classroom_id=classroom_id,
@@ -77,7 +84,7 @@ async def list_available_offers(
     "/requests/{help_request_id}/accept",
     response_model=PeerHelpSessionResponse,
 )
-async def accept_help_request(
+def accept_help_request(
     help_request_id: int,
     payload: AcceptHelpRequestRequest,
     db: Session = Depends(get_db),
@@ -98,7 +105,7 @@ async def accept_help_request(
     "/sessions/{session_id}/complete",
     response_model=PeerHelpSessionResponse,
 )
-async def complete_help_session(
+def complete_help_session(
     session_id: int,
     payload: CompletePeerHelpSessionRequest,
     db: Session = Depends(get_db),
@@ -115,7 +122,7 @@ async def complete_help_session(
     "/student/{student_id}/sessions",
     response_model=list[PeerHelpSessionResponse],
 )
-async def list_student_sessions(student_id: int, db: Session = Depends(get_db)):
+def list_student_sessions(student_id: int, db: Session = Depends(get_db)):
     return PeerLearningService(db).list_sessions_for_student(student_id)
 
 
@@ -123,5 +130,6 @@ async def list_student_sessions(student_id: int, db: Session = Depends(get_db)):
     "/topic/{topic_id}/circle",
     response_model=TopicSupportCircleResponse,
 )
-async def get_topic_support_circle(topic_id: int, db: Session = Depends(get_db)):
-    return PeerLearningService(db).get_topic_circle(topic_id)
+def get_topic_support_circle(topic_id: int, db: Session = Depends(get_db), actor=Depends(current_actor)):
+    p = student_profile(db, actor)
+    return PeerLearningService(db).get_topic_circle(topic_id, p.school_id, p.classroom_id)

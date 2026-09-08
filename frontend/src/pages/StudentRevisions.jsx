@@ -2,10 +2,11 @@
  * @file StudentRevisions.jsx
  * @description Student revision dashboard for spaced memory practice.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useAuth } from '../auth/authContext'
+import { schoolDateKey, parseUtc } from '../lib/learningTime'
 import studentGrowthService from '../services/studentGrowthService'
 
-const STUDENT_ID = 1
 
 const DIFFICULTY_OPTIONS = [
   { value: 'HARD', label: 'Still need support' },
@@ -22,15 +23,10 @@ const emptyProof = {
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
-const startOfDay = (date) => {
-  const next = new Date(date)
-  next.setHours(0, 0, 0, 0)
-  return next
-}
-
 const formatDate = (value) => {
   if (!value) return 'No due date'
-  return new Date(value).toLocaleString([], {
+  return parseUtc(value).toLocaleString([], {
+    timeZone: 'Asia/Kolkata',
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -40,11 +36,8 @@ const formatDate = (value) => {
 }
 
 const categorizeRevisions = (tasks) => {
-  const today = startOfDay(new Date())
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const sevenDaysLater = new Date(today)
-  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+  const today = schoolDateKey(new Date())
+  const sevenDaysLater = schoolDateKey(new Date(Date.now() + 7 * 86400000))
 
   return toSafeArray(tasks).reduce((groups, task) => {
     if (task.status === 'COMPLETED') {
@@ -52,17 +45,17 @@ const categorizeRevisions = (tasks) => {
       return groups
     }
 
-    const dueDate = new Date(task.due_at)
-    if (Number.isNaN(dueDate.getTime())) {
+    const dueDate = schoolDateKey(task.due_at)
+    if (!dueDate) {
       groups.future.push(task)
       return groups
     }
 
     if (dueDate < today) {
       groups.rescue.push(task)
-    } else if (dueDate >= today && dueDate < tomorrow) {
+    } else if (dueDate === today) {
       groups.today.push(task)
-    } else if (dueDate >= tomorrow && dueDate <= sevenDaysLater) {
+    } else if (dueDate > today && dueDate <= sevenDaysLater) {
       groups.nextSevenDays.push(task)
     } else {
       groups.future.push(task)
@@ -346,6 +339,9 @@ const RewardSummary = ({ rewards }) => {
 }
 
 const StudentRevisions = () => {
+  const { profile } = useAuth()
+  const STUDENT_ID = profile?.student_profile?.id
+
   const [revisions, setRevisions] = useState([])
   const [rewards, setRewards] = useState([])
   const [proofDrafts, setProofDrafts] = useState({})
@@ -359,8 +355,7 @@ const StudentRevisions = () => {
   const grouped = useMemo(() => categorizeRevisions(revisions), [revisions])
   const hasAnyRevision = toSafeArray(revisions).length > 0
 
-  const loadDashboard = async () => {
-    setError('')
+  const loadDashboard = useCallback(async () => {
     try {
       const [revisionData, rewardData] = await Promise.all([
         studentGrowthService.getRevisionsForStudent(STUDENT_ID),
@@ -374,11 +369,12 @@ const StudentRevisions = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [STUDENT_ID])
 
   useEffect(() => {
-    loadDashboard()
-  }, [])
+    const timer = setTimeout(loadDashboard, 0)
+    return () => clearTimeout(timer)
+  }, [loadDashboard])
 
   const openProof = (taskId) => {
     setActiveProofTaskId(taskId)
