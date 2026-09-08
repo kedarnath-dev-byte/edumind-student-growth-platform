@@ -11,11 +11,13 @@ Prepared 2026-09-08. Configuration only; no services purchased or deployed.
 | Supabase database + authentication | Free | Pro $25/month base, one Micro project within compute credit |
 | Base total | $7/month | $32/month |
 
-Estimates exclude tax, domain, email delivery, video storage/transfer, AI and quota overages. Free Supabase projects can pause after low activity over seven days and require independently managed exports/backups. Pro provides managed daily database backups; files in object storage need their own backup plan. Do not equate a free quota with a production reliability commitment.
+Estimates exclude tax, domain, email delivery, video storage/transfer, quota overages. AI is paused: no AI provider, vector database or model-training service is provisioned, so planned AI spend is $0. Free Supabase projects can pause after low activity over seven days and require independently managed exports/backups. Pro provides managed daily database backups; files in object storage need their own backup plan. Do not equate a free quota with a production reliability commitment.
 
-The small deployment enables learning logs, revision schedules, school enrollment and role dashboards. It disables legacy document/RAG/AI endpoints using ENABLE_LEGACY_AI=false and a small requirements file. All existing AI modules and the full default deployment remain available. It does not provide durable video upload or native APK distribution. The Android client is an installable web app and requires connectivity for student records.
+The small deployment enables learning logs, revision schedules, school enrollment and role dashboards. It disables legacy document/RAG/AI endpoints using ENABLE_LEGACY_AI=false and a small requirements file. All existing AI modules remain preserved; both frontend and backend now default to AI disabled. Resuming AI requires explicit flags and the full backend dependency set. It does not provide durable video upload or native APK distribution. The Android client is an installable web app and requires connectivity for student records.
 
 100 registered students is a reasonable sizing target, not a tested capacity guarantee. Begin with one API process and managed PostgreSQL; increase API memory/CPU when measured demand requires it. Do not add Kubernetes or separate microservices for this cohort. The 512 MB process must pass a memory/load check before live use. For 100 simultaneous active users, measure separately before promising service.
+
+The $7/$32 base estimates are unchanged because the preceding budget already excluded AI. Pausing AI removes optional usage costs; it does not remove the database or server needed by learning logs and dashboards. No paid resources have been canceled or changed.
 
 ## Deployment procedure
 

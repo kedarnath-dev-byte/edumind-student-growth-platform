@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/authContext'
+import { legacyAiEnabled } from '../../config/features'
 const menus = {
   STUDENT: [['/student-dashboard','Today'],['/student-growth','Learning log'],['/student-revisions','Revision'],['/student-peer-learning','Class support'],['/student-habits','Progress']],
   TEACHER: [['/teacher-dashboard','My classes']],
   PARENT: [['/parent-dashboard','My children']],
-  ADMIN: [['/admin','School management'],['/dashboard','Analytics'],['/chat','AI tools'],['/upload','Documents'],['/finetuning','Model tools']],
+  ADMIN: [['/admin','School management'], ...(legacyAiEnabled ? [['/dashboard','Analytics'],['/chat','AI tools'],['/upload','Documents'],['/finetuning','Model tools']] : [])],
 }
 export default function Layout() {
   const {profile, user, signOut, authError} = useAuth()

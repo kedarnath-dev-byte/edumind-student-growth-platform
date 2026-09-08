@@ -6,9 +6,9 @@ import ProtectedRoute from './auth/ProtectedRoute'
 
 const Install = lazy(() => import('./pages/Install'))
 const Admin = lazy(() => import('./pages/Admin'))
-const Chat = lazy(() => import('./pages/Chat'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const FineTuning = lazy(() => import('./pages/FineTuning'))
+const Chat = legacyAiEnabled ? lazy(() => import('./pages/Chat')) : null
+const Dashboard = legacyAiEnabled ? lazy(() => import('./pages/Dashboard')) : null
+const FineTuning = legacyAiEnabled ? lazy(() => import('./pages/FineTuning')) : null
 const Login = lazy(() => import('./pages/Login'))
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'))
 const ProfileStatus = lazy(() => import('./pages/ProfileStatus'))
@@ -19,9 +19,10 @@ const StudentPeerLearning = lazy(() => import('./pages/StudentPeerLearning'))
 const StudentRevisions = lazy(() => import('./pages/StudentRevisions'))
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard'))
 const Unauthorized = lazy(() => import('./pages/Unauthorized'))
-const Upload = lazy(() => import('./pages/Upload'))
+const Upload = legacyAiEnabled ? lazy(() => import('./pages/Upload')) : null
 
 import Layout from './components/layout/Layout'
+import { legacyAiEnabled } from './config/features'
 
 const AppRoutes = () => (
   <Routes>
@@ -30,9 +31,9 @@ const AppRoutes = () => (
 
     <Route path="/" element={<Layout />}>
       <Route index element={<AuthHomeRedirect />} />
-      <Route path="dashboard" element={<ProtectedRoute allowedRoles={['ADMIN']}><Dashboard /></ProtectedRoute>} />
-      <Route path="chat" element={<ProtectedRoute allowedRoles={['ADMIN']}><Chat /></ProtectedRoute>} />
-      <Route path="upload" element={<ProtectedRoute allowedRoles={['ADMIN']}><Upload /></ProtectedRoute>} />
+      {legacyAiEnabled && <Route path="dashboard" element={<ProtectedRoute allowedRoles={['ADMIN']}><Dashboard /></ProtectedRoute>} />}
+      {legacyAiEnabled && <Route path="chat" element={<ProtectedRoute allowedRoles={['ADMIN']}><Chat /></ProtectedRoute>} />}
+      {legacyAiEnabled && <Route path="upload" element={<ProtectedRoute allowedRoles={['ADMIN']}><Upload /></ProtectedRoute>} />}
       {/* STUDENT only */}
       <Route
         path="student-dashboard"
@@ -73,7 +74,7 @@ const AppRoutes = () => (
       <Route path="student-revisions" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentRevisions /></ProtectedRoute>} />
       <Route path="student-habits" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentHabits /></ProtectedRoute>} />
       <Route path="student-peer-learning" element={<ProtectedRoute allowedRoles={['STUDENT']}><StudentPeerLearning /></ProtectedRoute>} />
-      <Route path="finetuning" element={<ProtectedRoute allowedRoles={['ADMIN']}><FineTuning /></ProtectedRoute>} />
+      {legacyAiEnabled && <Route path="finetuning" element={<ProtectedRoute allowedRoles={['ADMIN']}><FineTuning /></ProtectedRoute>} />}
       <Route path="admin" element={<ProtectedRoute allowedRoles={['ADMIN']}><Admin /></ProtectedRoute>} />
     </Route>
 

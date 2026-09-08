@@ -71,9 +71,9 @@ app.add_middleware(TimingMiddleware)
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
-# Preserve the full deployment by default. Small student deployments can omit
-# the heavy document/vector/AI dependencies without loading those modules.
-if os.getenv("ENABLE_LEGACY_AI", "true").lower() == "true":
+# AI is paused by default. Opt in explicitly with the full dependency set
+# when resuming the preserved document-study application.
+if os.getenv("ENABLE_LEGACY_AI", "false").lower() == "true":
     from modules.evaluation.evaluation_controller import router as evaluation_router
     from modules.ingestion.ingestion_controller import router as ingestion_router
     from modules.rag.rag_controller import router as rag_router
