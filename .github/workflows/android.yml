@@ -1,0 +1,71 @@
+name: Android build
+on:
+  push:
+    branches: [release/student-school-readiness]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+        working-directory: frontend
+      - name: Build web assets
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_PUBLIC_APP_URL: ${{ vars.VITE_PUBLIC_APP_URL }}
+          VITE_ENABLE_LEGACY_AI: 'false'
+          RELEASE_BUILD: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [ "$RELEASE_BUILD" = true ]; then
+            node scripts/check-android-config.mjs
+          fi
+          npm run build
+          npx cap sync android
+      - name: Verify Android compilation (no download artifact)
+        if: github.event_name != 'workflow_dispatch'
+        working-directory: frontend/android
+        run: bash gradlew assembleDebug --no-daemon
+      - name: Build signed release
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: frontend/android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD" && test -n "$ANDROID_KEY_ALIAS" && test -n "$ANDROID_KEY_PASSWORD"
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/edumind-release.jks"
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          bash gradlew assembleRelease --no-daemon
+          cd app/build/outputs/apk/release
+          test -f app-release.apk
+          sha256sum app-release.apk > app-release.apk.sha256
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: edumind-signed-apk
+          path: |
+            frontend/android/app/build/outputs/apk/release/app-release.apk
+            frontend/android/app/build/outputs/apk/release/app-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 7

@@ -35,7 +35,7 @@ See cloud-deployment.md and deploy/render-student.yaml for a separate low-cost c
 - Confirm exact frontend CORS origin; preview wildcard access was removed.
 - Apply and review the migration in backend/migrations/20260908_student_release.sql. Existing tables must already match the models. Inspect Supabase Data API grants and RLS: backend authorization does not protect separately exposed Data API tables.
 - Create the first platform ADMIN by a verified operator in the database and link to the owner's verified auth UUID. Do not expose ADMIN signup. School employees receive TEACHER accounts, not global ADMIN.
-- Configure Supabase email confirmation, redirect URLs and email delivery. Test account activation using a real mailbox. Recovery flow is not yet implemented in the app.
+- Configure Supabase email confirmation, redirect URLs and email delivery. Test account activation using a real mailbox. Recovery screens are implemented; configure and test the browser reset link, including requests from Android.
 - Test two students, an assigned teacher and a linked parent against production. Verify cross-account denial and class/school isolation, including Data API access.
 - Test two simultaneous completion requests on PostgreSQL, repeated learning-log submissions and a failed save; verify exactly one reward/receipt.
 - Verify Chrome Android install on an actual phone, shared-device sign-out, reconnect behaviour, and absence of stale student data after switching accounts.
@@ -43,7 +43,7 @@ See cloud-deployment.md and deploy/render-student.yaml for a separate low-cost c
 
 ## Commercial launch gaps
 
-This change is not a certification of school-sale readiness. Remaining product/operational work includes school-scoped administrators (current ADMIN is platform-global), password recovery, durable private video upload, a complete mentor feedback/resolution flow, account suspension/deletion UI, school data export/retention, support ownership, pricing/contract terms and guardian-consent workflow. Automated payments and native APK/Play Store distribution are not included. The downloadable experience is the installed web app.
+This change is not a certification of school-sale readiness. Remaining product/operational work includes school-scoped administrators (current ADMIN is platform-global), verified password recovery delivery, durable private video upload, a complete mentor feedback/resolution flow, account suspension/deletion UI, school data export/retention, support ownership, pricing/contract terms and guardian-consent workflow. Automated payments and native APK/Play Store distribution are not included. The downloadable experience is the installed web app.
 
 ## Rollout and rollback
 

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EduMind</string>
+    <string name="title_activity_main">EduMind</string>
+    <string name="package_name">com.kedarnath.edumind</string>
+    <string name="custom_url_scheme">com.kedarnath.edumind</string>
+</resources>

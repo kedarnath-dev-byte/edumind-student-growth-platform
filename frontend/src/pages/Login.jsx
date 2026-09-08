@@ -135,6 +135,7 @@ const Login = () => {
           </button>
           <button type="button" onClick={activate} disabled={!isConfigured || activating || loading} className="w-full text-white">{activating ? 'Creating account…' : 'Activate my enrolled account'}</button>
         </form>
+        <p className="mt-4 text-blue-300 text-center"><Link to="/forgot-password">Forgot password?</Link></p>
         <p className="mt-4 text-blue-300 text-center"><Link to="/install">Install on your Android phone</Link></p>
 
         <p className="text-gray-500 text-xs mt-6 text-center">

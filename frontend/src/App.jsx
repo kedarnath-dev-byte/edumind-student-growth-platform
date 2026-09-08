@@ -9,6 +9,7 @@ const Admin = lazy(() => import('./pages/Admin'))
 const Chat = legacyAiEnabled ? lazy(() => import('./pages/Chat')) : null
 const Dashboard = legacyAiEnabled ? lazy(() => import('./pages/Dashboard')) : null
 const FineTuning = legacyAiEnabled ? lazy(() => import('./pages/FineTuning')) : null
+const PasswordRecovery = lazy(() => import('./pages/PasswordRecovery'))
 const Login = lazy(() => import('./pages/Login'))
 const ParentDashboard = lazy(() => import('./pages/ParentDashboard'))
 const ProfileStatus = lazy(() => import('./pages/ProfileStatus'))
@@ -26,6 +27,8 @@ import { legacyAiEnabled } from './config/features'
 
 const AppRoutes = () => (
   <Routes>
+    <Route path="/forgot-password" element={<PasswordRecovery />} />
+    <Route path="/reset-password" element={<PasswordRecovery reset />} />
     <Route path="/login" element={<Login />} />
     <Route path="/install" element={<div className="p-6"><Install /></div>} />
 
