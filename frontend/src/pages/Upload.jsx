@@ -45,9 +45,9 @@ const Upload = () => {
   const [dragOver, setDragOver]     = useState(false)
   const fileInputRef                = useRef(null)
 
-  // Load documents on page open
+  // Load documents on page open.
   useEffect(() => {
-    fetchDocuments()
+    uploadService.getDocuments().then(docs => setDocuments(docs?.documents || docs || [])).catch(err => setError(err.message))
   }, [])
 
   // ─── Fetch Documents ────────────────────────────────────────────────────────

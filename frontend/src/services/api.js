@@ -6,6 +6,7 @@
  *              Follows DRY principle — no repeated axios configuration.
  */
 import axios from 'axios'
+import { supabase } from '../lib/supabaseClient'
 
 // ─── Create Axios Instance ───────────────────────────────────────────────────
 const api = axios.create({
@@ -19,8 +20,9 @@ const api = axios.create({
 // ─── Request Interceptor ─────────────────────────────────────────────────────
 // Automatically attach auth token to every request
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('edumind_token')
+  async (config) => {
+    const { data } = supabase ? await supabase.auth.getSession() : { data: {} }
+    const token = data.session?.access_token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

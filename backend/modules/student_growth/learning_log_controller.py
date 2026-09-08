@@ -1,6 +1,7 @@
+from core.access import authorize_growth
 """HTTP endpoints for student learning logs."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -12,7 +13,7 @@ from modules.student_growth.schemas import (
     RewardEventResponse,
 )
 
-router = APIRouter(prefix="/api/v1/learning-logs", tags=["Student Learning Logs"])
+router = APIRouter(dependencies=[Depends(authorize_growth)], prefix="/api/v1/learning-logs", tags=["Student Learning Logs"])
 
 
 def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> LearningLogResponse:
@@ -41,19 +42,22 @@ def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> L
 
 
 @router.post("", response_model=LearningLogResponse)
-async def create_learning_log(payload: LearningLogCreate, db: Session = Depends(get_db)):
+def create_learning_log(payload: LearningLogCreate, db: Session = Depends(get_db), idempotency_key: str = Header(..., min_length=8, max_length=80)):
     try:
-        result = LearningLogService(db).create_learning_log(payload)
+        result = LearningLogService(db).create_learning_log(payload, idempotency_key)
         return serialize_learning_log(
             result["learning_log"],
             revision_tasks=result["revision_tasks"],
             rewards=result["rewards"],
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save your learning. Please retry.")
 
 
 @router.get("/student/{student_id}", response_model=list[LearningLogResponse])
-async def get_learning_logs_for_student(student_id: int, db: Session = Depends(get_db)):
+def get_learning_logs_for_student(student_id: int, db: Session = Depends(get_db)):
     logs = LearningLogService(db).get_learning_logs_for_student(student_id)
     return [serialize_learning_log(log) for log in logs]

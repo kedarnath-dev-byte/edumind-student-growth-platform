@@ -3,14 +3,12 @@
  * @description Teacher support dashboard for classroom learning signals.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/authContext'
 import studentGrowthService from '../services/studentGrowthService'
 
-const CLASSROOM_ID = 1
-const SCHOOL_ID = 1
-const SUBJECT_ID = 1
 
 const defaultSummary = {
-  classroom_id: CLASSROOM_ID,
+  classroom_id: 0,
   message: 'Teacher support summary for student growth.',
   learning_logs_count: 0,
   students_with_learning_logs_count: 0,
@@ -38,7 +36,7 @@ const normalizeSummary = (payload) => {
   return {
     ...defaultSummary,
     ...payload,
-    classroom_id: toNumber(payload.classroom_id || CLASSROOM_ID),
+    classroom_id: toNumber(payload.classroom_id || 0),
     learning_logs_count: toNumber(payload.learning_logs_count),
     students_with_learning_logs_count: toNumber(
       payload.students_with_learning_logs_count
@@ -72,32 +70,41 @@ const EmptyState = ({ children }) => (
 )
 
 const TeacherDashboard = () => {
+  const { profile } = useAuth()
+  const choices = profile?.teacher_classrooms || []
+  const [selectedId, setSelectedId] = useState('')
+  const CLASSROOM_ID = Number(selectedId || choices[0]?.id) || null
+
   const [summary, setSummary] = useState(defaultSummary)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    let active = true
     const loadSummary = async () => {
+      if (!CLASSROOM_ID) { setLoading(false); return }
       setLoading(true)
       setError('')
 
       try {
         const data = await studentGrowthService.getTeacherClassroomSummary(
           CLASSROOM_ID,
-          { school_id: SCHOOL_ID, subject_id: SUBJECT_ID }
+          {}
         )
-        setSummary(normalizeSummary(data))
+        if (active) setSummary(normalizeSummary(data))
       } catch (err) {
+        if (!active) return
         console.error('Failed to load teacher dashboard:', err)
-        setError('Backend is not reachable. Please start the backend server.')
+        setError('Could not connect. Check your internet and try again.')
         setSummary(defaultSummary)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     loadSummary()
-  }, [])
+    return () => { active = false }
+  }, [CLASSROOM_ID])
 
   const topicsNeedingSupport = useMemo(() => (
     toSafeArray(summary.topics_needing_support)
@@ -111,6 +118,8 @@ const TeacherDashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      <label>Class<select value={CLASSROOM_ID || ''} onChange={e => setSelectedId(e.target.value)}>{choices.map(x => <option key={x.id} value={x.id}>{x.name || x.display_name}</option>)}</select></label>
+      {!CLASSROOM_ID && <p>No class is linked yet. Contact your school administrator.</p>}
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-blue-300 text-sm font-semibold mb-2">
           Classroom support view
@@ -334,12 +343,7 @@ const TeacherDashboard = () => {
         </div>
       </section>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h2 className="text-lg font-semibold text-white">Demo Helper Note</h2>
-        <p className="text-gray-400 text-sm mt-2">
-          For local demo data, use Swagger {'->'} POST /api/v1/dev/seed-demo-data.
-        </p>
-      </section>
+
     </div>
   )
 }

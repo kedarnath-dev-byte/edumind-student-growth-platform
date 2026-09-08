@@ -1,3 +1,4 @@
+from core.learning_time import school_date, school_day_bounds
 """Parent dashboard student growth summary metrics."""
 
 from collections import defaultdict
@@ -108,7 +109,7 @@ class ParentDashboardService:
         learning_log_ids: list[int],
         filters_active: bool,
     ) -> dict:
-        today = datetime.utcnow().date()
+        today = school_date()
         task_query = self.db.query(RevisionTask).filter(
             RevisionTask.student_id == student_id
         )
@@ -134,7 +135,7 @@ class ParentDashboardService:
         return {
             "pending_revisions_count": len(pending_tasks),
             "overdue_revisions_count": sum(
-                1 for task in pending_tasks if task.due_at.date() < today
+                1 for task in pending_tasks if school_date(task.due_at) < today
             ),
             "completed_revisions_count": task_query.filter(
                 RevisionTask.status == "COMPLETED"

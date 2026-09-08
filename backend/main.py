@@ -9,14 +9,13 @@
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from core.access import require_admin
 from fastapi.middleware.cors import CORSMiddleware
 from modules.health.health_controller import router as health_router
-from modules.ingestion.ingestion_controller import router as ingestion_router
-from modules.rag.rag_controller import router as rag_router
 
 from core.database import init_db
-from modules.evaluation.evaluation_controller import router as evaluation_router
+from modules.student_growth.school_admin_controller import router as school_admin_router
 from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.dev_seed_controller import router as dev_seed_router
 from modules.student_growth.auth_controller import router as auth_router
@@ -61,7 +60,7 @@ def get_cors_origins():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
-    allow_origin_regex=r"https://.*\.vercel\.app",
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,10 +70,17 @@ app.add_middleware(
 app.add_middleware(TimingMiddleware)
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
-app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
-app.include_router(ingestion_router)
-app.include_router(rag_router)
+# AI is paused by default. Opt in explicitly with the full dependency set
+# when resuming the preserved document-study application.
+if os.getenv("ENABLE_LEGACY_AI", "false").lower() == "true":
+    from modules.evaluation.evaluation_controller import router as evaluation_router
+    from modules.ingestion.ingestion_controller import router as ingestion_router
+    from modules.rag.rag_controller import router as rag_router
+
+    app.include_router(evaluation_router, dependencies=[Depends(require_admin)])
+    app.include_router(ingestion_router, dependencies=[Depends(require_admin)])
+    app.include_router(rag_router, dependencies=[Depends(require_admin)])
 app.include_router(learning_log_router)
 app.include_router(revision_router)
 app.include_router(setup_router)
@@ -85,6 +91,7 @@ app.include_router(peer_learning_router)
 app.include_router(teacher_dashboard_router)
 app.include_router(parent_dashboard_router)
 app.include_router(user_router)
+app.include_router(school_admin_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
@@ -98,6 +105,5 @@ async def on_startup():
 async def root():
     """Quick health check endpoint."""
     return {"status": "ok", "app": "EduMind AI", "version": "1.0.0"}
-
 
 

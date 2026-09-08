@@ -12,9 +12,10 @@ const apiPrefix = (import.meta.env.VITE_API_BASE_URL || '')
 
 const getErrorMessage = (error, fallback) => {
   if (!error.response) {
-    return 'Could not reach the backend. Please make sure it is running.'
+    return 'Could not connect. Check your internet and try again.'
   }
-  return error.response?.data?.detail || fallback
+  const detail = error.response?.data?.detail
+  return typeof detail === 'string' ? detail : fallback
 }
 
 const normalizeList = (payload, keys = []) => {
@@ -47,7 +48,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/schools`)
       return normalizeList(response, ['schools'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load schools'))
+      throw new Error(getErrorMessage(error, 'Failed to load schools'), { cause: error })
     }
   },
 
@@ -56,7 +57,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/classrooms/school/${schoolId}`)
       return normalizeList(response, ['classrooms'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load classrooms'))
+      throw new Error(getErrorMessage(error, 'Failed to load classrooms'), { cause: error })
     }
   },
 
@@ -65,7 +66,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/subjects/school/${schoolId}`)
       return normalizeList(response, ['subjects'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load subjects'))
+      throw new Error(getErrorMessage(error, 'Failed to load subjects'), { cause: error })
     }
   },
 
@@ -74,16 +75,16 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/topics/subject/${subjectId}`)
       return normalizeList(response, ['topics'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load topics'))
+      throw new Error(getErrorMessage(error, 'Failed to load topics'), { cause: error })
     }
   },
 
-  async createLearningLog(payload) {
+  async createLearningLog(payload, requestKey) {
     try {
-      const response = await api.post(`${apiPrefix}/learning-logs`, payload)
+      const response = await api.post(`${apiPrefix}/learning-logs`, payload, { headers: { "Idempotency-Key": requestKey } })
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to save learning log'))
+      throw new Error(getErrorMessage(error, 'Failed to save learning log'), { cause: error })
     }
   },
 
@@ -92,7 +93,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/revisions/student/${studentId}`)
       return normalizeList(response, ['revisions', 'revision_tasks'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load revisions'))
+      throw new Error(getErrorMessage(error, 'Failed to load revisions'), { cause: error })
     }
   },
 
@@ -104,7 +105,7 @@ const studentGrowthService = {
       )
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to complete revision'))
+      throw new Error(getErrorMessage(error, 'Failed to complete revision'), { cause: error })
     }
   },
 
@@ -113,7 +114,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/rewards/student/${studentId}`)
       return normalizeList(response, ['rewards'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load rewards'))
+      throw new Error(getErrorMessage(error, 'Failed to load rewards'), { cause: error })
     }
   },
 
@@ -122,7 +123,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/habits/student/${studentId}/summary`)
       return response?.data && typeof response.data === 'object' ? response.data : null
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load habit summary'))
+      throw new Error(getErrorMessage(error, 'Failed to load habit summary'), { cause: error })
     }
   },
 
@@ -131,7 +132,7 @@ const studentGrowthService = {
       const response = await api.post(`${apiPrefix}/peer-learning/requests`, payload)
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to ask for peer support'))
+      throw new Error(getErrorMessage(error, 'Failed to ask for peer support'), { cause: error })
     }
   },
 
@@ -142,7 +143,7 @@ const studentGrowthService = {
       })
       return normalizeList(response, ['requests', 'open_requests'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load open support requests'))
+      throw new Error(getErrorMessage(error, 'Failed to load open support requests'), { cause: error })
     }
   },
 
@@ -151,7 +152,7 @@ const studentGrowthService = {
       const response = await api.post(`${apiPrefix}/peer-learning/offers`, payload)
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to offer peer help'))
+      throw new Error(getErrorMessage(error, 'Failed to offer peer help'), { cause: error })
     }
   },
 
@@ -162,7 +163,7 @@ const studentGrowthService = {
       })
       return normalizeList(response, ['offers', 'available_offers'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load available helpers'))
+      throw new Error(getErrorMessage(error, 'Failed to load available helpers'), { cause: error })
     }
   },
 
@@ -174,7 +175,7 @@ const studentGrowthService = {
       )
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to start peer learning session'))
+      throw new Error(getErrorMessage(error, 'Failed to start peer learning session'), { cause: error })
     }
   },
 
@@ -186,7 +187,7 @@ const studentGrowthService = {
       )
       return response.data
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to complete peer help session'))
+      throw new Error(getErrorMessage(error, 'Failed to complete peer help session'), { cause: error })
     }
   },
 
@@ -195,7 +196,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/peer-learning/student/${studentId}/sessions`)
       return normalizeList(response, ['sessions'])
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load peer learning sessions'))
+      throw new Error(getErrorMessage(error, 'Failed to load peer learning sessions'), { cause: error })
     }
   },
 
@@ -204,7 +205,7 @@ const studentGrowthService = {
       const response = await api.get(`${apiPrefix}/peer-learning/topic/${topicId}/circle`)
       return response?.data && typeof response.data === 'object' ? response.data : null
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load topic support circle'))
+      throw new Error(getErrorMessage(error, 'Failed to load topic support circle'), { cause: error })
     }
   },
 
@@ -216,7 +217,7 @@ const studentGrowthService = {
       )
       return response?.data && typeof response.data === 'object' ? response.data : null
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load teacher dashboard summary'))
+      throw new Error(getErrorMessage(error, 'Failed to load teacher dashboard summary'), { cause: error })
     }
   },
 
@@ -228,7 +229,7 @@ const studentGrowthService = {
       )
       return response?.data && typeof response.data === 'object' ? response.data : null
     } catch (error) {
-      throw new Error(getErrorMessage(error, 'Failed to load parent dashboard summary'))
+      throw new Error(getErrorMessage(error, 'Failed to load parent dashboard summary'), { cause: error })
     }
   },
 }

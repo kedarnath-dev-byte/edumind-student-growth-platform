@@ -1,3 +1,4 @@
+from core.access import authorize_growth
 """HTTP endpoints for teacher dashboard summaries."""
 
 from typing import Optional
@@ -11,14 +12,14 @@ from modules.student_growth.teacher_dashboard_schemas import (
 )
 from modules.student_growth.teacher_dashboard_service import TeacherDashboardService
 
-router = APIRouter(prefix="/api/v1", tags=["Teacher Dashboard"])
+router = APIRouter(dependencies=[Depends(authorize_growth)], prefix="/api/v1", tags=["Teacher Dashboard"])
 
 
 @router.get(
     "/teacher-dashboard/classroom/{classroom_id}/summary",
     response_model=TeacherClassroomSummaryResponse,
 )
-async def get_teacher_classroom_summary(
+def get_teacher_classroom_summary(
     classroom_id: int,
     school_id: Optional[int] = Query(default=None),
     subject_id: Optional[int] = Query(default=None),

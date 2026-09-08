@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { supabase } from '../lib/supabaseClient'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/authContext'
 import { getDefaultRouteForRole } from '../auth/roleRoutes'
 
 const Login = () => {
@@ -16,6 +17,9 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [formError, setFormError] = useState('')
+  const [remember, setRemember] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [activating, setActivating] = useState(false)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -26,6 +30,7 @@ const Login = () => {
       return
     }
 
+    localStorage.setItem('edumind:remember', String(remember))
     const result = await signIn(email.trim(), password)
     if (!result?.error) {
       const accessToken = result.data?.session?.access_token
@@ -47,6 +52,17 @@ const Login = () => {
         'Login successful, but your EduMind profile is not linked yet. Please contact EduMind admin.'
       )
     }
+  }
+
+  const activate = async () => {
+    if (!email.trim() || password.length < 12) { setFormError('Enter your enrolled email and a new password of at least 12 characters.'); return }
+    setActivating(true); setFormError(''); setNotice('')
+    try {
+      localStorage.setItem('edumind:remember', String(remember))
+      const { error } = await supabase.auth.signUp({ email: email.trim(), password })
+      if (error) throw error
+      setNotice('Account request received. Check your email for confirmation, then sign in. Your school must enroll the same email before you can access learning.')
+    } catch(e) { setFormError(e.message) } finally { setActivating(false) }
   }
 
   return (
@@ -77,6 +93,7 @@ const Login = () => {
           </div>
         )}
 
+        {notice && <p role="status" className="notice mb-4">{notice}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block">
             <span className="text-gray-300 text-sm font-medium">Email</span>
@@ -87,7 +104,7 @@ const Login = () => {
               className="mt-2 w-full bg-gray-950 border border-gray-700
               text-white rounded-lg px-3 py-3 focus:outline-none
               focus:border-blue-500"
-              placeholder="student1@edumind.local"
+              placeholder="Your enrolled email"
               autoComplete="email"
             />
           </label>
@@ -101,11 +118,12 @@ const Login = () => {
               className="mt-2 w-full bg-gray-950 border border-gray-700
               text-white rounded-lg px-3 py-3 focus:outline-none
               focus:border-blue-500"
-              placeholder="Enter pilot password"
+              placeholder="Enter your password"
               autoComplete="current-password"
             />
           </label>
 
+          <label className="text-gray-300 text-sm"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} /> Keep me signed in on my own phone</label>
           <button
             type="submit"
             disabled={loading || profileLoading || !isConfigured}
@@ -115,10 +133,13 @@ const Login = () => {
           >
             {loading || profileLoading ? 'Signing in...' : 'Sign In'}
           </button>
+          <button type="button" onClick={activate} disabled={!isConfigured || activating || loading} className="w-full text-white">{activating ? 'Creating account…' : 'Activate my enrolled account'}</button>
         </form>
+        <p className="mt-4 text-blue-300 text-center"><Link to="/forgot-password">Forgot password?</Link></p>
+        <p className="mt-4 text-blue-300 text-center"><Link to="/install">Install on your Android phone</Link></p>
 
         <p className="text-gray-500 text-xs mt-6 text-center">
-          Pilot accounts are created by EduMind admin.
+          Your school enrolls your account. Contact your mentor if you need access.
         </p>
       </div>
     </div>

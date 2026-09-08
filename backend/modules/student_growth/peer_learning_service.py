@@ -95,6 +95,7 @@ class PeerLearningService:
         help_request = (
             self.db.query(PeerHelpRequest)
             .filter(PeerHelpRequest.id == help_request_id)
+            .with_for_update()
             .first()
         )
         if help_request is None:
@@ -153,6 +154,7 @@ class PeerLearningService:
         session = (
             self.db.query(PeerHelpSession)
             .filter(PeerHelpSession.id == session_id)
+            .with_for_update()
             .first()
         )
         if session is None:
@@ -206,9 +208,9 @@ class PeerLearningService:
             .all()
         )
 
-    def get_topic_circle(self, topic_id: int) -> dict:
-        open_requests = self.list_open_requests(topic_id=topic_id)
-        available_offers = self.list_available_offers(topic_id=topic_id)
+    def get_topic_circle(self, topic_id: int, school_id=None, classroom_id=None) -> dict:
+        open_requests = self.list_open_requests(topic_id=topic_id, school_id=school_id, classroom_id=classroom_id)
+        available_offers = self.list_available_offers(topic_id=topic_id, school_id=school_id, classroom_id=classroom_id)
         return {
             "topic_id": topic_id,
             "open_requests_count": len(open_requests),

@@ -35,7 +35,7 @@ const uploadService = {
       })
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Document upload failed')
+      throw new Error(error.response?.data?.detail || 'Document upload failed', { cause: error })
     }
   },
 
@@ -48,7 +48,7 @@ const uploadService = {
       const response = await api.get('/ingestion/documents')
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to fetch documents')
+      throw new Error(error.response?.data?.detail || 'Failed to fetch documents', { cause: error })
     }
   },
 
@@ -62,7 +62,7 @@ const uploadService = {
       const response = await api.delete(`/ingestion/documents/${documentId}`)
       return response.data
     } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to delete document')
+      throw new Error(error.response?.data?.detail || 'Failed to delete document', { cause: error })
     }
   },
 }

@@ -290,3 +290,13 @@ class PeerHelpSession(Base):
     helper_reflection = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+
+
+class LearningSubmission(Base):
+    """Durable retry receipt; one key per student's logical submission."""
+    __tablename__ = 'learning_submissions'
+    student_id = Column(Integer, primary_key=True)
+    request_key = Column(String(80), primary_key=True)
+    payload_hash = Column(String(64), nullable=False)
+    learning_log_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

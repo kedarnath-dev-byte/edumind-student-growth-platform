@@ -1,0 +1,52 @@
+# Review service names and secrets before creating this NEW deployment.
+# Does not update the existing root render.yaml or old deployed service.
+services:
+  - type: web
+    name: edumind-student-api
+    runtime: python
+    plan: 0.5c-512mb
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.student.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: off
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: ENABLE_LEGACY_AI
+        value: "false"
+      - key: ENABLE_DEMO_SEED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+  - type: web
+    name: edumind-student-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: off
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_ENABLE_LEGACY_AI
+        value: "false"
+      - key: NODE_VERSION
+        value: "24"
+      - key: VITE_PUBLIC_APP_URL
+        sync: false
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false

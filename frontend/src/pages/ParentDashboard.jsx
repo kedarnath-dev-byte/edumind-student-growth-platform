@@ -3,15 +3,12 @@
  * @description Parent growth dashboard for emotionally safe learning signals.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/authContext'
 import studentGrowthService from '../services/studentGrowthService'
 
-const STUDENT_ID = 1
-const SCHOOL_ID = 1
-const CLASSROOM_ID = 1
-const SUBJECT_ID = 1
 
 const defaultSummary = {
-  student_id: STUDENT_ID,
+  student_id: 0,
   message: 'Parent growth summary for your child.',
   learning_logs_count: 0,
   latest_learning_logs: [],
@@ -70,7 +67,7 @@ const normalizeSummary = (payload) => {
   return {
     ...defaultSummary,
     ...payload,
-    student_id: toNumber(payload.student_id || STUDENT_ID),
+    student_id: toNumber(payload.student_id || 0),
     learning_logs_count: toNumber(payload.learning_logs_count),
     latest_learning_logs: toSafeArray(payload.latest_learning_logs),
     honest_confusion_count: toNumber(payload.honest_confusion_count),
@@ -122,12 +119,19 @@ const EmptyState = ({ children }) => (
 )
 
 const ParentDashboard = () => {
+  const { profile } = useAuth()
+  const choices = profile?.parent_children || []
+  const [selectedId, setSelectedId] = useState('')
+  const STUDENT_ID = Number(selectedId || choices[0]?.id) || null
+
   const [summary, setSummary] = useState(defaultSummary)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    let active = true
     const loadSummary = async () => {
+      if (!STUDENT_ID) { setLoading(false); return }
       setLoading(true)
       setError('')
 
@@ -135,23 +139,25 @@ const ParentDashboard = () => {
         const data = await studentGrowthService.getParentStudentSummary(
           STUDENT_ID,
           {
-            school_id: SCHOOL_ID,
-            classroom_id: CLASSROOM_ID,
-            subject_id: SUBJECT_ID,
+
+            classroom_id: 0,
+
           }
         )
-        setSummary(normalizeSummary(data))
+        if (active) setSummary(normalizeSummary(data))
       } catch (err) {
+        if (!active) return
         console.error('Failed to load parent dashboard:', err)
-        setError('Backend is not reachable. Please start the backend server.')
+        setError('Could not connect. Check your internet and try again.')
         setSummary(defaultSummary)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     loadSummary()
-  }, [])
+    return () => { active = false }
+  }, [STUDENT_ID])
 
   const latestLogs = useMemo(() => (
     toSafeArray(summary.latest_learning_logs)
@@ -168,6 +174,8 @@ const ParentDashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      <label>Child<select value={STUDENT_ID || ''} onChange={e => setSelectedId(e.target.value)}>{choices.map(x => <option key={x.id} value={x.id}>{x.name || x.display_name}</option>)}</select></label>
+      {!STUDENT_ID && <p>No child is linked yet. Contact your school administrator.</p>}
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-blue-300 text-sm font-semibold mb-2">
           Parent growth view
@@ -430,12 +438,7 @@ const ParentDashboard = () => {
         )}
       </section>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h2 className="text-lg font-semibold text-white">Demo Helper Note</h2>
-        <p className="text-gray-400 text-sm mt-2">
-          For local demo data, use Swagger {'->'} POST /api/v1/dev/seed-demo-data.
-        </p>
-      </section>
+
     </div>
   )
 }

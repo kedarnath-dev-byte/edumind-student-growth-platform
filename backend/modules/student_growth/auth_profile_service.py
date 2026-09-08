@@ -41,6 +41,9 @@ class AuthProfileService:
                 ),
             )
 
+        if app_user.status != "ACTIVE":
+            raise HTTPException(403, "This account is inactive. Contact your school.")
+
         response = {
             "authenticated": True,
             "supabase_user_id": supabase_user_id,
@@ -93,6 +96,9 @@ class AuthProfileService:
         if app_user is None:
             raise HTTPException(status_code=404, detail="EduMind AppUser not found")
 
+        if (app_user.supabase_user_id not in (None, supabase_user_id) or not email
+            or (app_user.email or "").casefold() != email.casefold()):
+            raise HTTPException(403, "You can only link your own pre-enrolled email.")
         app_user.supabase_user_id = supabase_user_id
         if not app_user.email and email:
             app_user.email = email
