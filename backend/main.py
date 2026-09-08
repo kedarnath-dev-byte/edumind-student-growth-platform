@@ -13,12 +13,9 @@ from fastapi import FastAPI, Depends
 from core.access import require_admin
 from fastapi.middleware.cors import CORSMiddleware
 from modules.health.health_controller import router as health_router
-from modules.ingestion.ingestion_controller import router as ingestion_router
-from modules.rag.rag_controller import router as rag_router
 
 from core.database import init_db
 from modules.student_growth.school_admin_controller import router as school_admin_router
-from modules.evaluation.evaluation_controller import router as evaluation_router
 from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.dev_seed_controller import router as dev_seed_router
 from modules.student_growth.auth_controller import router as auth_router
@@ -73,10 +70,17 @@ app.add_middleware(
 app.add_middleware(TimingMiddleware)
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
-app.include_router(evaluation_router, dependencies=[Depends(require_admin)])
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
-app.include_router(ingestion_router, dependencies=[Depends(require_admin)])
-app.include_router(rag_router, dependencies=[Depends(require_admin)])
+# Preserve the full deployment by default. Small student deployments can omit
+# the heavy document/vector/AI dependencies without loading those modules.
+if os.getenv("ENABLE_LEGACY_AI", "true").lower() == "true":
+    from modules.evaluation.evaluation_controller import router as evaluation_router
+    from modules.ingestion.ingestion_controller import router as ingestion_router
+    from modules.rag.rag_controller import router as rag_router
+
+    app.include_router(evaluation_router, dependencies=[Depends(require_admin)])
+    app.include_router(ingestion_router, dependencies=[Depends(require_admin)])
+    app.include_router(rag_router, dependencies=[Depends(require_admin)])
 app.include_router(learning_log_router)
 app.include_router(revision_router)
 app.include_router(setup_router)
@@ -101,6 +105,5 @@ async def on_startup():
 async def root():
     """Quick health check endpoint."""
     return {"status": "ok", "app": "EduMind AI", "version": "1.0.0"}
-
 
 

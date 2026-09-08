@@ -23,7 +23,10 @@ Status: NOT DEPLOYED. Do not distribute the current production address as this r
 2. Connected Supabase project edumind-ai-learning (nlcjzvcpuerskzitnlee) is INACTIVE. Confirm it is the intended database for this repository before changing it; do not alter the old deployed project.
 3. Render access and the deployment target have not been verified. The repository's current Render service configuration still needs confirmed ownership and environment values.
 4. No live account credentials were available for student/teacher/parent end-to-end tests. No student records were read or changed.
-5. Local Python dependency installation was blocked by the execution environment. Run the GitHub Actions release suite and inspect its actual result.
+5. Local Python dependency installation was blocked by the execution environment. The initial GitHub Actions backend suite passed all 11 tests; the frontend import failure was corrected. Inspect the latest commit's checks before release.
+6. Browser verification could not reach the local app (ERR_BLOCKED_BY_CLIENT); real Android and authenticated browser tests remain outstanding.
+
+See cloud-deployment.md and deploy/render-student.yaml for a separate low-cost cloud deployment. The existing root deployment definition is unchanged.
 
 ## Required before real student release
 

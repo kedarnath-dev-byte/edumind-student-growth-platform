@@ -6,7 +6,7 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/authContext'
+import { useAuth } from '../auth/authContext'
 
 // ─── Stats Card Component ─────────────────────────────────────────────────────
 const StatsCard = ({ icon, label, value, color }) => (
