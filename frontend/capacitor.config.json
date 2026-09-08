@@ -1,0 +1,6 @@
+{
+  "appId": "com.kedarnath.edumind",
+  "appName": "EduMind",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" }
+}
