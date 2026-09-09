@@ -1,0 +1,67 @@
+# Builds an installable EduMind Android debug APK and publishes it as an artifact.
+name: Build EduMind Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "codex/android-apk"
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install frontend dependencies
+        run: npm install --package-lock-only && npm ci
+
+      - name: Build web application
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Generate and sync Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - name: Stage APK with a clear filename
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk ../EduMind-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EduMind-Android-APK
+          path: EduMind-debug.apk
+          if-no-files-found: error
+          retention-days: 30
