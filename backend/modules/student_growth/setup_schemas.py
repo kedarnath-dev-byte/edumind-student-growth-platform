@@ -17,7 +17,7 @@ class SchoolResponse(BaseModel):
     id: int
     name: str
     city: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 class ClassroomCreate(BaseModel):
@@ -37,7 +37,7 @@ class ClassroomResponse(BaseModel):
     grade: Optional[str] = None
     section: Optional[str] = None
     academic_year: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 class SubjectCreate(BaseModel):
@@ -51,7 +51,7 @@ class SubjectResponse(BaseModel):
     id: int
     school_id: Optional[int] = None
     name: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 class TopicCreate(BaseModel):
@@ -65,4 +65,4 @@ class TopicResponse(BaseModel):
     id: int
     subject_id: Optional[int] = None
     name: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
