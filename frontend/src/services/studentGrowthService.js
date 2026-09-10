@@ -12,7 +12,10 @@ const apiPrefix = (import.meta.env.VITE_API_BASE_URL || '')
 
 const getErrorMessage = (error, fallback) => {
   if (!error.response) {
-    return 'Could not reach the backend. Please make sure it is running.'
+    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
+      return 'Server is waking up (free hosting). Wait ~30s and tap Retry — do not refresh yet.'
+    }
+    return 'Cannot reach EduMind servers right now (often a cold start). Wait 20–40s and retry.'
   }
   return error.response?.data?.detail || fallback
 }
