@@ -46,6 +46,15 @@ class StudentProfileCreate(BaseModel):
     guardian_contact: Optional[str] = None
 
 
+
+class StudentProfileAssign(BaseModel):
+    user_id: int
+    school_id: Optional[int] = None
+    classroom_id: Optional[int] = None
+    display_name: Optional[str] = Field(default=None, min_length=1)
+    guardian_contact: Optional[str] = None
+
+
 class StudentProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

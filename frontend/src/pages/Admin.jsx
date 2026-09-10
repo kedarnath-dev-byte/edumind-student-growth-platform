@@ -135,6 +135,15 @@ const Admin = () => {
     return res.data
   }, [getAccessToken])
 
+  const apiPut = useCallback(async (url, body) => {
+    const token = getAccessToken() || localStorage.getItem('edumind_token')
+    const res = await api.put(url, body, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: ADMIN_TIMEOUT_MS,
+    })
+    return res.data
+  }, [getAccessToken])
+
   const apiDelete = useCallback(async (url) => {
     const token = getAccessToken() || localStorage.getItem('edumind_token')
     const res = await api.delete(url, {
@@ -219,6 +228,7 @@ const Admin = () => {
     setLoading(true)
     setError('')
     try {
+      loadSchools().catch(() => {})
       const params = roleFilter ? { role: roleFilter } : undefined
       const results = await Promise.allSettled([
         apiGet('/api/v1/users', params),
@@ -240,7 +250,7 @@ const Admin = () => {
     } finally {
       if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet, roleFilter])
+  }, [apiGet, roleFilter, loadSchools])
 
   const loadSupport = useCallback(async () => {
     const reqId = ++requestIdRef.current
@@ -256,6 +266,7 @@ const Admin = () => {
       session_count: 0,
     }
     try {
+      loadSchools().catch(() => {})
       const results = await Promise.allSettled([
         apiGet('/api/v1/admin/peers/overview'),
         apiGet('/api/v1/admin/parent-student-links'),
@@ -263,6 +274,7 @@ const Admin = () => {
         apiGet('/api/v1/admin/classroom-students'),
         apiGet('/api/v1/admin/teacher-profiles'),
         apiGet('/api/v1/admin/parent-profiles'),
+        apiGet('/api/v1/users', { role: 'STUDENT' }),
       ])
       if (reqId !== requestIdRef.current) return
       setPeers(settledValue(results[0], emptyPeers) || emptyPeers)
@@ -271,6 +283,9 @@ const Admin = () => {
       setClassroomStudents(settledValue(results[3], []) || [])
       setTeacherProfiles(settledValue(results[4], []) || [])
       setParentProfiles(settledValue(results[5], []) || [])
+      if (results[6].status === 'fulfilled') {
+        setUsers(settledValue(results[6], []) || [])
+      }
       const failed = results.filter((r) => r.status === 'rejected')
       if (failed.length === results.length) {
         setError(formatErr(failed[0].reason, 'Failed to load support graph'))
@@ -284,7 +299,7 @@ const Admin = () => {
     } finally {
       if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet])
+  }, [apiGet, loadSchools])
 
   const loadCoverage = useCallback(async () => {
     const reqId = ++requestIdRef.current
@@ -456,25 +471,132 @@ const Admin = () => {
     }
   }
 
-  const createStudentProfile = async (e) => {
+  const studentUsers = (() => {
+    const studentsOnly = users.filter((u) => u.role === 'STUDENT')
+    return studentsOnly.length ? studentsOnly : users
+  })()
+
+  const assignClassrooms = (() => {
+    if (!studentProfileForm.school_id) return classrooms
+    const sid = Number(studentProfileForm.school_id)
+    return classrooms.filter((c) => Number(c.school_id) === sid)
+  })()
+
+  const assignStudentToSchool = async (e) => {
     e.preventDefault()
     try {
-      await apiPost('/api/v1/users/student-profiles', {
+      const result = await apiPut('/api/v1/users/student-profiles/assign', {
         user_id: Number(studentProfileForm.user_id),
-        display_name: studentProfileForm.display_name.trim(),
+        display_name: studentProfileForm.display_name.trim() || null,
         school_id: studentProfileForm.school_id
           ? Number(studentProfileForm.school_id) : null,
         classroom_id: studentProfileForm.classroom_id
           ? Number(studentProfileForm.classroom_id) : null,
       })
-      setInfo('Student profile created')
+      setInfo('Student assigned to school')
       setStudentProfileForm({
         user_id: '', display_name: '', school_id: '', classroom_id: '',
       })
+      await loadPeople()
+      loadPulse().catch(() => {})
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create student profile')
+      setError(err.response?.data?.detail || 'Failed to assign student to school')
     }
   }
+
+  const createSupportStudentUser = async (e) => {
+    e.preventDefault()
+    try {
+      await apiPost('/api/v1/users', {
+        full_name: userForm.full_name.trim(),
+        email: userForm.email.trim() || null,
+        phone: null,
+        role: 'STUDENT',
+      })
+      setUserForm({ full_name: '', email: '', phone: '', role: 'STUDENT' })
+      setInfo('Student user created')
+      const data = await apiGet('/api/v1/users', { role: 'STUDENT' })
+      setUsers(data || [])
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to create student user')
+    }
+  }
+
+  const onAssignUserChange = (userId) => {
+    const selected = users.find((u) => String(u.id) === String(userId))
+    setStudentProfileForm((prev) => ({
+      ...prev,
+      user_id: userId,
+      display_name: prev.display_name.trim()
+        ? prev.display_name
+        : (selected?.full_name || ''),
+    }))
+  }
+
+  const onAssignSchoolChange = (schoolId) => {
+    setStudentProfileForm((prev) => ({
+      ...prev,
+      school_id: schoolId,
+      classroom_id: '',
+    }))
+    if (schoolId) loadSetupForSchool(schoolId)
+    else loadSetupForSchool(null)
+  }
+
+  const renderAssignStudentForm = () => (
+    <form onSubmit={assignStudentToSchool} className="space-y-2">
+      <select
+        className={fieldClass}
+        value={studentProfileForm.user_id}
+        onChange={(e) => onAssignUserChange(e.target.value)}
+        required
+      >
+        <option value="">Select student user</option>
+        {studentUsers.map((u) => (
+          <option key={u.id} value={u.id}>
+            #{u.id} · {u.full_name} · {u.email || 'no email'}
+          </option>
+        ))}
+      </select>
+      <input
+        className={fieldClass}
+        placeholder="display_name"
+        value={studentProfileForm.display_name}
+        onChange={(e) => setStudentProfileForm({
+          ...studentProfileForm,
+          display_name: e.target.value,
+        })}
+      />
+      <select
+        className={fieldClass}
+        value={studentProfileForm.school_id}
+        onChange={(e) => onAssignSchoolChange(e.target.value)}
+      >
+        <option value="">Select school (optional)</option>
+        {schools.map((s) => (
+          <option key={s.id} value={s.id}>#{s.id} · {s.name}</option>
+        ))}
+      </select>
+      <select
+        className={fieldClass}
+        value={studentProfileForm.classroom_id}
+        onChange={(e) => setStudentProfileForm({
+          ...studentProfileForm,
+          classroom_id: e.target.value,
+        })}
+        disabled={!studentProfileForm.school_id}
+      >
+        <option value="">Select classroom (optional)</option>
+        {assignClassrooms.map((c) => (
+          <option key={c.id} value={c.id}>#{c.id} · {c.name}</option>
+        ))}
+      </select>
+      <button type="submit" className={btnPrimary}>Assign / update school</button>
+      <p className="text-xs text-gray-500">
+        Updates existing profile if student already has one (no more duplicate error).
+      </p>
+    </form>
+  )
 
   const createTeacherProfile = async (e) => {
     e.preventDefault()
@@ -899,18 +1021,8 @@ const Admin = () => {
           </SectionCard>
 
           <div className="grid lg:grid-cols-3 gap-4">
-            <SectionCard title="Student profile">
-              <form onSubmit={createStudentProfile} className="space-y-2">
-                <input className={fieldClass} placeholder="user_id" value={studentProfileForm.user_id}
-                  onChange={(e) => setStudentProfileForm({ ...studentProfileForm, user_id: e.target.value })} required />
-                <input className={fieldClass} placeholder="display_name" value={studentProfileForm.display_name}
-                  onChange={(e) => setStudentProfileForm({ ...studentProfileForm, display_name: e.target.value })} required />
-                <input className={fieldClass} placeholder="school_id" value={studentProfileForm.school_id}
-                  onChange={(e) => setStudentProfileForm({ ...studentProfileForm, school_id: e.target.value })} />
-                <input className={fieldClass} placeholder="classroom_id" value={studentProfileForm.classroom_id}
-                  onChange={(e) => setStudentProfileForm({ ...studentProfileForm, classroom_id: e.target.value })} />
-                <button type="submit" className={btnPrimary}>Create</button>
-              </form>
+            <SectionCard title="Assign student to school">
+              {renderAssignStudentForm()}
             </SectionCard>
             <SectionCard title="Teacher profile">
               <form onSubmit={createTeacherProfile} className="space-y-2">
@@ -943,6 +1055,41 @@ const Admin = () => {
       {/* ─── SUPPORT GRAPH ─── */}
       {tab === 'support' && (
         <>
+          <SectionCard
+            title="Onboard / assign student to school"
+            actions={<span className="text-xs text-emerald-400/80 border border-emerald-700/40 rounded px-2 py-1">Not peer matching</span>}
+          >
+            <p className="text-xs text-gray-500 mb-3">
+              Create a student user and assign them to a school here. This is separate from peer/parent/teacher link cards below.
+            </p>
+            <div className="grid lg:grid-cols-2 gap-4">
+              <div className="border border-gray-800 rounded-lg p-3">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">Create student user</h3>
+                <form onSubmit={createSupportStudentUser} className="space-y-2">
+                  <input
+                    className={fieldClass}
+                    placeholder="Full name"
+                    value={userForm.full_name}
+                    onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value, role: 'STUDENT' })}
+                    required
+                  />
+                  <input
+                    className={fieldClass}
+                    placeholder="Email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value, role: 'STUDENT' })}
+                  />
+                  <input className={fieldClass} value="STUDENT" disabled readOnly />
+                  <button type="submit" className={btnPrimary}>Create student user</button>
+                </form>
+              </div>
+              <div className="border border-blue-900/50 rounded-lg p-3">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">Assign student to school</h3>
+                {renderAssignStudentForm()}
+              </div>
+            </div>
+          </SectionCard>
+
           <SectionCard title="Open peer help needing helpers">
             {!peers && <p className="text-sm text-gray-500">Loading…</p>}
             {peers && (
