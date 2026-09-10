@@ -101,6 +101,7 @@ const Admin = () => {
 
   // Coverage
   const [coverage, setCoverage] = useState(null)
+  const [couragePulse, setCouragePulse] = useState(null)
 
   const ADMIN_TIMEOUT_MS = 90000
   const tabRef = useRef(tab)
@@ -306,10 +307,17 @@ const Admin = () => {
     setLoading(true)
     setError('')
     setCoverage(null)
+    setCouragePulse(null)
     try {
       const data = await apiGet('/api/v1/admin/coverage/overview')
       if (reqId !== requestIdRef.current) return
       setCoverage(data)
+      try {
+        const pulse = await apiGet('/api/v1/courage-loops/admin/pulse-summary')
+        if (reqId === requestIdRef.current) setCouragePulse(pulse)
+      } catch (_) {
+        /* courage pulse optional until migration applied */
+      }
     } catch (err) {
       if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load coverage'))
@@ -1187,6 +1195,32 @@ const Admin = () => {
                   </div>
                 ))}
               </div>
+              {couragePulse && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-white mb-2">Courage Pulse (tags only — no private notes)</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                    {[
+                      ['Active loops', couragePulse.active_loops],
+                      ['Needing clarity', couragePulse.needing_clarity],
+                      ['In courage', couragePulse.in_courage],
+                      ['Completed', couragePulse.completed],
+                    ].map(([label, value]) => (
+                      <div key={label} className="bg-gray-950 border border-gray-800 rounded-lg p-3">
+                        <p className="text-xs text-gray-500">{label}</p>
+                        <p className="text-xl font-bold text-white mt-1">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <ul className="text-xs text-gray-400 space-y-1 max-h-40 overflow-auto">
+                    {(couragePulse.students_needing_clarity || []).map((s) => (
+                      <li key={s.id}>
+                        {s.display_name || `Student #${s.student_id}`} · {s.fear_type} · {s.stage}
+                        {s.has_note ? ' · note on file (hidden)' : ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <h3 className="text-sm font-semibold text-white mb-2">Struggle themes (30d not_understood)</h3>
               <ul className="space-y-2 max-h-80 overflow-auto">
                 {(coverage.struggle_themes || []).map((t, idx) => (

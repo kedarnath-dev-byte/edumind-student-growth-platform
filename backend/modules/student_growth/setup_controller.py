@@ -34,6 +34,7 @@ async def list_schools(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_supabase_user),
 ):
+    """Requires JWT — school names/cities must not be public."""
     return SetupService(db).list_schools()
 
 

@@ -49,6 +49,12 @@ const actionCards = [
     copy: 'Ask for support or offer help. Both build learning.',
   },
   {
+    title: 'Courage Loop',
+    path: '/student-courage-loop',
+    label: 'Open Courage Loop',
+    copy: 'Safely name a fear, find clarity, take one small brave step. Private by default.',
+  },
+  {
     title: 'Upload Proof',
     path: '/student-upload-proof',
     label: 'Upload to Drive',

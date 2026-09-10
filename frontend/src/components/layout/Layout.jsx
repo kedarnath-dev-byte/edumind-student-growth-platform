@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL', roles: ['STUDENT'] },
   { path: '/student-upload-proof', label: 'Upload Proof', icon: 'UP', roles: ['STUDENT'] },
   { path: '/student-subjects', label: 'Subject Worlds', icon: 'SW', roles: ['STUDENT'] },
+  { path: '/student-courage-loop', label: 'Courage Loop', icon: 'CL', roles: ['STUDENT'] },
   { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD', roles: ['TEACHER'] },
   { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD', roles: ['PARENT'] },
   { path: '/profile-status', label: 'Profile Status', icon: 'PS' },
@@ -97,6 +98,10 @@ const Layout = () => {
                 {profileLoading ? (
                   <p className="text-xs text-gray-500 mt-1 truncate">
                     Connecting to server…
+                  </p>
+                ) : role ? (
+                  <p className="text-xs text-emerald-400/90 mt-1 truncate" title="Profile linked">
+                    Linked · {role}
                   </p>
                 ) : (
                   <button

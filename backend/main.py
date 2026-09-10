@@ -35,13 +35,43 @@ from modules.student_growth.teacher_dashboard_controller import (
 from modules.student_growth.user_controller import router as user_router
 from modules.drive.drive_controller import router as drive_router
 from modules.student_growth.subject_social_controller import router as subject_social_router
+from modules.student_growth.courage_loop_controller import router as courage_loop_router
 
 # ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title="EduMind AI",
     description="RAG + LangGraph + Fine-Tuning Education Platform",
     version="1.0.0",
+    swagger_ui_parameters={"persistAuthorization": True},
 )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    from fastapi.openapi.utils import get_openapi
+
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    schema.setdefault("components", {}).setdefault("securitySchemes", {})[
+        "HTTPBearer"
+    ] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Paste Supabase access_token (JWT). Protected routes return 401 without it.",
+    }
+    # Document global bearer expectation; individual routes still enforce via Depends.
+    schema["security"] = [{"HTTPBearer": []}]
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 DEFAULT_CORS_ORIGINS = [
@@ -73,35 +103,6 @@ app.add_middleware(
 # ─── Timing Middleware ────────────────────────────────────────────────────────
 app.add_middleware(TimingMiddleware)
 
-
-from fastapi.openapi.utils import get_openapi
-
-
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    components = openapi_schema.setdefault("components", {})
-    schemes = components.setdefault("securitySchemes", {})
-    schemes["HTTPBearer"] = {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Supabase JWT access token (Authorization: Bearer <token>)",
-    }
-    # Document default bearer auth; public health remains callable without token at runtime.
-    openapi_schema["security"] = [{"HTTPBearer": []}]
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
-
-
-app.openapi = custom_openapi
-
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
@@ -120,6 +121,7 @@ app.include_router(user_router)
 app.include_router(admin_router)
 app.include_router(drive_router)
 app.include_router(subject_social_router)
+app.include_router(courage_loop_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
