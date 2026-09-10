@@ -27,6 +27,7 @@ const Layout = () => {
     profile,
     profileError,
     profileLoading,
+    refreshProfile,
     signOut,
     user,
   } = useAuth()
@@ -94,18 +95,18 @@ const Layout = () => {
               <>
                 <p className="text-xs text-gray-400 truncate">{user.email}</p>
                 {profileLoading ? (
-                  <p className="mt-2 text-xs text-blue-200">
-                    Loading profile…
-                  </p>
-                ) : role ? (
-                  <p className="mt-2 inline-block rounded bg-blue-500/10 px-2 py-1
-                  text-xs font-semibold text-blue-300">
-                    {role}
+                  <p className="text-xs text-gray-500 mt-1 truncate">
+                    Connecting to server…
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs text-amber-200">
-                    {profileError || 'Profile not linked'}
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => refreshProfile?.()}
+                    className="text-xs text-amber-400/90 mt-1 text-left hover:text-amber-300"
+                    title={profileError || 'Profile not linked'}
+                  >
+                    {profileError || 'Profile not linked'} · Retry
+                  </button>
                 )}
                 <button
                   onClick={handleLogout}
