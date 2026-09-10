@@ -46,16 +46,33 @@ def _env_flag_true(name: str) -> bool:
     return (os.getenv(name) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _oauth_configured() -> bool:
+    return bool(
+        (os.getenv("GOOGLE_OAUTH_CLIENT_ID") or "").strip()
+        and (os.getenv("GOOGLE_OAUTH_CLIENT_SECRET") or "").strip()
+        and (os.getenv("GOOGLE_OAUTH_REFRESH_TOKEN") or "").strip()
+    )
+
+
+def _service_account_configured() -> bool:
+    return bool((os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON") or "").strip())
+
+
 def _require_drive_enabled() -> None:
     if not _env_flag_true("GOOGLE_DRIVE_ENABLED"):
         raise HTTPException(
             status_code=503,
             detail="Google Drive uploads are disabled (GOOGLE_DRIVE_ENABLED=false).",
         )
-    if not (os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON") or "").strip():
+    if not (_oauth_configured() or _service_account_configured()):
         raise HTTPException(
             status_code=503,
-            detail="Google Drive is not configured (GOOGLE_SERVICE_ACCOUNT_JSON missing).",
+            detail=(
+                "Google Drive is not configured. Set GOOGLE_OAUTH_CLIENT_ID, "
+                "GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN "
+                "(recommended for personal Gmail quota), or GOOGLE_SERVICE_ACCOUNT_JSON "
+                "with a Shared Drive."
+            ),
         )
 
 
@@ -108,12 +125,33 @@ def _validate_mime_and_size(mime_type: str, size_bytes: int) -> None:
 def _build_drive_service():
     try:
         from google.oauth2 import service_account
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
     except ImportError as exc:
         raise HTTPException(
             status_code=503,
             detail="Google Drive client libraries are not installed.",
         ) from exc
+
+    # Prefer user OAuth (personal Gmail / Workspace user quota).
+    if _oauth_configured():
+        credentials = Credentials(
+            token=None,
+            refresh_token=os.getenv("GOOGLE_OAUTH_REFRESH_TOKEN", "").strip(),
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip(),
+            client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip(),
+            scopes=DRIVE_SCOPES,
+        )
+        try:
+            credentials.refresh(Request())
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Google OAuth refresh failed: {exc}",
+            ) from exc
+        return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
     raw_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     try:
@@ -315,10 +353,16 @@ class DriveUploadService:
                 .execute()
             )
         except Exception as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Google Drive upload failed: {exc}",
-            ) from exc
+            detail = f"Google Drive upload failed: {exc}"
+            msg = str(exc)
+            if "storageQuotaExceeded" in msg or "Service Accounts do not have storage quota" in msg:
+                detail = (
+                    "Google Drive upload failed: service accounts have no storage quota. "
+                    "Set GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / "
+                    "GOOGLE_OAUTH_REFRESH_TOKEN on Render (upload as your Gmail), "
+                    "or use a Shared Drive with the service account."
+                )
+            raise HTTPException(status_code=502, detail=detail) from exc
 
         # Best-effort: anyone-with-link so frontend <img>/<video> uc?export=download
         # and Drive preview embeds can play inline (Instagram/Shorts-style feed).
