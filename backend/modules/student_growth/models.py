@@ -182,6 +182,7 @@ class LearningLog(Base):
     understood = Column(Text, nullable=False)
     not_understood = Column(Text, nullable=True)
     confidence_level = Column(String, default="MEDIUM")
+    explanation_video_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

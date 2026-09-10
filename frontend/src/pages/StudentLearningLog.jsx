@@ -1,10 +1,15 @@
 /**
  * @file StudentLearningLog.jsx
  * @description First student growth flow for daily learning logs.
+ *              Optional front-camera selfie video explanation uploaded to Drive.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import MediaCapture from '../components/MediaCapture'
+import InlineMedia from '../components/InlineMedia'
+import driveUploadService from '../services/driveUploadService'
 import studentGrowthService from '../services/studentGrowthService'
+import { urlsFromDriveUpload } from '../utils/driveMediaHelpers'
 
 const DEMO_STUDENT_ID = 1
 const LAST_SUBJECT_KEY = 'edumind_last_subject_topic'
@@ -44,7 +49,7 @@ const formatDueDate = (value) => {
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
 const StudentLearningLog = () => {
-  const { profile } = useAuth()
+  const { profile, getAccessToken } = useAuth()
   const studentProfile = profile?.student_profile || null
   const studentId = studentProfile?.id || DEMO_STUDENT_ID
 
@@ -58,6 +63,10 @@ const StudentLearningLog = () => {
   const [error, setError] = useState('')
   const [validation, setValidation] = useState('')
   const [result, setResult] = useState(null)
+
+  const [recordSelfie, setRecordSelfie] = useState(false)
+  const [selfieFile, setSelfieFile] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const schoolOptions = toSafeArray(schools)
   const classroomOptions = toSafeArray(classrooms)
@@ -179,6 +188,10 @@ const StudentLearningLog = () => {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  const clearSelfie = () => {
+    setSelfieFile(null)
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -187,11 +200,36 @@ const StudentLearningLog = () => {
       return
     }
 
+    if (recordSelfie && !selfieFile) {
+      setValidation('Turn off selfie video, or record / pick a short explanation clip.')
+      return
+    }
+
     setLoading(true)
     setError('')
     setValidation('')
+    setUploadProgress(0)
 
     try {
+      let explanationVideoUrl = null
+      if (recordSelfie && selfieFile) {
+        const token = getAccessToken?.() || localStorage.getItem('edumind_token')
+        if (!token) {
+          throw new Error('Please log in to upload your explanation video.')
+        }
+        const uploaded = await driveUploadService.upload(
+          selfieFile,
+          'proof',
+          token,
+          setUploadProgress,
+        )
+        const urls = urlsFromDriveUpload(uploaded)
+        explanationVideoUrl = urls.playbackUrl || urls.viewUrl
+        if (!explanationVideoUrl) {
+          throw new Error('Drive upload succeeded but no link was returned.')
+        }
+      }
+
       const saved = await studentGrowthService.createLearningLog({
         student_id: studentId,
         school_id: Number(form.school_id),
@@ -202,6 +240,7 @@ const StudentLearningLog = () => {
         understood: form.understood.trim(),
         not_understood: form.not_understood.trim(),
         confidence_level: form.confidence_level,
+        explanation_video_url: explanationVideoUrl,
       })
 
       setResult(saved)
@@ -221,11 +260,14 @@ const StudentLearningLog = () => {
         subject_id: prev.subject_id,
         topic_id: prev.topic_id,
       }))
+      setRecordSelfie(false)
+      clearSelfie()
     } catch (err) {
       console.error('Failed to save learning log:', err)
       setError(err.message)
     } finally {
       setLoading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -234,7 +276,7 @@ const StudentLearningLog = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Daily Learning Log</h1>
         <p className="text-gray-400 text-sm mt-1">
-          It is okay to say "I don't know yet." Honest confusion helps improvement.
+          It is okay to say &quot;I don&apos;t know yet.&quot; Honest confusion helps improvement.
         </p>
       </div>
 
@@ -412,6 +454,56 @@ const StudentLearningLog = () => {
                 ))}
               </div>
             </div>
+
+            <div className="rounded-xl border border-gray-800 bg-gray-950 p-4 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={recordSelfie}
+                  onChange={(e) => {
+                    setRecordSelfie(e.target.checked)
+                    if (!e.target.checked) clearSelfie()
+                  }}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-white">
+                    Record a selfie explanation video
+                  </span>
+                  <span className="block text-xs text-gray-400 mt-1">
+                    Optional. Use your front camera to explain the topic in ~60 seconds —
+                    like a Shorts clip for your teacher and future you.
+                  </span>
+                </span>
+              </label>
+
+              {recordSelfie && (
+                <MediaCapture
+                  mode="video"
+                  label="Front camera / gallery"
+                  disabled={loading}
+                  onCaptured={(file) => {
+                    setSelfieFile(file)
+                  }}
+                  onCleared={clearSelfie}
+                />
+              )}
+
+              {loading && uploadProgress > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-400">Uploading explanation to Drive…</span>
+                    <span className="text-blue-400">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-800 rounded-full h-1.5">
+                    <div
+                      className="bg-blue-600 h-1.5 rounded-full transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <button
@@ -440,6 +532,19 @@ const StudentLearningLog = () => {
               <p className="text-gray-300 text-sm mt-2">
                 Your revision plan has been created.
               </p>
+
+              {result.explanation_video_url && (
+                <div className="mt-4 rounded-xl overflow-hidden border border-gray-800">
+                  <p className="text-white text-sm font-semibold px-3 py-2 bg-gray-950">
+                    Your explanation video
+                  </p>
+                  <InlineMedia
+                    src={result.explanation_video_url}
+                    viewUrl={result.explanation_video_url}
+                    mediaType="video"
+                  />
+                </div>
+              )}
 
               <div className="mt-4">
                 <h3 className="text-white text-sm font-semibold mb-2">

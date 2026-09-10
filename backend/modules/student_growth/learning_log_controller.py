@@ -28,6 +28,7 @@ def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> L
         understood=learning_log.understood,
         not_understood=learning_log.not_understood,
         confidence_level=learning_log.confidence_level,
+        explanation_video_url=getattr(learning_log, "explanation_video_url", None),
         created_at=learning_log.created_at,
         revision_tasks=[
             RevisionTaskResponse.model_validate(task)

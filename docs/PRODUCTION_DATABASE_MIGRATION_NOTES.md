@@ -46,3 +46,14 @@ WHERE phone = '';
 Add Alembic migrations before repeated production schema changes. Manual SQL is
 acceptable for this MVP pilot transition, but it should not remain the long-term
 database migration process.
+
+## Learning log explanation video (Sep 2026)
+
+If `learning_logs` already exists in production, add:
+
+```sql
+ALTER TABLE learning_logs
+ADD COLUMN IF NOT EXISTS explanation_video_url TEXT;
+```
+
+Also tracked in `supabase/migrations/20260910_learning_log_explanation_video.sql`.
