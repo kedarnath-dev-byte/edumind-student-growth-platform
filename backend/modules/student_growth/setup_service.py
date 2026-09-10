@@ -5,7 +5,17 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from modules.student_growth.models import Classroom, School, Subject, Topic
+from modules.student_growth.models import (
+    Classroom,
+    ClassroomStudent,
+    LearningLog,
+    School,
+    StudentProfile,
+    Subject,
+    TeacherClassroom,
+    TeacherProfile,
+    Topic,
+)
 from modules.student_growth.setup_schemas import (
     ClassroomCreate,
     SchoolCreate,
@@ -109,3 +119,99 @@ class SetupService:
             .order_by(Topic.created_at.desc().nullslast())
             .all()
         )
+
+    def delete_school(self, school_id: int) -> dict:
+        """Delete a school and its curriculum; unlink students/teachers."""
+        school = self.db.query(School).filter(School.id == school_id).first()
+        if school is None:
+            raise LookupError("School not found")
+
+        classrooms = (
+            self.db.query(Classroom)
+            .filter(Classroom.school_id == school_id)
+            .all()
+        )
+        classroom_ids = [c.id for c in classrooms]
+
+        subjects = (
+            self.db.query(Subject)
+            .filter(Subject.school_id == school_id)
+            .all()
+        )
+        subject_ids = [s.id for s in subjects]
+
+        topics_deleted = 0
+        if subject_ids:
+            topics_deleted = (
+                self.db.query(Topic)
+                .filter(Topic.subject_id.in_(subject_ids))
+                .delete(synchronize_session=False)
+            )
+
+        subjects_deleted = (
+            self.db.query(Subject)
+            .filter(Subject.school_id == school_id)
+            .delete(synchronize_session=False)
+        )
+
+        classroom_students_deleted = 0
+        teacher_classrooms_deleted = 0
+        if classroom_ids:
+            classroom_students_deleted = (
+                self.db.query(ClassroomStudent)
+                .filter(ClassroomStudent.classroom_id.in_(classroom_ids))
+                .delete(synchronize_session=False)
+            )
+            teacher_classrooms_deleted = (
+                self.db.query(TeacherClassroom)
+                .filter(TeacherClassroom.classroom_id.in_(classroom_ids))
+                .delete(synchronize_session=False)
+            )
+
+        # Unlink students assigned to this school / its classrooms
+        students_unlinked = (
+            self.db.query(StudentProfile)
+            .filter(StudentProfile.school_id == school_id)
+            .update(
+                {"school_id": None, "classroom_id": None},
+                synchronize_session=False,
+            )
+        )
+        if classroom_ids:
+            self.db.query(StudentProfile).filter(
+                StudentProfile.classroom_id.in_(classroom_ids)
+            ).update({"classroom_id": None}, synchronize_session=False)
+
+        teachers_unlinked = (
+            self.db.query(TeacherProfile)
+            .filter(TeacherProfile.school_id == school_id)
+            .update({"school_id": None}, synchronize_session=False)
+        )
+
+        # Keep learning logs; clear school pointer only
+        self.db.query(LearningLog).filter(
+            LearningLog.school_id == school_id
+        ).update({"school_id": None}, synchronize_session=False)
+
+        classrooms_deleted = (
+            self.db.query(Classroom)
+            .filter(Classroom.school_id == school_id)
+            .delete(synchronize_session=False)
+        )
+
+        name = school.name
+        self.db.delete(school)
+        self.db.commit()
+
+        return {
+            "id": school_id,
+            "name": name,
+            "classrooms_deleted": classrooms_deleted,
+            "subjects_deleted": subjects_deleted,
+            "topics_deleted": topics_deleted,
+            "classroom_students_deleted": classroom_students_deleted,
+            "teacher_classrooms_deleted": teacher_classrooms_deleted,
+            "students_unlinked": students_unlinked,
+            "teachers_unlinked": teachers_unlinked,
+        }
+

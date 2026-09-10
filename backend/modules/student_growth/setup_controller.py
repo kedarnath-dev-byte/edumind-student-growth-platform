@@ -1,6 +1,6 @@
 """HTTP endpoints for school setup dropdown data."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.auth import require_admin_user
@@ -32,6 +32,18 @@ async def create_school(
 @router.get("/schools", response_model=list[SchoolResponse])
 async def list_schools(db: Session = Depends(get_db)):
     return SetupService(db).list_schools()
+
+
+@router.delete("/schools/{school_id}")
+async def delete_school(
+    school_id: int,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
+    try:
+        return SetupService(db).delete_school(school_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/classrooms", response_model=ClassroomResponse)
