@@ -135,6 +135,15 @@ const Admin = () => {
     return res.data
   }, [getAccessToken])
 
+  const apiDelete = useCallback(async (url) => {
+    const token = getAccessToken() || localStorage.getItem('edumind_token')
+    const res = await api.delete(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: ADMIN_TIMEOUT_MS,
+    })
+    return res.data
+  }, [getAccessToken])
+
   const settledValue = (result, fallback) => (
     result.status === 'fulfilled' ? result.value : fallback
   )
@@ -352,6 +361,30 @@ const Admin = () => {
       await loadSchools()
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create school')
+    }
+  }
+
+  const deleteSchool = async (school) => {
+    const label = school.city ? `${school.name} · ${school.city}` : school.name
+    const ok = window.confirm(
+      `Delete school "${label}"?\n\nThis also removes its classrooms, subjects, and topics. Students linked to it will be unassigned (not deleted).`,
+    )
+    if (!ok) return
+    setError('')
+    setInfo('')
+    try {
+      await apiDelete(`/api/v1/schools/${school.id}`)
+      if (String(selectedSchoolId) === String(school.id)) {
+        setSelectedSchoolId('')
+        setSelectedSubjectId('')
+        setClassrooms([])
+        setSubjects([])
+        setTopics([])
+      }
+      setInfo(`Deleted school "${school.name}"`)
+      await loadSchools()
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete school')
     }
   }
 
@@ -698,21 +731,31 @@ const Admin = () => {
           <SectionCard title="Schools">
             <div className="flex flex-wrap gap-2 mb-4">
               {schools.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedSchoolId(String(s.id))
-                    setSelectedSubjectId('')
-                  }}
-                  className={`px-3 py-2 rounded-lg text-sm border ${
-                    String(s.id) === String(selectedSchoolId)
-                      ? 'bg-blue-600 border-blue-500 text-white'
-                      : 'bg-gray-950 border-gray-700 text-gray-300'
-                  }`}
-                >
-                  {s.name}{s.city ? ` · ${s.city}` : ''}
-                </button>
+                <div key={s.id} className="inline-flex items-stretch rounded-lg overflow-hidden border border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSchoolId(String(s.id))
+                      setSelectedSubjectId('')
+                    }}
+                    className={`px-3 py-2 text-sm ${
+                      String(s.id) === String(selectedSchoolId)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-950 text-gray-300 hover:bg-gray-900'
+                    }`}
+                  >
+                    #{s.id} {s.name}{s.city ? ` · ${s.city}` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    title="Delete school"
+                    onClick={() => deleteSchool(s)}
+                    className="px-2.5 py-2 text-xs font-semibold bg-red-950/80 text-red-300
+                      hover:bg-red-900 border-l border-gray-700"
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
               {schools.length === 0 && <p className="text-sm text-gray-500">No schools yet.</p>}
             </div>
