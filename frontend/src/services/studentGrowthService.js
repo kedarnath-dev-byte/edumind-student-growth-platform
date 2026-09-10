@@ -234,6 +234,50 @@ const studentGrowthService = {
       throw new Error(getErrorMessage(error, 'Failed to load parent dashboard summary'))
     }
   },
+
+  async createCourageLoop(payload) {
+    try {
+      const response = await api.post(`${apiPrefix}/courage-loops`, payload)
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to start Courage Loop'))
+    }
+  },
+
+  async listMyCourageLoops(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/courage-loops/mine`, {
+        params: { student_id: studentId },
+      })
+      return normalizeList(response, ['loops', 'items'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load Courage Loops'))
+    }
+  },
+
+  async advanceCourageLoop(loopId, studentId, payload) {
+    try {
+      const response = await api.patch(
+        `${apiPrefix}/courage-loops/${loopId}/advance`,
+        payload,
+        { params: { student_id: studentId } },
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to advance Courage Loop'))
+    }
+  },
+
+  async getCouragePulseSummary(filters = {}) {
+    try {
+      const response = await api.get(`${apiPrefix}/courage-loops/admin/pulse-summary`, {
+        params: filters,
+      })
+      return response?.data && typeof response.data === 'object' ? response.data : null
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load courage pulse'))
+    }
+  },
 }
 
 export default studentGrowthService

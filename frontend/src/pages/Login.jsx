@@ -422,7 +422,7 @@ const Login = () => {
               disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
               transition-colors"
             >
-              {busy ? 'Saving...' : 'Create student profile'}
+              {busy ? 'Saving...' : (mode === 'admin' ? 'Create admin profile' : 'Create student profile')}
             </button>
           </form>
         ) : null}
@@ -582,17 +582,14 @@ const Login = () => {
 
 
         {!needsName && mode === 'admin' && (
-          <form
-            onSubmit={adminAuthMode === 'register' ? handleAdminRegister : handleAdminSignIn}
-            className="space-y-4"
-          >
-            <div className="flex gap-2 mb-1">
+          <div className="space-y-4">
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setAdminAuthMode('signin')}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg ${
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg ${
                   adminAuthMode === 'signin'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'bg-gray-950 text-gray-400 border border-gray-800'
                 }`}
               >
@@ -601,15 +598,19 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setAdminAuthMode('register')}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg ${
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg ${
                   adminAuthMode === 'register'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-emerald-600 text-white'
                     : 'bg-gray-950 text-gray-400 border border-gray-800'
                 }`}
               >
                 Admin register
               </button>
             </div>
+
+            <p className="text-xs text-gray-500">
+              School admin access only. Students should use Sign in / Register.
+            </p>
 
             {adminAuthMode === 'register' && (
               <label className="block">
@@ -625,60 +626,61 @@ const Login = () => {
               </label>
             )}
 
-            {adminAuthMode === 'register' && (
+            <form
+              onSubmit={adminAuthMode === 'register' ? handleAdminRegister : handleAdminSignIn}
+              className="space-y-4"
+            >
               <label className="block">
-                <span className="text-gray-300 text-sm font-medium">Mobile (+91, optional)</span>
+                <span className="text-gray-300 text-sm font-medium">Email</span>
                 <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   className={inputClassName}
-                  placeholder="9876543210"
-                  autoComplete="tel"
+                  placeholder="admin@school.edu"
+                  autoComplete="email"
                 />
               </label>
-            )}
 
-            <label className="block">
-              <span className="text-gray-300 text-sm font-medium">Admin email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={inputClassName}
-                placeholder="admin@school.edu"
-                autoComplete="email"
-              />
-            </label>
+              <label className="block">
+                <span className="text-gray-300 text-sm font-medium">Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className={inputClassName}
+                  placeholder="Enter password"
+                  autoComplete={adminAuthMode === 'register' ? 'new-password' : 'current-password'}
+                />
+              </label>
 
-            <label className="block">
-              <span className="text-gray-300 text-sm font-medium">Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={inputClassName}
-                placeholder="Enter password"
-                autoComplete={adminAuthMode === 'register' ? 'new-password' : 'current-password'}
-              />
-            </label>
+              {adminAuthMode === 'register' && (
+                <label className="block">
+                  <span className="text-gray-300 text-sm font-medium">Mobile (optional)</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    className={inputClassName}
+                    placeholder="9876543210"
+                    autoComplete="tel"
+                  />
+                </label>
+              )}
 
-            <button
-              type="submit"
-              disabled={busy || !isConfigured}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700
-              disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
-              transition-colors"
-            >
-              {busy
-                ? (adminAuthMode === 'register' ? 'Creating admin...' : 'Signing in...')
-                : (adminAuthMode === 'register' ? 'Register admin' : 'Admin Sign In')}
-            </button>
-
-            <p className="text-gray-500 text-xs text-center">
-              Admin access opens school setup, Student Pulse, and people management after login.
-            </p>
-          </form>
+              <button
+                type="submit"
+                disabled={busy || !isConfigured}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700
+                disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
+                transition-colors"
+              >
+                {busy
+                  ? (adminAuthMode === 'register' ? 'Creating admin...' : 'Signing in...')
+                  : (adminAuthMode === 'register' ? 'Register as admin' : 'Admin Sign In')}
+              </button>
+            </form>
+          </div>
         )}
 
         {!needsName && mode === 'phone' && (

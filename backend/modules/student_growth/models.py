@@ -341,3 +341,27 @@ class SubjectFollow(Base):
     subject_id = Column(Integer, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class CourageLoop(Base):
+    """Private student courage journey: vulnerability → clarity → courage.
+
+    visibility private = student + counsellor; trusted = + optional class teacher.
+    Never peer-feed; never parent/principal raw note text by default.
+    """
+
+    __tablename__ = "courage_loops"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=True)
+    topic_id = Column(Integer, index=True, nullable=True)
+    learning_log_id = Column(Integer, index=True, nullable=True)
+    fear_type = Column(String, index=True, nullable=False)
+    note = Column(Text, nullable=True)
+    visibility = Column(String, index=True, default="private")  # private | trusted
+    stage = Column(String, index=True, default="vulnerable")
+    clarity_path = Column(Text, nullable=True)
+    courage_action = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=True)
+

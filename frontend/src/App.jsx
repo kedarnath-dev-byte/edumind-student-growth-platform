@@ -21,6 +21,7 @@ import Unauthorized from './pages/Unauthorized'
 import Upload from './pages/Upload'
 import StudentDriveUpload from './pages/StudentDriveUpload'
 import SubjectFeed from './pages/SubjectFeed'
+import StudentCourageLoop from './pages/StudentCourageLoop'
 
 import Layout from './components/layout/Layout'
 
@@ -87,6 +88,14 @@ const AppRoutes = () => (
         element={(
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <SubjectFeed />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="student-courage-loop"
+        element={(
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentCourageLoop />
           </ProtectedRoute>
         )}
       />

@@ -3,7 +3,7 @@
  * Primary compose path: camera / gallery upload (Instagram-style), not paste URL.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import InlineMedia from '../components/InlineMedia'
 import MediaCapture from '../components/MediaCapture'
@@ -17,7 +17,8 @@ import {
 
 const SubjectFeed = () => {
   const { getAccessToken, profile } = useAuth()
-  const studentId = profile?.student_profile?.id
+  const studentProfile = profile?.student_profile || null
+  const studentId = studentProfile?.id
   const [params, setParams] = useSearchParams()
   const subjectId = params.get('subject') || ''
 
@@ -234,6 +235,20 @@ const SubjectFeed = () => {
 
   return (
     <div className="max-w-xl mx-auto pb-16">
+
+      {!studentProfile?.school_id && (
+        <div className="mb-5 bg-amber-500/10 border border-amber-500/30 text-amber-100 rounded-xl p-4">
+          <p className="font-semibold text-sm">Subject Worlds needs your school · स्कूल असाइनमेंट ज़रूरी</p>
+          <p className="text-xs mt-1 text-amber-100/80">
+            Your profile has no school yet, so the feed looks empty. Ask admin to assign school (pilot school 8 is fine).
+            Courage notes stay private and never appear here.
+          </p>
+          <Link to="/profile-status" className="inline-block mt-3 text-sm text-blue-300 hover:text-blue-200">
+            Check profile status →
+          </Link>
+        </div>
+      )}
+
       <div className="mb-5">
         <h1 className="text-2xl font-bold text-white">Subject Worlds</h1>
         <p className="text-gray-400 text-sm mt-1">

@@ -4,6 +4,7 @@
  *              Optional front-camera selfie video explanation uploaded to Drive.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import MediaCapture from '../components/MediaCapture'
 import InlineMedia from '../components/InlineMedia'
@@ -274,9 +275,9 @@ const StudentLearningLog = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Daily Learning Log</h1>
+        <h1 className="text-2xl font-bold text-white">Daily Learning Log · दैनिक लर्निंग लॉग</h1>
         <p className="text-gray-400 text-sm mt-1">
-          It is okay to say &quot;I don&apos;t know yet.&quot; Honest confusion helps improvement.
+          It is okay to say &quot;I don&apos;t know yet.&quot; / &quot;मुझे अभी नहीं आता&quot; कहना ठीक है।
         </p>
       </div>
 
@@ -519,6 +520,20 @@ const StudentLearningLog = () => {
 
         <aside className="space-y-4">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            
+          <div className="mt-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+            <p className="text-indigo-100 text-sm font-semibold">Stuck or scared? · अटके या डर?</p>
+            <p className="text-indigo-100/80 text-xs mt-1">
+              Start a private Courage Loop — never posted to Subject Worlds.
+            </p>
+            <Link
+              to={`/student-courage-loop?subject_id=${form.subject_id || ''}&topic_id=${form.topic_id || ''}`}
+              className="inline-block mt-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg px-3 py-2"
+            >
+              I&apos;m stuck / I&apos;m scared · साहस चक्र
+            </Link>
+          </div>
+
             <h2 className="text-white font-semibold">Student-first reminder</h2>
             <p className="text-gray-400 text-sm mt-2">
               This log is not a test. It helps your teacher, your family, and
