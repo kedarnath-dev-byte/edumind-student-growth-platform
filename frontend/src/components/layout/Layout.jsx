@@ -95,7 +95,7 @@ const Layout = () => {
             {isAuthenticated ? (
               <>
                 <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                {profileLoading ? (
+                {profileLoading && !role ? (
                   <p className="text-xs text-gray-500 mt-1 truncate">
                     Connecting to server…
                   </p>
@@ -110,7 +110,11 @@ const Layout = () => {
                     className="text-xs text-amber-400/90 mt-1 text-left hover:text-amber-300"
                     title={profileError || 'Profile not linked'}
                   >
-                    {profileError || 'Profile not linked'} · Retry
+                    {/not linked/i.test(profileError || '')
+                      ? 'Profile not linked · Retry'
+                      : profileError
+                        ? 'Could not load profile · Retry'
+                        : 'Checking profile · Retry'}
                   </button>
                 )}
                 <button

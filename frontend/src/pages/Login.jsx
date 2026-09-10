@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { getDefaultRouteForRole } from '../auth/roleRoutes'
@@ -97,8 +97,26 @@ const Login = () => {
   const [formError, setFormError] = useState('')
   const [showForgot, setShowForgot] = useState(false)
   const [guardianConsent, setGuardianConsent] = useState(false)
+  const [coldStartHint, setColdStartHint] = useState(false)
 
   const busy = loading || profileLoading
+
+  // Render free-tier wake can leave the button on "Signing in..." for a long time
+  // with no error. Surface guidance after ~10s instead of spinning silently.
+  useEffect(() => {
+    if (!busy) {
+      setColdStartHint(false)
+      return undefined
+    }
+    const timer = setTimeout(() => {
+      setColdStartHint(true)
+      setFormError((prev) => prev || (
+        'Still signing in — the API may be waking from a cold start. '
+        + 'This can take up to a minute. Keep this tab open, or tap Sign in again.'
+      ))
+    }, 10000)
+    return () => clearTimeout(timer)
+  }, [busy])
 
   const resetMessages = () => {
     setFormError('')
@@ -547,7 +565,7 @@ const Login = () => {
               disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
               transition-colors"
             >
-              {busy ? 'Signing in...' : 'Sign In'}
+              {busy ? (coldStartHint ? 'Still signing in…' : 'Signing in…') : 'Sign In'}
             </button>
           </form>
         )}
@@ -801,7 +819,9 @@ const Login = () => {
                 transition-colors"
               >
                 {busy
-                  ? (adminAuthMode === 'register' ? 'Creating admin...' : 'Signing in...')
+                  ? (adminAuthMode === 'register'
+                    ? (coldStartHint ? 'Still creating admin…' : 'Creating admin…')
+                    : (coldStartHint ? 'Still signing in…' : 'Signing in…'))
                   : (adminAuthMode === 'register' ? 'Register as admin' : 'Admin Sign In')}
               </button>
             </form>

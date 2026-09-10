@@ -228,6 +228,11 @@ const Admin = () => {
     const reqId = ++requestIdRef.current
     setLoading(true)
     setError('')
+    const softTimer = setTimeout(() => {
+      if (reqId !== requestIdRef.current) return
+      setLoading(false)
+      setError((prev) => prev || 'People is taking too long — tap Refresh (backend may be waking).')
+    }, 25000)
     try {
       loadSchools().catch(() => {})
       const params = roleFilter ? { role: roleFilter } : undefined
@@ -240,6 +245,9 @@ const Admin = () => {
       setUsers(settledValue(results[0], []) || [])
       setTeacherProfiles(settledValue(results[1], []) || [])
       setParentProfiles(settledValue(results[2], []) || [])
+      if (results[0].status === 'fulfilled') {
+        setError('')
+      }
       if (results[0].status === 'rejected') {
         setError(formatErr(results[0].reason, 'Failed to load people'))
       } else if (results.some((r) => r.status === 'rejected')) {
@@ -249,6 +257,7 @@ const Admin = () => {
       if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load people'))
     } finally {
+      clearTimeout(softTimer)
       if (reqId === requestIdRef.current) setLoading(false)
     }
   }, [apiGet, roleFilter, loadSchools])
@@ -266,6 +275,12 @@ const Admin = () => {
       available_offer_count: 0,
       session_count: 0,
     }
+    const softTimer = setTimeout(() => {
+      if (reqId !== requestIdRef.current) return
+      setLoading(false)
+      setPeers((prev) => prev || emptyPeers)
+      setError((prev) => prev || 'Support Graph is taking too long — tap Refresh (backend may be waking).')
+    }, 25000)
     try {
       loadSchools().catch(() => {})
       const results = await Promise.allSettled([
@@ -278,6 +293,7 @@ const Admin = () => {
         apiGet('/api/v1/users', { role: 'STUDENT' }),
       ])
       if (reqId !== requestIdRef.current) return
+      setError('')
       setPeers(settledValue(results[0], emptyPeers) || emptyPeers)
       setParentLinks(settledValue(results[1], []) || [])
       setTeacherClassrooms(settledValue(results[2], []) || [])
@@ -290,6 +306,7 @@ const Admin = () => {
       const failed = results.filter((r) => r.status === 'rejected')
       if (failed.length === results.length) {
         setError(formatErr(failed[0].reason, 'Failed to load support graph'))
+        setPeers(emptyPeers)
       } else if (failed.length) {
         setInfo(`Support graph partial (${failed.length} section(s) failed) — tap Refresh`)
       }
@@ -298,6 +315,7 @@ const Admin = () => {
       setError(formatErr(err, 'Failed to load support graph'))
       setPeers(emptyPeers)
     } finally {
+      clearTimeout(softTimer)
       if (reqId === requestIdRef.current) setLoading(false)
     }
   }, [apiGet, loadSchools])
@@ -308,9 +326,27 @@ const Admin = () => {
     setError('')
     setCoverage(null)
     setCouragePulse(null)
+    const emptyCoverage = {
+      total_students: 0,
+      students_without_school: 0,
+      students_without_classroom: 0,
+      inactive_7d: 0,
+      inactive_14d: 0,
+      with_overdue_revisions: 0,
+      open_peer_requests: 0,
+      struggle_themes: [],
+    }
+    // Soft UI timeout so tabs never spin forever if a request hangs.
+    const softTimer = setTimeout(() => {
+      if (reqId !== requestIdRef.current) return
+      setLoading(false)
+      setCoverage((prev) => prev || emptyCoverage)
+      setError((prev) => prev || 'Coverage is taking too long — tap Refresh (backend may be waking).')
+    }, 25000)
     try {
       const data = await apiGet('/api/v1/admin/coverage/overview')
       if (reqId !== requestIdRef.current) return
+      setError('')
       setCoverage(data)
       try {
         const pulse = await apiGet('/api/v1/courage-loops/admin/pulse-summary')
@@ -321,7 +357,9 @@ const Admin = () => {
     } catch (err) {
       if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load coverage'))
+      setCoverage(emptyCoverage)
     } finally {
+      clearTimeout(softTimer)
       if (reqId === requestIdRef.current) setLoading(false)
     }
   }, [apiGet])
@@ -685,7 +723,7 @@ const Admin = () => {
   const adminName = profile?.app_user?.full_name || profile?.email || 'Admin'
 
   return (
-    <div className="max-w-7xl mx-auto relative">
+    <div className="w-full max-w-7xl mx-auto relative overflow-x-hidden px-1 sm:px-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Admin Control Center</h1>
         <p className="text-gray-400 text-sm mt-1">
@@ -693,13 +731,13 @@ const Admin = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-nowrap sm:flex-wrap gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
         {TABS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap shrink-0 ${
               tab === item.id
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-900 text-gray-400 border border-gray-800 hover:text-white'
@@ -963,16 +1001,21 @@ const Admin = () => {
           <SectionCard
             title="App users"
             actions={(
-              <select
-                className={fieldClass + ' !mt-0 w-40'}
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-              >
-                <option value="">All roles</option>
-                {['STUDENT', 'TEACHER', 'PARENT', 'ADMIN'].map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              <div className="flex flex-wrap items-center gap-2 max-w-full">
+                <select
+                  className={fieldClass + ' !mt-0 w-36 sm:w-40'}
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="">All roles</option>
+                  {['STUDENT', 'TEACHER', 'PARENT', 'ADMIN'].map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <button type="button" className={btnSecondary} onClick={loadPeople} disabled={loading}>
+                  Refresh
+                </button>
+              </div>
             )}
           >
             <div className="overflow-x-auto mb-4 max-h-64 overflow-y-auto">
@@ -1098,8 +1141,18 @@ const Admin = () => {
             </div>
           </SectionCard>
 
-          <SectionCard title="Open peer help needing helpers">
-            {!peers && <p className="text-sm text-gray-500">Loading…</p>}
+          <SectionCard
+            title="Open peer help needing helpers"
+            actions={(
+              <button type="button" className={btnSecondary} onClick={loadSupport} disabled={loading}>
+                Refresh
+              </button>
+            )}
+          >
+            {loading && !peers && <p className="text-sm text-gray-500">Loading…</p>}
+            {!loading && !peers && (
+              <p className="text-sm text-gray-500">Could not load support graph. Tap Refresh.</p>
+            )}
             {peers && (
               <>
                 <p className="text-sm text-gray-400 mb-3">
@@ -1176,7 +1229,10 @@ const Admin = () => {
           <button type="button" className={btnSecondary} onClick={loadCoverage}>Refresh</button>
         )}
         >
-          {!coverage && <p className="text-sm text-gray-500">Loading…</p>}
+          {loading && !coverage && <p className="text-sm text-gray-500">Loading…</p>}
+          {!loading && !coverage && (
+            <p className="text-sm text-gray-500">Could not load coverage. Tap Refresh.</p>
+          )}
           {coverage && (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
