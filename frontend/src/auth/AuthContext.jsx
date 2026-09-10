@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     return data.session
   }
 
-  const getAccessToken = () => session?.access_token || null
+  const getAccessToken = useCallback(() => session?.access_token || null, [session?.access_token])
 
   const refreshProfile = async (accessToken = null) => {
     const token = accessToken || getAccessToken()
@@ -467,7 +467,7 @@ export const AuthProvider = ({ children }) => {
     signOut,
     refreshSession,
     refreshProfile,
-  }), [session, user, loading, authError, profile, profileLoading, profileError])
+  }), [session, user, loading, authError, profile, profileLoading, profileError, getAccessToken])
 
   return (
     <AuthContext.Provider value={value}>
