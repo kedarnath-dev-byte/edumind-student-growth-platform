@@ -75,32 +75,40 @@ const StudentLearningLog = () => {
   const topicOptions = toSafeArray(topics)
 
   useEffect(() => {
+    const applyAssignedSchool = () => {
+      const assignedSchoolId = studentProfile?.school_id
+      const assignedClassroomId = studentProfile?.classroom_id
+      if (!assignedSchoolId) return
+      let last = {}
+      try {
+        last = JSON.parse(localStorage.getItem(LAST_SUBJECT_KEY) || '{}') || {}
+      } catch (_) {
+        last = {}
+      }
+      setForm((prev) => ({
+        ...prev,
+        school_id: String(assignedSchoolId),
+        classroom_id: assignedClassroomId ? String(assignedClassroomId) : prev.classroom_id,
+        subject_id: last.subject_id ? String(last.subject_id) : prev.subject_id,
+        topic_id: last.topic_id ? String(last.topic_id) : prev.topic_id,
+      }))
+    }
+
     const loadSchools = async () => {
       setLoadingSetup(true)
       setError('')
+      // Prefill school/class from linked profile even if the schools list
+      // fails (e.g. locked-down public list). Subjects stay enabled.
+      applyAssignedSchool()
       try {
         const data = await studentGrowthService.getSchools()
         setSchools(toSafeArray(data))
-        const assignedSchoolId = studentProfile?.school_id
-        const assignedClassroomId = studentProfile?.classroom_id
-        if (assignedSchoolId) {
-          let last = {}
-          try {
-            last = JSON.parse(localStorage.getItem(LAST_SUBJECT_KEY) || '{}') || {}
-          } catch (_) {
-            last = {}
-          }
-          setForm((prev) => ({
-            ...prev,
-            school_id: String(assignedSchoolId),
-            classroom_id: assignedClassroomId ? String(assignedClassroomId) : prev.classroom_id,
-            subject_id: last.subject_id ? String(last.subject_id) : prev.subject_id,
-            topic_id: last.topic_id ? String(last.topic_id) : prev.topic_id,
-          }))
-        }
       } catch (err) {
         console.error('Failed to load schools:', err)
-        setError(err.message)
+        // Do not block subject selection when the student is already assigned.
+        if (!studentProfile?.school_id) {
+          setError(err.message)
+        }
       } finally {
         setLoadingSetup(false)
       }

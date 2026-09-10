@@ -13,6 +13,11 @@ const AuthContext = createContext(null)
 const profileNotLinkedMessage =
   'EduMind profile is not linked yet. Please contact EduMind admin.'
 
+const profileHasLinkedRole = (currentProfile) => {
+  const role = String(currentProfile?.app_user?.role || '').trim()
+  return Boolean(role)
+}
+
 const clearProfileState = (setProfile, setProfileError) => {
   setProfile(null)
   setProfileError('')
@@ -95,10 +100,13 @@ export const AuthProvider = ({ children }) => {
       setProfile(currentProfile)
       return currentProfile
     } catch (error) {
-      setProfile(null)
       if (error.code === 'PROFILE_NOT_LINKED') {
+        setProfile(null)
         setProfileError(profileNotLinkedMessage)
       } else {
+        // Keep a previously linked profile so Layout does not flash
+        // "Profile not linked" during cold-start / transient API failures.
+        setProfile((prev) => (profileHasLinkedRole(prev) ? prev : null))
         setProfileError(
           'EduMind profile could not be loaded. Please try again.'
         )
@@ -237,10 +245,11 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         if (cancelled) return
-        setProfile(null)
         if (error.code === 'PROFILE_NOT_LINKED') {
+          setProfile(null)
           setProfileError(profileNotLinkedMessage)
         } else {
+          setProfile((prev) => (profileHasLinkedRole(prev) ? prev : null))
           setProfileError(
             'EduMind profile could not be loaded. Please try again.'
           )
@@ -268,6 +277,7 @@ export const AuthProvider = ({ children }) => {
 
     setLoading(true)
     setAuthError('')
+    setProfileLoading(true)
     clearProfileState(setProfile, setProfileError)
 
     try {
@@ -282,15 +292,18 @@ export const AuthProvider = ({ children }) => {
           const friendly =
             'Email not confirmed yet. Open the confirmation link from your inbox, or ask EduMind admin to confirm your account for the pilot.'
           setAuthError(friendly)
+          setProfileLoading(false)
           return { error: { ...error, message: friendly } }
         }
         if (msg.includes('invalid login credentials')) {
           const friendly =
             'Invalid email or password. New students: use Register first with a real email (not .local).'
           setAuthError(friendly)
+          setProfileLoading(false)
           return { error: { ...error, message: friendly } }
         }
         setAuthError(error.message || 'Login failed. Please check your details.')
+        setProfileLoading(false)
         return { error }
       }
 
