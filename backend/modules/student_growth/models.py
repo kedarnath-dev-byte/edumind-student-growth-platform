@@ -309,3 +309,34 @@ class DriveUpload(Base):
     web_view_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class SubjectPost(Base):
+    """Image/video/text post inside a subject world (Instagram-style)."""
+
+    __tablename__ = "subject_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    author_student_id = Column(Integer, index=True, nullable=False)
+    school_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=False)
+    topic_id = Column(Integer, index=True, nullable=True)
+    caption = Column(Text, nullable=True)
+    media_url = Column(String, nullable=True)
+    media_type = Column(String, index=True, default="text")  # text | image | video
+    drive_upload_id = Column(Integer, index=True, nullable=True)
+    status = Column(String, index=True, default="ACTIVE")  # ACTIVE | REMOVED
+    like_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SubjectFollow(Base):
+    """Follow a classmate within one subject channel."""
+
+    __tablename__ = "subject_follows"
+
+    id = Column(Integer, primary_key=True, index=True)
+    follower_student_id = Column(Integer, index=True, nullable=False)
+    following_student_id = Column(Integer, index=True, nullable=False)
+    subject_id = Column(Integer, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
