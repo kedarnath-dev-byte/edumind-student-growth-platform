@@ -84,6 +84,50 @@ const authService = {
       throw bootstrapError
     }
   },
+
+  async bootstrapAdmin(accessToken, { full_name, phone } = {}) {
+    if (!accessToken) {
+      throw new Error('Missing Supabase access token.')
+    }
+
+    try {
+      const response = await axios.post(
+        `${apiBaseUrl}/api/v1/auth/bootstrap-admin`,
+        {
+          full_name,
+          phone: phone || undefined,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      )
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 409 || error.response?.status === 403) {
+        const conflictError = new Error(
+          error.response?.data?.detail
+            || 'Admin account could not be created for this login.'
+        )
+        conflictError.code = 'BOOTSTRAP_CONFLICT'
+        throw conflictError
+      }
+
+      if (error.response?.status === 401) {
+        const authError = new Error('Your login session could not be verified.')
+        authError.code = 'AUTH_TOKEN_INVALID'
+        throw authError
+      }
+
+      const bootstrapError = new Error(
+        error.response?.data?.detail
+          || 'Could not create your EduMind admin profile. Please try again.'
+      )
+      bootstrapError.code = 'BOOTSTRAP_FAILED'
+      throw bootstrapError
+    }
+  },
 }
 
 export default authService

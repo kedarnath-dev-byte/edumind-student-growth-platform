@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { path: '/chat', label: 'AI Tutor', icon: 'AI' },
   { path: '/upload', label: 'Upload Docs', icon: 'UP', roles: ['ADMIN', 'TEACHER'] },
   { path: '/finetuning', label: 'Fine-Tuning', icon: 'FT', roles: ['ADMIN'] },
-  { path: '/admin', label: 'Admin', icon: 'AD', roles: ['ADMIN'] },
+  { path: '/admin', label: 'Admin Control', icon: 'AD', roles: ['ADMIN'] },
 ]
 
 const Layout = () => {

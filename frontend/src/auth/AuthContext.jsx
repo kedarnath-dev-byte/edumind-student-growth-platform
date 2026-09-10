@@ -137,6 +137,36 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const bootstrapAdminProfile = async ({ full_name, phone, accessToken = null } = {}) => {
+    const token = accessToken || getAccessToken()
+    if (!token) {
+      const message = 'You must be signed in to finish admin registration.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setProfileLoading(true)
+    setAuthError('')
+    setProfileError('')
+
+    try {
+      const currentProfile = await authService.bootstrapAdmin(token, {
+        full_name,
+        phone,
+      })
+      setProfile(currentProfile)
+      return { data: currentProfile }
+    } catch (error) {
+      const message = error.message || 'Could not create your EduMind admin profile.'
+      setAuthError(message)
+      setProfileError(message)
+      return { error: { message, code: error.code } }
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+
   useEffect(() => {
     let subscription
 
@@ -433,6 +463,7 @@ export const AuthProvider = ({ children }) => {
     requestPhoneOtp,
     verifyPhoneOtp,
     bootstrapStudentProfile,
+    bootstrapAdminProfile,
     signOut,
     refreshSession,
     refreshProfile,

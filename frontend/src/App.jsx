@@ -80,7 +80,14 @@ const AppRoutes = () => (
         )}
       />
       <Route path="finetuning" element={<FineTuning />} />
-      <Route path="admin" element={<Admin />} />
+      <Route
+        path="admin"
+        element={(
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Admin />
+          </ProtectedRoute>
+        )}
+      />
     </Route>
 
     <Route path="*" element={<Navigate to="/student-dashboard" replace />} />

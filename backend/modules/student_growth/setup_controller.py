@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from core.auth import require_admin_user
 from core.database import get_db
 from modules.student_growth.setup_schemas import (
     ClassroomCreate,
@@ -20,7 +21,11 @@ router = APIRouter(prefix="/api/v1", tags=["School Setup"])
 
 
 @router.post("/schools", response_model=SchoolResponse)
-async def create_school(payload: SchoolCreate, db: Session = Depends(get_db)):
+async def create_school(
+    payload: SchoolCreate,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
     return SetupService(db).create_school(payload)
 
 
@@ -30,7 +35,11 @@ async def list_schools(db: Session = Depends(get_db)):
 
 
 @router.post("/classrooms", response_model=ClassroomResponse)
-async def create_classroom(payload: ClassroomCreate, db: Session = Depends(get_db)):
+async def create_classroom(
+    payload: ClassroomCreate,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
     return SetupService(db).create_classroom(payload)
 
 
@@ -45,7 +54,11 @@ async def list_classrooms_by_school(school_id: int, db: Session = Depends(get_db
 
 
 @router.post("/subjects", response_model=SubjectResponse)
-async def create_subject(payload: SubjectCreate, db: Session = Depends(get_db)):
+async def create_subject(
+    payload: SubjectCreate,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
     return SetupService(db).create_subject(payload)
 
 
@@ -60,7 +73,11 @@ async def list_subjects_by_school(school_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/topics", response_model=TopicResponse)
-async def create_topic(payload: TopicCreate, db: Session = Depends(get_db)):
+async def create_topic(
+    payload: TopicCreate,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
     return SetupService(db).create_topic(payload)
 
 

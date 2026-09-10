@@ -6,6 +6,7 @@ from core.database import get_db
 from modules.student_growth.auth_profile_service import AuthProfileService
 from modules.student_growth.user_schemas import (
     AppUserResponse,
+    BootstrapAdminRequest,
     BootstrapStudentRequest,
     CurrentEduMindUserResponse,
     LinkSupabaseUserRequest,
@@ -41,6 +42,20 @@ async def bootstrap_student(
 ):
     """JWT-only student bootstrap. Creates STUDENT AppUser + StudentProfile once."""
     return AuthProfileService(db).bootstrap_student(
+        token_payload=payload,
+        full_name=request.full_name,
+        phone=request.phone,
+    )
+
+
+@router.post("/bootstrap-admin", response_model=CurrentEduMindUserResponse)
+async def bootstrap_admin(
+    request: BootstrapAdminRequest,
+    payload: dict = Depends(get_current_supabase_user),
+    db: Session = Depends(get_db),
+):
+    """JWT-only admin bootstrap. Creates ADMIN AppUser (no student profile)."""
+    return AuthProfileService(db).bootstrap_admin(
         token_payload=payload,
         full_name=request.full_name,
         phone=request.phone,

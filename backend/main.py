@@ -19,6 +19,7 @@ from core.database import init_db
 from modules.evaluation.evaluation_controller import router as evaluation_router
 from modules.evaluation.timing_middleware import TimingMiddleware
 from modules.student_growth.dev_seed_controller import router as dev_seed_router
+from modules.student_growth.admin_controller import router as admin_router
 from modules.student_growth.auth_controller import router as auth_router
 from modules.student_growth.habit_controller import router as habit_router
 from modules.student_growth.learning_log_controller import router as learning_log_router
@@ -86,6 +87,7 @@ app.include_router(peer_learning_router)
 app.include_router(teacher_dashboard_router)
 app.include_router(parent_dashboard_router)
 app.include_router(user_router)
+app.include_router(admin_router)
 app.include_router(drive_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")

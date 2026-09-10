@@ -6,6 +6,7 @@ import { getDefaultRouteForRole } from '../auth/roleRoutes'
 const MODES = [
   { id: 'signin', label: 'Sign in' },
   { id: 'register', label: 'Register' },
+  { id: 'admin', label: 'Admin' },
   { id: 'phone', label: 'Phone OTP' },
 ]
 
@@ -39,9 +40,11 @@ const Login = () => {
     verifyPhoneOtp,
     refreshProfile,
     bootstrapStudentProfile,
+    bootstrapAdminProfile,
   } = useAuth()
 
   const [mode, setMode] = useState('signin')
+  const [adminAuthMode, setAdminAuthMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
@@ -75,7 +78,10 @@ const Login = () => {
     return false
   }
 
-  const finishWithProfile = async (accessToken, { fullNameForBootstrap, phoneForBootstrap } = {}) => {
+  const finishWithProfile = async (
+    accessToken,
+    { fullNameForBootstrap, phoneForBootstrap, bootstrapRole = 'STUDENT' } = {},
+  ) => {
     let profileResult = await refreshProfile(accessToken)
 
     if (navigateFromProfile(profileResult)) return true
@@ -83,11 +89,19 @@ const Login = () => {
     if (profileResult?.errorCode === 'PROFILE_NOT_LINKED') {
       if (!fullNameForBootstrap?.trim()) {
         setNeedsName(true)
-        setInfoMessage('Almost done — enter your full name to create your student profile.')
+        setInfoMessage(
+          bootstrapRole === 'ADMIN'
+            ? 'Almost done — enter your full name to create your admin profile.'
+            : 'Almost done — enter your full name to create your student profile.',
+        )
         return false
       }
 
-      const bootstrapResult = await bootstrapStudentProfile({
+      const bootstrapFn = bootstrapRole === 'ADMIN'
+        ? bootstrapAdminProfile
+        : bootstrapStudentProfile
+
+      const bootstrapResult = await bootstrapFn({
         full_name: fullNameForBootstrap.trim(),
         phone: phoneForBootstrap || undefined,
         accessToken,
@@ -220,6 +234,71 @@ const Login = () => {
     })
   }
 
+
+  const handleAdminSignIn = async (event) => {
+    event.preventDefault()
+    resetMessages()
+
+    if (!email.trim() || !password) {
+      setFormError('Please enter your email and password.')
+      return
+    }
+
+    const result = await signIn(email.trim(), password)
+    if (!result?.error) {
+      const accessToken = result.data?.session?.access_token
+      await finishWithProfile(accessToken, {
+        fullNameForBootstrap: fullName.trim() || undefined,
+        phoneForBootstrap: normalizeIndianPhone(phone) || undefined,
+        bootstrapRole: 'ADMIN',
+      })
+    }
+  }
+
+  const handleAdminRegister = async (event) => {
+    event.preventDefault()
+    resetMessages()
+
+    const normalizedPhone = phone.trim() ? normalizeIndianPhone(phone) : null
+    if (phone.trim() && !normalizedPhone) {
+      setFormError('Please enter a valid Indian mobile number (10 digits), or leave phone blank.')
+      return
+    }
+    if (!fullName.trim()) {
+      setFormError('Please enter your full name.')
+      return
+    }
+    if (!email.trim() || !password) {
+      setFormError('Please enter your email and password.')
+      return
+    }
+    if (password.length < 6) {
+      setFormError('Password must be at least 6 characters.')
+      return
+    }
+
+    const result = await signUp({
+      email: email.trim(),
+      password,
+      fullName: fullName.trim(),
+      phone: normalizedPhone || undefined,
+    })
+
+    if (result?.error) return
+
+    if (result?.needsEmailConfirmation) {
+      setInfoMessage(result.message)
+      return
+    }
+
+    const accessToken = result.data?.session?.access_token
+    await finishWithProfile(accessToken, {
+      fullNameForBootstrap: fullName.trim(),
+      phoneForBootstrap: normalizedPhone || undefined,
+      bootstrapRole: 'ADMIN',
+    })
+  }
+
   const handleCompleteName = async (event) => {
     event.preventDefault()
     resetMessages()
@@ -230,7 +309,8 @@ const Login = () => {
     }
 
     const normalizedPhone = normalizeIndianPhone(phone)
-    const result = await bootstrapStudentProfile({
+    const bootstrapFn = mode === 'admin' ? bootstrapAdminProfile : bootstrapStudentProfile
+    const result = await bootstrapFn({
       full_name: fullName.trim(),
       phone: normalizedPhone || undefined,
     })
@@ -260,7 +340,7 @@ const Login = () => {
           </div>
           <h1 className="text-3xl font-bold text-white mt-5">EduMind Login</h1>
           <p className="text-gray-400 text-sm mt-2">
-            Sign in, register, or continue with phone OTP.
+            Sign in, register, admin access, or phone OTP.
           </p>
         </div>
 
