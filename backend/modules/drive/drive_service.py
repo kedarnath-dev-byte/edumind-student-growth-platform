@@ -309,7 +309,7 @@ class DriveUploadService:
                 .create(
                     body=body,
                     media_body=media,
-                    fields="id,name,mimeType,size,webViewLink",
+                    fields="id,name,mimeType,size,webViewLink,webContentLink",
                     supportsAllDrives=True,
                 )
                 .execute()
@@ -319,4 +319,20 @@ class DriveUploadService:
                 status_code=502,
                 detail=f"Google Drive upload failed: {exc}",
             ) from exc
+
+        # Best-effort: anyone-with-link so frontend <img>/<video> uc?export=download
+        # and Drive preview embeds can play inline (Instagram/Shorts-style feed).
+        file_id = created.get("id")
+        if file_id:
+            try:
+                service.permissions().create(
+                    fileId=file_id,
+                    body={"type": "anyone", "role": "reader"},
+                    supportsAllDrives=True,
+                    fields="id",
+                ).execute()
+            except Exception:
+                # Folder ACLs / shared-drive policies may block this; upload still succeeds.
+                pass
+
         return created

@@ -43,6 +43,7 @@ class LearningLogCreate(BaseModel):
     understood: str = Field(..., min_length=1)
     not_understood: Optional[str] = None
     confidence_level: str = "MEDIUM"
+    explanation_video_url: Optional[str] = None
 
 
 class LearningLogResponse(BaseModel):
@@ -58,6 +59,7 @@ class LearningLogResponse(BaseModel):
     understood: str
     not_understood: Optional[str] = None
     confidence_level: str
+    explanation_video_url: Optional[str] = None
     created_at: datetime
     revision_tasks: List[RevisionTaskResponse] = Field(default_factory=list)
     rewards: List[RewardEventResponse] = Field(default_factory=list)

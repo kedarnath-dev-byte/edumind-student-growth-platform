@@ -1,10 +1,19 @@
 /**
  * Subject worlds — pick a subject, scroll feed, follow peers, post media/text.
+ * Primary compose path: camera / gallery upload (Instagram-style), not paste URL.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import InlineMedia from '../components/InlineMedia'
+import MediaCapture from '../components/MediaCapture'
 import api from '../services/api'
+import driveUploadService from '../services/driveUploadService'
+import {
+  extractDriveFileId,
+  mediaTypeFromUrl,
+  urlsFromDriveUpload,
+} from '../utils/driveMediaHelpers'
 
 const SubjectFeed = () => {
   const { getAccessToken, profile } = useAuth()
@@ -18,9 +27,14 @@ const SubjectFeed = () => {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [posting, setPosting] = useState(false)
   const [caption, setCaption] = useState('')
+  const [mediaFile, setMediaFile] = useState(null)
+  const [mediaMeta, setMediaMeta] = useState(null)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaType, setMediaType] = useState('image')
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const authHeaders = useCallback(() => {
     const token = getAccessToken() || localStorage.getItem('edumind_token')
@@ -75,28 +89,73 @@ const SubjectFeed = () => {
     setParams({ subject: String(id) })
   }
 
+  const clearMedia = () => {
+    setMediaFile(null)
+    setMediaMeta(null)
+  }
+
   const createPost = async (e) => {
     e.preventDefault()
     if (!subjectId) return
     setError('')
     setInfo('')
+    setPosting(true)
+    setUploadProgress(0)
+
     try {
+      let finalMediaUrl = null
+      let finalMediaType = 'text'
+      let driveUploadId = null
+      let viewUrl = null
+
+      if (mediaFile) {
+        const token = getAccessToken() || localStorage.getItem('edumind_token')
+        if (!token) throw new Error('Please log in to upload media.')
+        const uploaded = await driveUploadService.upload(
+          mediaFile,
+          'proof',
+          token,
+          setUploadProgress,
+        )
+        const urls = urlsFromDriveUpload(uploaded)
+        finalMediaUrl = urls.playbackUrl || urls.viewUrl
+        viewUrl = urls.viewUrl
+        finalMediaType = mediaMeta?.mediaType || urls.mediaType || 'image'
+        driveUploadId = uploaded.id || null
+        if (!finalMediaUrl) {
+          throw new Error('Drive upload succeeded but no media link was returned.')
+        }
+        // Prefer storing playback URL; keep Drive view as fallback via same string if needed.
+        if (!urls.playbackUrl && viewUrl) {
+          finalMediaUrl = viewUrl
+        }
+      } else if (mediaUrl.trim()) {
+        finalMediaUrl = mediaUrl.trim()
+        finalMediaType = mediaType || mediaTypeFromUrl(finalMediaUrl) || 'image'
+      }
+
       await api.post(
         '/api/v1/subject-social/posts',
         {
           subject_id: Number(subjectId),
           caption: caption.trim() || null,
-          media_url: mediaUrl.trim() || null,
-          media_type: mediaUrl.trim() ? mediaType : 'text',
+          media_url: finalMediaUrl,
+          media_type: finalMediaUrl ? finalMediaType : 'text',
+          drive_upload_id: driveUploadId,
         },
         { headers: authHeaders(), timeout: 90000 },
       )
       setCaption('')
       setMediaUrl('')
+      clearMedia()
+      setAdvancedOpen(false)
       setInfo('Posted to subject feed')
       await loadFeed(subjectId)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to post')
+      setError(err.response?.data?.detail || err.message || 'Failed to post')
+    } finally {
+      setPosting(false)
+      setUploadProgress(0)
     }
   }
 
@@ -158,6 +217,21 @@ const SubjectFeed = () => {
     }
   }
 
+  const renderPostMedia = (post) => {
+    if (!post.media_url || post.media_type === 'text') return null
+    const driveId = extractDriveFileId(post.media_url)
+    const viewUrl = driveId
+      ? `https://drive.google.com/file/d/${driveId}/view`
+      : post.media_url
+    return (
+      <InlineMedia
+        src={post.media_url}
+        viewUrl={viewUrl}
+        mediaType={post.media_type}
+      />
+    )
+  }
+
   return (
     <div className="max-w-xl mx-auto pb-16">
       <div className="mb-5">
@@ -217,33 +291,72 @@ const SubjectFeed = () => {
               placeholder="Share a note, tip, or what you learned…"
               className="w-full bg-gray-950 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
             />
-            <input
-              value={mediaUrl}
-              onChange={(e) => setMediaUrl(e.target.value)}
-              placeholder="Optional image/video link (Drive / URL)"
-              className="w-full bg-gray-950 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
+
+            <MediaCapture
+              mode="both"
+              label="Camera or gallery"
+              disabled={posting}
+              onCaptured={(file, meta) => {
+                setMediaFile(file)
+                setMediaMeta(meta)
+                setMediaUrl('')
+              }}
+              onCleared={clearMedia}
             />
-            {mediaUrl && (
-              <select
-                value={mediaType}
-                onChange={(e) => setMediaType(e.target.value)}
-                className="w-full bg-gray-950 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
-              >
-                <option value="image">Image</option>
-                <option value="video">Video</option>
-              </select>
+
+            {posting && uploadProgress > 0 && (
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-400">Uploading to Drive…</span>
+                  <span className="text-blue-400">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-800 rounded-full h-1.5">
+                  <div
+                    className="bg-blue-600 h-1.5 rounded-full transition-all"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
             )}
+
+            <details
+              className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2"
+              open={advancedOpen}
+              onToggle={(e) => setAdvancedOpen(e.target.open)}
+            >
+              <summary className="text-xs text-gray-400 cursor-pointer select-none">
+                Advanced — paste media URL instead
+              </summary>
+              <div className="mt-3 space-y-2">
+                <input
+                  value={mediaUrl}
+                  onChange={(e) => {
+                    setMediaUrl(e.target.value)
+                    if (e.target.value.trim()) clearMedia()
+                  }}
+                  placeholder="Optional image/video link (Drive / URL)"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
+                />
+                {mediaUrl && (
+                  <select
+                    value={mediaType}
+                    onChange={(e) => setMediaType(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
+                  >
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                  </select>
+                )}
+              </div>
+            </details>
+
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm"
+              disabled={posting}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm"
             >
-              Share
+              {posting ? 'Sharing…' : 'Share'}
             </button>
-            <p className="text-xs text-gray-500">
-              Tip: upload in{' '}
-              <Link to="/student-upload-proof" className="text-blue-400">Upload Proof</Link>
-              , copy the Drive link, paste here.
-            </p>
           </form>
 
           {loading && <p className="text-gray-500 text-sm mb-3">Loading feed…</p>}
@@ -274,12 +387,7 @@ const SubjectFeed = () => {
                     </button>
                   )}
                 </div>
-                {post.media_url && post.media_type === 'image' && (
-                  <img src={post.media_url} alt="" className="w-full max-h-96 object-cover bg-black" />
-                )}
-                {post.media_url && post.media_type === 'video' && (
-                  <video src={post.media_url} controls className="w-full max-h-96 bg-black" />
-                )}
+                {renderPostMedia(post)}
                 {post.caption && (
                   <p className="px-4 py-3 text-sm text-gray-200 whitespace-pre-wrap">{post.caption}</p>
                 )}
@@ -325,11 +433,11 @@ const SubjectFeed = () => {
           </div>
           <div className="space-y-4">
             {(profileView.posts || []).map((post) => (
-              <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                {post.media_url && post.media_type === 'image' && (
-                  <img src={post.media_url} alt="" className="w-full rounded-lg mb-3 max-h-80 object-cover" />
+              <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                {renderPostMedia(post)}
+                {post.caption && (
+                  <p className="px-4 py-3 text-sm text-gray-200 whitespace-pre-wrap">{post.caption}</p>
                 )}
-                {post.caption && <p className="text-sm text-gray-200 whitespace-pre-wrap">{post.caption}</p>}
               </article>
             ))}
           </div>
