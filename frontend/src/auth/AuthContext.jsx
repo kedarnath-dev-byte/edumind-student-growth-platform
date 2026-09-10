@@ -17,6 +17,21 @@ const clearProfileState = (setProfile, setProfileError) => {
   setProfileError('')
 }
 
+const mapAuthError = (error, fallback) => {
+  const message = error?.message || fallback
+  const lower = String(message).toLowerCase()
+  if (
+    lower.includes('sms')
+    || lower.includes('phone provider')
+    || lower.includes('unsupported phone')
+    || lower.includes('phone signups are disabled')
+    || lower.includes('twilio')
+  ) {
+    return 'Phone OTP is not configured yet. Please enable Supabase Phone auth and an SMS provider (e.g. Twilio), or use email sign-in.'
+  }
+  return message
+}
+
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null)
   const [user, setUser] = useState(null)
@@ -83,6 +98,35 @@ export const AuthProvider = ({ children }) => {
         )
       }
       return { errorCode: error.code || 'PROFILE_LOAD_FAILED' }
+    } finally {
+      setProfileLoading(false)
+    }
+  }
+
+  const bootstrapStudentProfile = async ({ full_name, phone, accessToken = null } = {}) => {
+    const token = accessToken || getAccessToken()
+    if (!token) {
+      const message = 'You must be signed in to finish registration.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setProfileLoading(true)
+    setAuthError('')
+    setProfileError('')
+
+    try {
+      const currentProfile = await authService.bootstrapStudent(token, {
+        full_name,
+        phone,
+      })
+      setProfile(currentProfile)
+      return { data: currentProfile }
+    } catch (error) {
+      const message = error.message || 'Could not create your EduMind student profile.'
+      setAuthError(message)
+      setProfileError(message)
+      return { error: { message, code: error.code } }
     } finally {
       setProfileLoading(false)
     }
@@ -156,6 +200,123 @@ export const AuthProvider = ({ children }) => {
 
       setSession(data.session)
       setUser(data.user)
+      if (data.session?.access_token) {
+        localStorage.setItem('edumind_token', data.session.access_token)
+      }
+      return { data }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signUp = async ({ email, password, fullName, phone } = {}) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Login is not configured yet. Please contact EduMind admin.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setLoading(true)
+    setAuthError('')
+    clearProfileState(setProfile, setProfileError)
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone,
+          },
+        },
+      })
+
+      if (error) {
+        setAuthError(error.message || 'Registration failed. Please try again.')
+        return { error }
+      }
+
+      setSession(data.session || null)
+      setUser(data.user || null)
+      if (data.session?.access_token) {
+        localStorage.setItem('edumind_token', data.session.access_token)
+      }
+
+      if (!data.session) {
+        return {
+          data,
+          needsEmailConfirmation: true,
+          message: 'Check your email to confirm your account, then sign in.',
+        }
+      }
+
+      return { data }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const requestPhoneOtp = async (phone) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Login is not configured yet. Please contact EduMind admin.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setLoading(true)
+    setAuthError('')
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({ phone })
+
+      if (error) {
+        const message = mapAuthError(
+          error,
+          'Could not send OTP. Please check your phone number.'
+        )
+        setAuthError(message)
+        return { error: { ...error, message } }
+      }
+
+      return { data }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const verifyPhoneOtp = async ({ phone, token } = {}) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Login is not configured yet. Please contact EduMind admin.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setLoading(true)
+    setAuthError('')
+    clearProfileState(setProfile, setProfileError)
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms',
+      })
+
+      if (error) {
+        const message = mapAuthError(
+          error,
+          'Invalid or expired OTP. Please try again.'
+        )
+        setAuthError(message)
+        return { error: { ...error, message } }
+      }
+
+      setSession(data.session)
+      setUser(data.user)
+      if (data.session?.access_token) {
+        localStorage.setItem('edumind_token', data.session.access_token)
+      }
       return { data }
     } finally {
       setLoading(false)
@@ -203,6 +364,10 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: Boolean(user),
     getAccessToken,
     signIn,
+    signUp,
+    requestPhoneOtp,
+    verifyPhoneOtp,
+    bootstrapStudentProfile,
     signOut,
     refreshSession,
     refreshProfile,

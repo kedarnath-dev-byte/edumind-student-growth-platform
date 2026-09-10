@@ -152,6 +152,29 @@ class LinkSupabaseUserRequest(BaseModel):
     app_user_id: int
 
 
+class BootstrapStudentRequest(BaseModel):
+    """JWT-protected student self-registration bootstrap payload."""
+
+    full_name: str = Field(..., min_length=1)
+    phone: Optional[str] = None
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def normalize_full_name(cls, value):
+        normalized = str(value or "").strip()
+        if not normalized:
+            raise ValueError("full_name is required")
+        return normalized
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value):
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        return normalized or None
+
+
 class CurrentEduMindUserResponse(BaseModel):
     authenticated: bool
     supabase_user_id: str

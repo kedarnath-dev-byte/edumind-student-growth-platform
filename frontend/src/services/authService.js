@@ -40,6 +40,50 @@ const authService = {
       throw networkError
     }
   },
+
+  async bootstrapStudent(accessToken, { full_name, phone } = {}) {
+    if (!accessToken) {
+      throw new Error('Missing Supabase access token.')
+    }
+
+    try {
+      const response = await axios.post(
+        `${apiBaseUrl}/api/v1/auth/bootstrap-student`,
+        {
+          full_name,
+          phone: phone || undefined,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      )
+      return response.data
+    } catch (error) {
+      if (error.response?.status === 409) {
+        const conflictError = new Error(
+          error.response?.data?.detail
+            || 'An EduMind account with these details already exists.'
+        )
+        conflictError.code = 'BOOTSTRAP_CONFLICT'
+        throw conflictError
+      }
+
+      if (error.response?.status === 401) {
+        const authError = new Error('Your login session could not be verified.')
+        authError.code = 'AUTH_TOKEN_INVALID'
+        throw authError
+      }
+
+      const bootstrapError = new Error(
+        error.response?.data?.detail
+          || 'Could not create your EduMind student profile. Please try again.'
+      )
+      bootstrapError.code = 'BOOTSTRAP_FAILED'
+      throw bootstrapError
+    }
+  },
 }
 
 export default authService
