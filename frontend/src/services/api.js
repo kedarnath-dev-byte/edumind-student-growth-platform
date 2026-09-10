@@ -7,17 +7,15 @@
  */
 import axios from 'axios'
 
-// ─── Create Axios Instance ───────────────────────────────────────────────────
+// Render free-tier cold starts often need 40–60s. Never use a tight timeout in demos.
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 30000,
+  timeout: 90000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// ─── Request Interceptor ─────────────────────────────────────────────────────
-// Automatically attach auth token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('edumind_token')
@@ -29,11 +27,28 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// ─── Response Interceptor ────────────────────────────────────────────────────
-// Handle global errors (401 = logout, 500 = show error)
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const shouldRetry = (error, config) => {
+  if (!config || config.__edumindRetry >= 2) return false
+  // Retry network/cold-start failures for all methods — Render free wake kills demos otherwise.
+  // Network / timeout / 502-504 during wake
+  if (!error.response) return true
+  const status = error.response.status
+  return status === 502 || status === 503 || status === 504
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config || {}
+    if (shouldRetry(error, config)) {
+      config.__edumindRetry = (config.__edumindRetry || 0) + 1
+      const delay = config.__edumindRetry === 1 ? 2500 : 5000
+      await sleep(delay)
+      return api.request(config)
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('edumind_token')
       window.location.href = '/login'
