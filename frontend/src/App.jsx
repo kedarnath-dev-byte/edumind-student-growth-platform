@@ -20,6 +20,7 @@ import TeacherDashboard from './pages/TeacherDashboard'
 import Unauthorized from './pages/Unauthorized'
 import Upload from './pages/Upload'
 import StudentDriveUpload from './pages/StudentDriveUpload'
+import SubjectFeed from './pages/SubjectFeed'
 
 import Layout from './components/layout/Layout'
 
@@ -78,6 +79,14 @@ const AppRoutes = () => (
         element={(
           <ProtectedRoute allowedRoles={['STUDENT']}>
             <StudentDriveUpload />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="student-subjects"
+        element={(
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <SubjectFeed />
           </ProtectedRoute>
         )}
       />

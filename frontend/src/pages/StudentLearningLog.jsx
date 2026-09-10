@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext'
 import studentGrowthService from '../services/studentGrowthService'
 
 const DEMO_STUDENT_ID = 1
+const LAST_SUBJECT_KEY = 'edumind_last_subject_topic'
 
 const initialForm = {
   school_id: '',
@@ -73,10 +74,18 @@ const StudentLearningLog = () => {
         const assignedSchoolId = studentProfile?.school_id
         const assignedClassroomId = studentProfile?.classroom_id
         if (assignedSchoolId) {
+          let last = {}
+          try {
+            last = JSON.parse(localStorage.getItem(LAST_SUBJECT_KEY) || '{}') || {}
+          } catch (_) {
+            last = {}
+          }
           setForm((prev) => ({
             ...prev,
             school_id: String(assignedSchoolId),
             classroom_id: assignedClassroomId ? String(assignedClassroomId) : prev.classroom_id,
+            subject_id: last.subject_id ? String(last.subject_id) : prev.subject_id,
+            topic_id: last.topic_id ? String(last.topic_id) : prev.topic_id,
           }))
         }
       } catch (err) {
@@ -196,6 +205,15 @@ const StudentLearningLog = () => {
       })
 
       setResult(saved)
+      try {
+        localStorage.setItem(
+          LAST_SUBJECT_KEY,
+          JSON.stringify({
+            subject_id: form.subject_id,
+            topic_id: form.topic_id,
+          }),
+        )
+      } catch (_) { /* ignore */ }
       setForm((prev) => ({
         ...initialForm,
         school_id: prev.school_id,
@@ -239,46 +257,61 @@ const StudentLearningLog = () => {
           onSubmit={handleSubmit}
           className="bg-gray-900 border border-gray-800 rounded-xl p-5"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-            <div>
-              <FieldLabel>School</FieldLabel>
-              <select
-                value={form.school_id}
-                onChange={(e) => updateField('school_id', e.target.value)}
-                className="w-full bg-gray-950 border border-gray-700 rounded-lg
-                text-white px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="">{loadingSetup ? 'Loading schools...' : 'Select school'}</option>
-                {schoolOptions.map((school) => (
-                  <option key={school.id} value={school.id}>{school.name}</option>
-                ))}
-              </select>
-              {!loadingSetup && schoolOptions.length === 0 && (
-                <EmptyHint>No schools found yet. Please create school setup data from Swagger first.</EmptyHint>
-              )}
+          {(studentProfile?.school_id) ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs px-3 py-1.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300">
+                {schoolOptions.find((s) => String(s.id) === String(form.school_id))?.name
+                  || 'Your school'}
+                {form.classroom_id
+                  ? ` · ${classroomOptions.find((c) => String(c.id) === String(form.classroom_id))?.name
+                    || `Class #${form.classroom_id}`}`
+                  : ''}
+              </span>
+              <span className="text-xs text-gray-500">Fixed from your profile — no need to re-enter</span>
             </div>
+          ) : (
+            <div className="mb-4 bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm rounded-lg p-3">
+              Ask your admin to assign your school and class once. Then daily logging skips those fields.
+            </div>
+          )}
 
-            <div>
-              <FieldLabel>Classroom</FieldLabel>
-              <select
-                value={form.classroom_id}
-                onChange={(e) => updateField('classroom_id', e.target.value)}
-                disabled={!form.school_id}
-                className="w-full bg-gray-950 border border-gray-700 rounded-lg
-                text-white px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500
-                disabled:opacity-50"
-              >
-                <option value="">Select classroom</option>
-                {classroomOptions.map((classroom) => (
-                  <option key={classroom.id} value={classroom.id}>
-                    {classroom.name} - Grade {classroom.grade}{classroom.section}
-                  </option>
-                ))}
-              </select>
-              {form.school_id && classroomOptions.length === 0 && (
-                <EmptyHint>No classrooms found for this school.</EmptyHint>
-              )}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            {!studentProfile?.school_id && (
+              <>
+                <div>
+                  <FieldLabel>School</FieldLabel>
+                  <select
+                    value={form.school_id}
+                    onChange={(e) => updateField('school_id', e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-700 rounded-lg
+                    text-white px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">{loadingSetup ? 'Loading schools...' : 'Select school'}</option>
+                    {schoolOptions.map((school) => (
+                      <option key={school.id} value={school.id}>{school.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel>Classroom</FieldLabel>
+                  <select
+                    value={form.classroom_id}
+                    onChange={(e) => updateField('classroom_id', e.target.value)}
+                    disabled={!form.school_id}
+                    className="w-full bg-gray-950 border border-gray-700 rounded-lg
+                    text-white px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500
+                    disabled:opacity-50"
+                  >
+                    <option value="">Select classroom</option>
+                    {classroomOptions.map((classroom) => (
+                      <option key={classroom.id} value={classroom.id}>
+                        {classroom.name} - Grade {classroom.grade}{classroom.section}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div>
               <FieldLabel>Subject</FieldLabel>
