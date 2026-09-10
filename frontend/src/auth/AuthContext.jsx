@@ -448,6 +448,84 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const requestPasswordReset = async (email) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Login is not configured yet. Please contact EduMind admin.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    const trimmed = String(email || '').trim()
+    if (!trimmed) {
+      const message = 'Please enter your email.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setLoading(true)
+    setAuthError('')
+
+    try {
+      const redirectTo = `${window.location.origin}/reset-password`
+      const { data, error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo,
+      })
+
+      if (error) {
+        const message = mapAuthError(
+          error,
+          'Could not send reset email. Check the address and try again.',
+        )
+        setAuthError(message)
+        return { error: { ...error, message } }
+      }
+
+      return {
+        data,
+        message:
+          'If that email has an EduMind account, we sent a reset link. Check inbox and spam.',
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updatePassword = async (newPassword) => {
+    if (!isSupabaseConfigured || !supabase) {
+      const message = 'Login is not configured yet. Please contact EduMind admin.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    if (!newPassword || String(newPassword).length < 6) {
+      const message = 'Password must be at least 6 characters.'
+      setAuthError(message)
+      return { error: { message } }
+    }
+
+    setLoading(true)
+    setAuthError('')
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: String(newPassword),
+      })
+
+      if (error) {
+        const message = mapAuthError(
+          error,
+          'Could not update password. Open the fresh link from your email and try again.',
+        )
+        setAuthError(message)
+        return { error: { ...error, message } }
+      }
+
+      return { data }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value = useMemo(() => ({
     session,
     user,
@@ -461,6 +539,8 @@ export const AuthProvider = ({ children }) => {
     getAccessToken,
     signIn,
     signUp,
+    requestPasswordReset,
+    updatePassword,
     requestPhoneOtp,
     verifyPhoneOtp,
     bootstrapStudentProfile,
