@@ -102,18 +102,10 @@ const Admin = () => {
   // Coverage
   const [coverage, setCoverage] = useState(null)
 
-  const authHeaders = useCallback(() => {
-    const token = getAccessToken()
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  }, [getAccessToken])
-
-  // Render free-tier cold starts + parallel admin GETs often take 20–30s+.
   const ADMIN_TIMEOUT_MS = 90000
-  const loadSeq = useRef(0)
-  const beginLoad = useCallback(() => {
-    const id = ++loadSeq.current
-    return () => id !== loadSeq.current
-  }, [])
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  const requestIdRef = useRef(0)
 
   const formatErr = (err, fallback) => {
     if (err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '')) {
@@ -125,21 +117,23 @@ const Admin = () => {
   }
 
   const apiGet = useCallback(async (url, params) => {
+    const token = getAccessToken() || localStorage.getItem('edumind_token')
     const res = await api.get(url, {
       params,
-      headers: authHeaders(),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: ADMIN_TIMEOUT_MS,
     })
     return res.data
-  }, [authHeaders])
+  }, [getAccessToken])
 
   const apiPost = useCallback(async (url, body) => {
+    const token = getAccessToken() || localStorage.getItem('edumind_token')
     const res = await api.post(url, body, {
-      headers: authHeaders(),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       timeout: ADMIN_TIMEOUT_MS,
     })
     return res.data
-  }, [authHeaders])
+  }, [getAccessToken])
 
   const settledValue = (result, fallback) => (
     result.status === 'fulfilled' ? result.value : fallback
@@ -151,34 +145,34 @@ const Admin = () => {
   }, [apiGet])
 
   const loadPulse = useCallback(async () => {
-    const isStale = beginLoad()
+    const reqId = ++requestIdRef.current
     setLoading(true)
     setError('')
     try {
       const params = { risk_only: riskOnly }
       if (filterSchoolId) params.school_id = Number(filterSchoolId)
       const data = await apiGet('/api/v1/admin/students/overview', params)
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setStudents(data || [])
     } catch (err) {
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load student pulse'))
     } finally {
-      if (!isStale()) setLoading(false)
+      if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet, beginLoad, riskOnly, filterSchoolId])
+  }, [apiGet, riskOnly, filterSchoolId])
 
   const openTimeline = async (studentId) => {
-    const isStale = beginLoad()
+    const reqId = ++requestIdRef.current
     setSelectedStudentId(studentId)
     setTimeline(null)
     setError('')
     try {
       const data = await apiGet(`/api/v1/admin/students/${studentId}/timeline`)
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setTimeline(data)
     } catch (err) {
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load student timeline'))
     }
   }
@@ -212,7 +206,7 @@ const Admin = () => {
   }, [apiGet])
 
   const loadPeople = useCallback(async () => {
-    const isStale = beginLoad()
+    const reqId = ++requestIdRef.current
     setLoading(true)
     setError('')
     try {
@@ -222,7 +216,7 @@ const Admin = () => {
         apiGet('/api/v1/admin/teacher-profiles'),
         apiGet('/api/v1/admin/parent-profiles'),
       ])
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setUsers(settledValue(results[0], []) || [])
       setTeacherProfiles(settledValue(results[1], []) || [])
       setParentProfiles(settledValue(results[2], []) || [])
@@ -232,18 +226,26 @@ const Admin = () => {
         setInfo('People loaded; some profile lists failed — retry if needed')
       }
     } catch (err) {
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load people'))
     } finally {
-      if (!isStale()) setLoading(false)
+      if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet, beginLoad, roleFilter])
+  }, [apiGet, roleFilter])
 
   const loadSupport = useCallback(async () => {
-    const isStale = beginLoad()
+    const reqId = ++requestIdRef.current
     setLoading(true)
     setError('')
     setPeers(null)
+    const emptyPeers = {
+      open_requests: [],
+      available_offers: [],
+      recent_sessions: [],
+      open_request_count: 0,
+      available_offer_count: 0,
+      session_count: 0,
+    }
     try {
       const results = await Promise.allSettled([
         apiGet('/api/v1/admin/peers/overview'),
@@ -253,15 +255,7 @@ const Admin = () => {
         apiGet('/api/v1/admin/teacher-profiles'),
         apiGet('/api/v1/admin/parent-profiles'),
       ])
-      if (isStale()) return
-      const emptyPeers = {
-        open_requests: [],
-        available_offers: [],
-        recent_sessions: [],
-        open_request_count: 0,
-        available_offer_count: 0,
-        session_count: 0,
-      }
+      if (reqId !== requestIdRef.current) return
       setPeers(settledValue(results[0], emptyPeers) || emptyPeers)
       setParentLinks(settledValue(results[1], []) || [])
       setTeacherClassrooms(settledValue(results[2], []) || [])
@@ -271,58 +265,66 @@ const Admin = () => {
       const failed = results.filter((r) => r.status === 'rejected')
       if (failed.length === results.length) {
         setError(formatErr(failed[0].reason, 'Failed to load support graph'))
-        setPeers(emptyPeers)
       } else if (failed.length) {
         setInfo(`Support graph partial (${failed.length} section(s) failed) — tap Refresh`)
       }
     } catch (err) {
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load support graph'))
-      setPeers({
-        open_requests: [], available_offers: [], recent_sessions: [],
-        open_request_count: 0, available_offer_count: 0, session_count: 0,
-      })
+      setPeers(emptyPeers)
     } finally {
-      if (!isStale()) setLoading(false)
+      if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet, beginLoad])
+  }, [apiGet])
 
   const loadCoverage = useCallback(async () => {
-    const isStale = beginLoad()
+    const reqId = ++requestIdRef.current
     setLoading(true)
     setError('')
     setCoverage(null)
     try {
       const data = await apiGet('/api/v1/admin/coverage/overview')
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setCoverage(data)
     } catch (err) {
-      if (isStale()) return
+      if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load coverage'))
     } finally {
-      if (!isStale()) setLoading(false)
+      if (reqId === requestIdRef.current) setLoading(false)
     }
-  }, [apiGet, beginLoad])
+  }, [apiGet])
+
+  // Keep latest loaders in refs so the tab effect does not re-fire when
+  // apiGet identity changes (e.g. auth profile refresh) — that was abandoning
+  // in-flight requests and leaving tabs stuck on Loading forever.
+  const loadPulseRef = useRef(loadPulse)
+  const loadPeopleRef = useRef(loadPeople)
+  const loadSupportRef = useRef(loadSupport)
+  const loadCoverageRef = useRef(loadCoverage)
+  const loadSetupRef = useRef(loadSetupForSchool)
+  loadPulseRef.current = loadPulse
+  loadPeopleRef.current = loadPeople
+  loadSupportRef.current = loadSupport
+  loadCoverageRef.current = loadCoverage
+  loadSetupRef.current = loadSetupForSchool
 
   useEffect(() => {
     loadSchools().catch(() => {})
   }, [loadSchools])
 
   useEffect(() => {
-    // Invalidate any in-flight loads from the previous tab.
-    loadSeq.current += 1
     setError('')
     setInfo('')
-    if (tab === 'pulse') loadPulse()
-    if (tab === 'people') loadPeople()
-    if (tab === 'support') loadSupport()
-    if (tab === 'coverage') loadCoverage()
+    if (tab === 'pulse') loadPulseRef.current()
+    if (tab === 'people') loadPeopleRef.current()
+    if (tab === 'support') loadSupportRef.current()
+    if (tab === 'coverage') loadCoverageRef.current()
     if (tab === 'setup' && selectedSchoolId) {
-      loadSetupForSchool(selectedSchoolId).catch((err) => {
+      loadSetupRef.current(selectedSchoolId).catch((err) => {
         setError(formatErr(err, 'Failed to load school setup'))
       })
     }
-  }, [tab, loadPulse, loadPeople, loadSupport, loadCoverage, selectedSchoolId, loadSetupForSchool])
+  }, [tab, riskOnly, filterSchoolId, roleFilter, selectedSchoolId])
 
   useEffect(() => {
     if (selectedSubjectId) {
