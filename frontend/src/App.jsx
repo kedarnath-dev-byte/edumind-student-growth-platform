@@ -8,6 +8,7 @@ import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
 import FineTuning from './pages/FineTuning'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import ParentDashboard from './pages/ParentDashboard'
 import ProfileStatus from './pages/ProfileStatus'
 import StudentDashboard from './pages/StudentDashboard'
@@ -25,6 +26,7 @@ import Layout from './components/layout/Layout'
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
 
     <Route path="/" element={<Layout />}>
       <Route index element={<AuthHomeRedirect />} />
