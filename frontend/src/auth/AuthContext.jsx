@@ -59,7 +59,11 @@ export const AuthProvider = ({ children }) => {
       return null
     }
 
-    clearProfileState(setProfile, setProfileError)
+    // Keep an existing profile when the same session is re-read.
+    // Clearing here raced with onAuthStateChange and left profileLoading stuck.
+    if (!data.session) {
+      clearProfileState(setProfile, setProfileError)
+    }
     setSession(data.session)
     setUser(data.session?.user || null)
     if (data.session?.access_token) {
@@ -78,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     if (!token) {
       setProfile(null)
       setProfileError('')
+      setProfileLoading(false)
       return null
     }
 
@@ -146,18 +151,26 @@ export const AuthProvider = ({ children }) => {
     loadSession()
 
     if (isSupabaseConfigured && supabase) {
-      const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-        clearProfileState(setProfile, setProfileError)
-        setProfileLoading(Boolean(nextSession?.access_token))
+      const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
         setSession(nextSession)
         setUser(nextSession?.user || null)
         setAuthError('')
+
         if (nextSession?.access_token) {
           localStorage.setItem('edumind_token', nextSession.access_token)
+          // Do NOT clear profile / force profileLoading on every auth event.
+          // refreshProfile is driven by the access_token effect below. Clearing
+          // here with an unchanged token left the UI stuck on
+          // "Checking your EduMind access..." forever.
+          if (event === 'SIGNED_OUT') {
+            clearProfileState(setProfile, setProfileError)
+            setProfileLoading(false)
+          }
         } else {
           localStorage.removeItem('edumind_token')
+          clearProfileState(setProfile, setProfileError)
+          setProfileLoading(false)
         }
-        if (!nextSession) setProfileLoading(false)
       })
       subscription = data.subscription
     }
@@ -168,11 +181,50 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    if (session?.access_token) {
-      refreshProfile(session.access_token)
-    } else {
-      clearProfileState(setProfile, setProfileError)
-      setProfileLoading(false)
+    let cancelled = false
+
+    const loadProfile = async () => {
+      if (!session?.access_token) {
+        if (!cancelled) {
+          clearProfileState(setProfile, setProfileError)
+          setProfileLoading(false)
+        }
+        return
+      }
+
+      if (!cancelled) {
+        setProfileLoading(true)
+        setProfileError('')
+      }
+
+      try {
+        const currentProfile = await authService.getCurrentEduMindProfile(
+          session.access_token
+        )
+        if (!cancelled) {
+          setProfile(currentProfile)
+        }
+      } catch (error) {
+        if (cancelled) return
+        setProfile(null)
+        if (error.code === 'PROFILE_NOT_LINKED') {
+          setProfileError(profileNotLinkedMessage)
+        } else {
+          setProfileError(
+            'EduMind profile could not be loaded. Please try again.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setProfileLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      cancelled = true
     }
   }, [session?.access_token])
 

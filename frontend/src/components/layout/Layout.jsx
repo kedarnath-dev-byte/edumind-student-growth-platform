@@ -1,29 +1,49 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
+import { normalizeRole } from '../../auth/roleRoutes'
 
 const NAV_ITEMS = [
-  { path: '/student-dashboard', label: 'Student Dashboard', icon: 'SD' },
-  { path: '/student-growth', label: 'Daily Learning Log', icon: 'DL' },
-  { path: '/student-revisions', label: "Today's Revision", icon: 'TR' },
-  { path: '/student-habits', label: 'Successful Habits', icon: 'SH' },
-  { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL' },
-  { path: '/student-upload-proof', label: 'Upload Proof', icon: 'UP' },
-  { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD' },
-  { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD' },
+  { path: '/student-dashboard', label: 'Student Dashboard', icon: 'SD', roles: ['STUDENT'] },
+  { path: '/student-growth', label: 'Daily Learning Log', icon: 'DL', roles: ['STUDENT'] },
+  { path: '/student-revisions', label: "Today's Revision", icon: 'TR', roles: ['STUDENT'] },
+  { path: '/student-habits', label: 'Successful Habits', icon: 'SH', roles: ['STUDENT'] },
+  { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL', roles: ['STUDENT'] },
+  { path: '/student-upload-proof', label: 'Upload Proof', icon: 'UP', roles: ['STUDENT'] },
+  { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD', roles: ['TEACHER'] },
+  { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD', roles: ['PARENT'] },
   { path: '/profile-status', label: 'Profile Status', icon: 'PS' },
-  { path: '/dashboard', label: 'Dashboard', icon: 'DB' },
+  { path: '/dashboard', label: 'Dashboard', icon: 'DB', roles: ['ADMIN'] },
   { path: '/chat', label: 'AI Tutor', icon: 'AI' },
-  { path: '/upload', label: 'Upload Docs', icon: 'UP' },
-  { path: '/finetuning', label: 'Fine-Tuning', icon: 'FT' },
-  { path: '/admin', label: 'Admin', icon: 'AD' },
+  { path: '/upload', label: 'Upload Docs', icon: 'UP', roles: ['ADMIN', 'TEACHER'] },
+  { path: '/finetuning', label: 'Fine-Tuning', icon: 'FT', roles: ['ADMIN'] },
+  { path: '/admin', label: 'Admin', icon: 'AD', roles: ['ADMIN'] },
 ]
 
 const Layout = () => {
-  const { isAuthenticated, profile, profileError, signOut, user } = useAuth()
+  const {
+    isAuthenticated,
+    profile,
+    profileError,
+    profileLoading,
+    signOut,
+    user,
+  } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const role = profile?.app_user?.role
+  const role = normalizeRole(profile?.app_user?.role)
+
+  const visibleNavItems = useMemo(() => {
+    if (!isAuthenticated) {
+      return NAV_ITEMS.filter((item) => !item.roles)
+    }
+    if (!role) {
+      return NAV_ITEMS.filter((item) => !item.roles || item.path === '/profile-status')
+    }
+    return NAV_ITEMS.filter(
+      (item) => !item.roles || item.roles.includes(role)
+    )
+  }, [isAuthenticated, role])
 
   const handleLogout = async () => {
     await signOut()
@@ -48,7 +68,7 @@ const Layout = () => {
         </div>
 
         <nav className="flex-1 p-3 flex flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -72,7 +92,11 @@ const Layout = () => {
             {isAuthenticated ? (
               <>
                 <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                {role ? (
+                {profileLoading ? (
+                  <p className="mt-2 text-xs text-blue-200">
+                    Loading profile…
+                  </p>
+                ) : role ? (
                   <p className="mt-2 inline-block rounded bg-blue-500/10 px-2 py-1
                   text-xs font-semibold text-blue-300">
                     {role}
