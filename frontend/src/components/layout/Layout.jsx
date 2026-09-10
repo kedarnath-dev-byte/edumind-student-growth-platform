@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { path: '/student-habits', label: 'Successful Habits', icon: 'SH', roles: ['STUDENT'] },
   { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL', roles: ['STUDENT'] },
   { path: '/student-upload-proof', label: 'Upload Proof', icon: 'UP', roles: ['STUDENT'] },
+  { path: '/student-subjects', label: 'Subject Worlds', icon: 'SW', roles: ['STUDENT'] },
   { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD', roles: ['TEACHER'] },
   { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD', roles: ['PARENT'] },
   { path: '/profile-status', label: 'Profile Status', icon: 'PS' },
