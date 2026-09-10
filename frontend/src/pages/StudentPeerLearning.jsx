@@ -3,15 +3,28 @@
  * @description Frontend page for EduMind Peer Learning Circle.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import studentGrowthService from '../services/studentGrowthService'
 
-const REQUESTER_STUDENT_ID = 1
-const HELPER_STUDENT_ID = 2
-const SCHOOL_ID = 1
-const CLASSROOM_ID = 1
+const DEMO_REQUESTER_STUDENT_ID = 1
+const DEMO_HELPER_STUDENT_ID = 2
+const DEMO_SCHOOL_ID = 1
+const DEMO_CLASSROOM_ID = 1
 const SUBJECT_ID = 1
 const TOPIC_ID = 1
 const LEARNING_LOG_ID = 1
+const LOAD_TIMEOUT_MS = 15000
+
+const withTimeout = (promise, ms, label = 'request') => (
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`${label} timed out after ${ms / 1000}s. Please try again.`))
+      }, ms)
+    }),
+  ])
+)
 
 const defaultCircle = {
   topic_id: TOPIC_ID,
@@ -183,6 +196,14 @@ const SessionCard = ({
 )
 
 const StudentPeerLearning = () => {
+  const { profile } = useAuth()
+  const studentProfile = profile?.student_profile || null
+  const requesterStudentId = studentProfile?.id || DEMO_REQUESTER_STUDENT_ID
+  const helperStudentId = DEMO_HELPER_STUDENT_ID
+  const schoolId = studentProfile?.school_id || DEMO_SCHOOL_ID
+  const classroomId = studentProfile?.classroom_id || DEMO_CLASSROOM_ID
+  const usingDemoIds = !studentProfile?.id
+
   const [supportMessage, setSupportMessage] = useState('')
   const [offerMessage, setOfferMessage] = useState('')
   const [circle, setCircle] = useState(defaultCircle)
@@ -205,16 +226,35 @@ const StudentPeerLearning = () => {
   ), [circle])
 
   const loadPeerLearning = async () => {
+    setLoading(true)
     setError('')
     try {
-      const [circleData, requestData, offerData, requesterSessions, helperSessions] = (
-        await Promise.all([
+      const settled = await withTimeout(
+        Promise.allSettled([
           studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID),
           studentGrowthService.getOpenPeerHelpRequests({ topic_id: TOPIC_ID }),
           studentGrowthService.getAvailablePeerHelpOffers({ topic_id: TOPIC_ID }),
-          studentGrowthService.getPeerLearningSessionsForStudent(REQUESTER_STUDENT_ID),
-          studentGrowthService.getPeerLearningSessionsForStudent(HELPER_STUDENT_ID),
-        ])
+          studentGrowthService.getPeerLearningSessionsForStudent(requesterStudentId),
+          studentGrowthService.getPeerLearningSessionsForStudent(helperStudentId),
+        ]),
+        LOAD_TIMEOUT_MS,
+        'Peer learning load'
+      )
+
+      const valueOrEmpty = (result, fallback = null) => (
+        result.status === 'fulfilled' ? result.value : fallback
+      )
+      const failures = settled.filter((result) => result.status === 'rejected')
+      if (failures.length === settled.length) {
+        const firstMessage = failures[0]?.reason?.message
+        throw new Error(
+          firstMessage
+          || 'Peer learning APIs failed. Schools/setup data may be unavailable — please retry.'
+        )
+      }
+
+      const [circleData, requestData, offerData, requesterSessions, helperSessions] = settled.map(
+        (result) => valueOrEmpty(result, null)
       )
 
       const mergedSessions = [
@@ -229,8 +269,23 @@ const StudentPeerLearning = () => {
       setOpenRequests(toSafeArray(requestData))
       setAvailableOffers(toSafeArray(offerData))
       setSessions(mergedSessions)
+
+      if (failures.length > 0) {
+        const firstMessage = failures[0]?.reason?.message || 'Some peer learning APIs failed.'
+        setError(
+          usingDemoIds
+            ? `${firstMessage} Using demo student IDs (no linked profile).`
+            : firstMessage
+        )
+      } else if (usingDemoIds) {
+        setError('')
+      }
     } catch (err) {
       console.error('Failed to load peer learning circle:', err)
+      setCircle(defaultCircle)
+      setOpenRequests([])
+      setAvailableOffers([])
+      setSessions([])
       setError(
         err.message || 'Backend is not reachable. Please start the backend server.'
       )
@@ -241,7 +296,9 @@ const StudentPeerLearning = () => {
 
   useEffect(() => {
     loadPeerLearning()
-  }, [])
+    // Re-load when authenticated student profile id becomes available.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requesterStudentId])
 
   const handleCreateRequest = async (event) => {
     event.preventDefault()
@@ -255,9 +312,9 @@ const StudentPeerLearning = () => {
     setSuccess('')
     try {
       await studentGrowthService.createPeerHelpRequest({
-        requester_student_id: REQUESTER_STUDENT_ID,
-        school_id: SCHOOL_ID,
-        classroom_id: CLASSROOM_ID,
+        requester_student_id: requesterStudentId,
+        school_id: schoolId,
+        classroom_id: classroomId,
         subject_id: SUBJECT_ID,
         topic_id: TOPIC_ID,
         learning_log_id: LEARNING_LOG_ID,
@@ -286,9 +343,9 @@ const StudentPeerLearning = () => {
     setSuccess('')
     try {
       await studentGrowthService.createPeerHelpOffer({
-        helper_student_id: HELPER_STUDENT_ID,
-        school_id: SCHOOL_ID,
-        classroom_id: CLASSROOM_ID,
+        helper_student_id: helperStudentId,
+        school_id: schoolId,
+        classroom_id: classroomId,
         subject_id: SUBJECT_ID,
         topic_id: TOPIC_ID,
         message: offerMessage.trim(),
@@ -307,7 +364,7 @@ const StudentPeerLearning = () => {
   const handleAcceptRequest = async (request) => {
     const matchingOffer = availableOffers.find((offer) => (
       offer.topic_id === request.topic_id &&
-      offer.helper_student_id === HELPER_STUDENT_ID
+      offer.helper_student_id === helperStudentId
     )) || availableOffers.find((offer) => offer.topic_id === request.topic_id)
 
     setAcceptingId(request.id)
@@ -315,7 +372,7 @@ const StudentPeerLearning = () => {
     setSuccess('')
     try {
       await studentGrowthService.acceptPeerHelpRequest(request.id, {
-        helper_student_id: HELPER_STUDENT_ID,
+        helper_student_id: helperStudentId,
         help_offer_id: matchingOffer?.id || null,
       })
       setSuccess('Peer learning session started. Helping each other builds memory.')
@@ -372,6 +429,12 @@ const StudentPeerLearning = () => {
           If you understand, explain. If you do not understand, ask. Both are
           successful habits.
         </p>
+        {usingDemoIds && (
+          <p className="text-amber-300/90 text-xs mt-2">
+            No linked student profile found — using demo IDs. Link a profile for
+            your own circle activity.
+          </p>
+        )}
       </div>
 
       {error && (
@@ -391,7 +454,10 @@ const StudentPeerLearning = () => {
       )}
 
       {loading ? (
-        <EmptyState>Loading peer learning circle...</EmptyState>
+        <EmptyState>
+          Loading peer learning circle...
+          {error ? ` (${error})` : ''}
+        </EmptyState>
       ) : (
         <div className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

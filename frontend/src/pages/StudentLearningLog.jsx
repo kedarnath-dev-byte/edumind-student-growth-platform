@@ -3,9 +3,10 @@
  * @description First student growth flow for daily learning logs.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import studentGrowthService from '../services/studentGrowthService'
 
-const STUDENT_ID = 1
+const DEMO_STUDENT_ID = 1
 
 const initialForm = {
   school_id: '',
@@ -42,6 +43,10 @@ const formatDueDate = (value) => {
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
 const StudentLearningLog = () => {
+  const { profile } = useAuth()
+  const studentProfile = profile?.student_profile || null
+  const studentId = studentProfile?.id || DEMO_STUDENT_ID
+
   const [form, setForm] = useState(initialForm)
   const [schools, setSchools] = useState([])
   const [classrooms, setClassrooms] = useState([])
@@ -65,6 +70,15 @@ const StudentLearningLog = () => {
       try {
         const data = await studentGrowthService.getSchools()
         setSchools(toSafeArray(data))
+        const assignedSchoolId = studentProfile?.school_id
+        const assignedClassroomId = studentProfile?.classroom_id
+        if (assignedSchoolId) {
+          setForm((prev) => ({
+            ...prev,
+            school_id: String(assignedSchoolId),
+            classroom_id: assignedClassroomId ? String(assignedClassroomId) : prev.classroom_id,
+          }))
+        }
       } catch (err) {
         console.error('Failed to load schools:', err)
         setError(err.message)
@@ -74,7 +88,9 @@ const StudentLearningLog = () => {
     }
 
     loadSchools()
-  }, [])
+    // Prefill when profile school assignment arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentProfile?.school_id, studentProfile?.classroom_id])
 
   useEffect(() => {
     const loadSchoolOptions = async () => {
@@ -168,7 +184,7 @@ const StudentLearningLog = () => {
 
     try {
       const saved = await studentGrowthService.createLearningLog({
-        student_id: STUDENT_ID,
+        student_id: studentId,
         school_id: Number(form.school_id),
         classroom_id: Number(form.classroom_id),
         subject_id: Number(form.subject_id),
