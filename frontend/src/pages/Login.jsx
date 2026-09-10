@@ -580,6 +580,107 @@ const Login = () => {
           </form>
         )}
 
+
+        {!needsName && mode === 'admin' && (
+          <form
+            onSubmit={adminAuthMode === 'register' ? handleAdminRegister : handleAdminSignIn}
+            className="space-y-4"
+          >
+            <div className="flex gap-2 mb-1">
+              <button
+                type="button"
+                onClick={() => setAdminAuthMode('signin')}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg ${
+                  adminAuthMode === 'signin'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-950 text-gray-400 border border-gray-800'
+                }`}
+              >
+                Admin sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminAuthMode('register')}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg ${
+                  adminAuthMode === 'register'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-950 text-gray-400 border border-gray-800'
+                }`}
+              >
+                Admin register
+              </button>
+            </div>
+
+            {adminAuthMode === 'register' && (
+              <label className="block">
+                <span className="text-gray-300 text-sm font-medium">Full name</span>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
+                  className={inputClassName}
+                  placeholder="Admin full name"
+                  autoComplete="name"
+                />
+              </label>
+            )}
+
+            {adminAuthMode === 'register' && (
+              <label className="block">
+                <span className="text-gray-300 text-sm font-medium">Mobile (+91, optional)</span>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                  className={inputClassName}
+                  placeholder="9876543210"
+                  autoComplete="tel"
+                />
+              </label>
+            )}
+
+            <label className="block">
+              <span className="text-gray-300 text-sm font-medium">Admin email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className={inputClassName}
+                placeholder="admin@school.edu"
+                autoComplete="email"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-gray-300 text-sm font-medium">Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className={inputClassName}
+                placeholder="Enter password"
+                autoComplete={adminAuthMode === 'register' ? 'new-password' : 'current-password'}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={busy || !isConfigured}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700
+              disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
+              transition-colors"
+            >
+              {busy
+                ? (adminAuthMode === 'register' ? 'Creating admin...' : 'Signing in...')
+                : (adminAuthMode === 'register' ? 'Register admin' : 'Admin Sign In')}
+            </button>
+
+            <p className="text-gray-500 text-xs text-center">
+              Admin access opens school setup, Student Pulse, and people management after login.
+            </p>
+          </form>
+        )}
+
         {!needsName && mode === 'phone' && (
           <form
             onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
