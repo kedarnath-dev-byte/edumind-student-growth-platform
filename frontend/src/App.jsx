@@ -8,6 +8,8 @@ import Chat from './pages/Chat'
 import Dashboard from './pages/Dashboard'
 import FineTuning from './pages/FineTuning'
 import Login from './pages/Login'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 import ResetPassword from './pages/ResetPassword'
 import ParentDashboard from './pages/ParentDashboard'
 import ProfileStatus from './pages/ProfileStatus'
@@ -28,6 +30,8 @@ import Layout from './components/layout/Layout'
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/privacy" element={<Privacy />} />
+    <Route path="/terms" element={<Terms />} />
     <Route path="/reset-password" element={<ResetPassword />} />
 
     <Route path="/" element={<Layout />}>
