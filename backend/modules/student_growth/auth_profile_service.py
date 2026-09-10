@@ -189,6 +189,129 @@ class AuthProfileService:
 
         return self.resolve_current_user(token_payload)
 
+
+    def bootstrap_admin(
+        self,
+        token_payload: dict[str, Any],
+        full_name: str,
+        phone: str | None = None,
+    ) -> dict[str, Any]:
+        """Create ADMIN AppUser for the JWT subject (no student profile).
+
+        Pilot safety:
+        - If AppUser already linked to this JWT: return profile when ADMIN,
+          else 409 with the existing role.
+        - Prefer linking an unlinked AppUser by email/phone when role is ADMIN.
+        - Create a new ADMIN only when zero ADMIN users exist yet.
+        """
+        supabase_user_id = token_payload.get("sub")
+        email = token_payload.get("email")
+        token_phone = extract_token_phone(token_payload)
+        resolved_phone = (phone or token_phone or None)
+        if resolved_phone:
+            resolved_phone = str(resolved_phone).strip() or None
+
+        if not supabase_user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired authorization token",
+            )
+
+        existing = (
+            self.db.query(AppUser)
+            .filter(AppUser.supabase_user_id == supabase_user_id)
+            .first()
+        )
+        if existing is not None:
+            role = (existing.role or "").upper()
+            if role == "ADMIN":
+                return self.resolve_current_user(token_payload)
+            raise HTTPException(
+                status_code=409,
+                detail=f"Account already linked as {role}",
+            )
+
+        # Prefer linking a pre-seeded unlinked ADMIN by email/phone.
+        linked = self._find_or_link_app_user(supabase_user_id, email, resolved_phone)
+        if linked is not None:
+            role = (linked.role or "").upper()
+            if role == "ADMIN":
+                return self.resolve_current_user(token_payload)
+            raise HTTPException(
+                status_code=409,
+                detail=f"Account already linked as {role}",
+            )
+
+        admin_count = (
+            self.db.query(AppUser)
+            .filter(AppUser.role == "ADMIN")
+            .count()
+        )
+        if admin_count > 0:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Admin bootstrap is closed. An ADMIN already exists. "
+                    "Ask an existing admin to create an ADMIN AppUser and link it."
+                ),
+            )
+
+        if email:
+            conflict = (
+                self.db.query(AppUser)
+                .filter(AppUser.email == email)
+                .first()
+            )
+            if conflict is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="An EduMind account with this email already exists.",
+                )
+
+        if resolved_phone:
+            conflict = (
+                self.db.query(AppUser)
+                .filter(AppUser.phone == resolved_phone)
+                .first()
+            )
+            if conflict is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="An EduMind account with this phone already exists.",
+                )
+
+        try:
+            app_user = AppUser(
+                supabase_user_id=supabase_user_id,
+                full_name=full_name.strip(),
+                email=email,
+                phone=resolved_phone,
+                role="ADMIN",
+                status="ACTIVE",
+            )
+            self.db.add(app_user)
+            self.db.commit()
+            self.db.refresh(app_user)
+        except IntegrityError as exc:
+            self.db.rollback()
+            message = str(exc.orig).lower()
+            if "email" in message:
+                raise HTTPException(
+                    status_code=409,
+                    detail="An EduMind account with this email already exists.",
+                ) from exc
+            if "phone" in message:
+                raise HTTPException(
+                    status_code=409,
+                    detail="An EduMind account with this phone already exists.",
+                ) from exc
+            raise HTTPException(
+                status_code=400,
+                detail="Admin profile could not be created.",
+            ) from exc
+
+        return self.resolve_current_user(token_payload)
+
     def link_current_user(
         self,
         token_payload: dict[str, Any],

@@ -5,9 +5,12 @@ from typing import Any
 import httpx
 import jwt
 from dotenv import load_dotenv
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 from jwt import PyJWKClient
 from jwt.exceptions import InvalidTokenError, PyJWKClientError
+
+from core.database import get_db
 
 load_dotenv()
 
@@ -98,3 +101,25 @@ async def get_current_supabase_user(
 ) -> dict[str, Any]:
     token = get_bearer_token(authorization)
     return verify_supabase_jwt(token)
+
+
+async def require_admin_user(
+    payload: dict[str, Any] = Depends(get_current_supabase_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """Require a linked EduMind ADMIN profile for the current Supabase user.
+
+    Uses get_current_supabase_user + AuthProfileService.resolve_current_user and
+    raises 403 unless role is ADMIN. Returns the resolved profile dict.
+    """
+    from modules.student_growth.auth_profile_service import AuthProfileService
+
+    profile = AuthProfileService(db).resolve_current_user(payload)
+    app_user = profile.get("app_user")
+    role = (getattr(app_user, "role", None) or "").upper()
+    if role != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required",
+        )
+    return profile

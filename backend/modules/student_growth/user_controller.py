@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from core.auth import require_admin_user
 from core.database import get_db
 from modules.student_growth.setup_schemas import ClassroomResponse
 from modules.student_growth.user_schemas import (
@@ -35,7 +36,11 @@ router = APIRouter(prefix="/api/v1/users", tags=["Pilot Users & Profiles"])
 
 
 @router.post("", response_model=AppUserResponse)
-async def create_user(payload: AppUserCreate, db: Session = Depends(get_db)):
+async def create_user(
+    payload: AppUserCreate,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
     try:
         return UserService(db).create_user(payload)
     except DuplicateUserError as e:
@@ -48,6 +53,7 @@ async def create_user(payload: AppUserCreate, db: Session = Depends(get_db)):
 async def list_users(
     role: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     return UserService(db).list_users(role=role)
 
@@ -56,6 +62,7 @@ async def list_users(
 async def create_student_profile(
     payload: StudentProfileCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     try:
         return UserService(db).create_student_profile(payload)
@@ -81,6 +88,7 @@ async def get_student_profile(
 async def create_teacher_profile(
     payload: TeacherProfileCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     try:
         return UserService(db).create_teacher_profile(payload)
@@ -92,6 +100,7 @@ async def create_teacher_profile(
 async def create_parent_profile(
     payload: ParentProfileCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     try:
         return UserService(db).create_parent_profile(payload)
@@ -106,6 +115,7 @@ async def create_parent_profile(
 async def create_parent_student_link(
     payload: ParentStudentLinkCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     return UserService(db).create_parent_student_link(payload)
 
@@ -114,6 +124,7 @@ async def create_parent_student_link(
 async def create_classroom_student(
     payload: ClassroomStudentCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     return UserService(db).create_classroom_student(payload)
 
@@ -122,6 +133,7 @@ async def create_classroom_student(
 async def create_teacher_classroom(
     payload: TeacherClassroomCreate,
     db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
 ):
     return UserService(db).create_teacher_classroom(payload)
 
