@@ -36,6 +36,7 @@ const Login = () => {
     profileLoading,
     signIn,
     signUp,
+    requestPasswordReset,
     requestPhoneOtp,
     verifyPhoneOtp,
     refreshProfile,
@@ -54,6 +55,7 @@ const Login = () => {
   const [needsName, setNeedsName] = useState(false)
   const [infoMessage, setInfoMessage] = useState('')
   const [formError, setFormError] = useState('')
+  const [showForgot, setShowForgot] = useState(false)
 
   const busy = loading || profileLoading
 
@@ -68,6 +70,28 @@ const Login = () => {
     setOtpSent(false)
     setNeedsName(false)
     setOtp('')
+    setShowForgot(false)
+  }
+
+  const handleForgotPassword = async (event) => {
+    event.preventDefault()
+    resetMessages()
+
+    if (!email.trim()) {
+      setFormError('Please enter the Gmail / email for your account.')
+      return
+    }
+
+    const result = await requestPasswordReset(email.trim())
+    if (result?.error) {
+      setFormError(result.error.message)
+      return
+    }
+
+    setInfoMessage(
+      result.message
+      || 'If that email has an EduMind account, we sent a reset link. Check inbox and spam.',
+    )
   }
 
   const navigateFromProfile = (profileResult) => {
@@ -403,7 +427,7 @@ const Login = () => {
           </form>
         ) : null}
 
-        {!needsName && mode === 'signin' && (
+        {!needsName && mode === 'signin' && !showForgot && (
           <form onSubmit={handleSignIn} className="space-y-4">
             <label className="block">
               <span className="text-gray-300 text-sm font-medium">Email</span>
@@ -429,6 +453,19 @@ const Login = () => {
               />
             </label>
 
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  resetMessages()
+                  setShowForgot(true)
+                }}
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={busy || !isConfigured}
@@ -437,6 +474,46 @@ const Login = () => {
               transition-colors"
             >
               {busy ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        )}
+
+        {!needsName && mode === 'signin' && showForgot && (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <p className="text-gray-400 text-sm">
+              Enter the same Gmail you registered with. We will email a link to set a new password.
+            </p>
+            <label className="block">
+              <span className="text-gray-300 text-sm font-medium">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className={inputClassName}
+                placeholder="student@example.com"
+                autoComplete="email"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={busy || !isConfigured}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700
+              disabled:text-gray-400 text-white font-semibold py-3 px-6 rounded-lg
+              transition-colors"
+            >
+              {busy ? 'Sending…' : 'Send reset link'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                resetMessages()
+                setShowForgot(false)
+              }}
+              className="w-full text-sm text-blue-400 hover:text-blue-300 py-2"
+            >
+              Back to sign in
             </button>
           </form>
         )}
@@ -563,9 +640,9 @@ const Login = () => {
           </form>
         )}
 
-                <p className="text-gray-500 text-xs mt-6 text-center">
+        <p className="text-gray-500 text-xs mt-6 text-center">
           New students: use Register with a real email (Gmail etc).
-          Phone OTP needs SMS provider setup. Pilot test account may be shared by admin.
+          Already registered? Sign in, or use Forgot password if you need a new one.
         </p>
       </div>
     </div>
