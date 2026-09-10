@@ -73,6 +73,35 @@ app.add_middleware(
 # ─── Timing Middleware ────────────────────────────────────────────────────────
 app.add_middleware(TimingMiddleware)
 
+
+from fastapi.openapi.utils import get_openapi
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    components = openapi_schema.setdefault("components", {})
+    schemes = components.setdefault("securitySchemes", {})
+    schemes["HTTPBearer"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase JWT access token (Authorization: Bearer <token>)",
+    }
+    # Document default bearer auth; public health remains callable without token at runtime.
+    openapi_schema["security"] = [{"HTTPBearer": []}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
 # ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])

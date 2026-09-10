@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.auth import require_admin_user
+from core.auth import get_current_supabase_user, require_admin_user
 from core.database import get_db
 from modules.student_growth.setup_schemas import (
     ClassroomCreate,
@@ -30,7 +30,10 @@ async def create_school(
 
 
 @router.get("/schools", response_model=list[SchoolResponse])
-async def list_schools(db: Session = Depends(get_db)):
+async def list_schools(
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_schools()
 
 
@@ -56,12 +59,19 @@ async def create_classroom(
 
 
 @router.get("/classrooms", response_model=list[ClassroomResponse])
-async def list_classrooms(db: Session = Depends(get_db)):
+async def list_classrooms(
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_classrooms()
 
 
 @router.get("/classrooms/school/{school_id}", response_model=list[ClassroomResponse])
-async def list_classrooms_by_school(school_id: int, db: Session = Depends(get_db)):
+async def list_classrooms_by_school(
+    school_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_classrooms_by_school(school_id)
 
 
@@ -75,12 +85,19 @@ async def create_subject(
 
 
 @router.get("/subjects", response_model=list[SubjectResponse])
-async def list_subjects(db: Session = Depends(get_db)):
+async def list_subjects(
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_subjects()
 
 
 @router.get("/subjects/school/{school_id}", response_model=list[SubjectResponse])
-async def list_subjects_by_school(school_id: int, db: Session = Depends(get_db)):
+async def list_subjects_by_school(
+    school_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_subjects_by_school(school_id)
 
 
@@ -94,10 +111,17 @@ async def create_topic(
 
 
 @router.get("/topics", response_model=list[TopicResponse])
-async def list_topics(db: Session = Depends(get_db)):
+async def list_topics(
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_topics()
 
 
 @router.get("/topics/subject/{subject_id}", response_model=list[TopicResponse])
-async def list_topics_by_subject(subject_id: int, db: Session = Depends(get_db)):
+async def list_topics_by_subject(
+    subject_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
+):
     return SetupService(db).list_topics_by_subject(subject_id)
