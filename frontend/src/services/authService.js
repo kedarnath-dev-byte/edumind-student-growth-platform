@@ -2,6 +2,23 @@ import axios from 'axios'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const requestWithWakeRetry = async (makeRequest) => {
+  let lastError
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await makeRequest()
+    } catch (error) {
+      lastError = error
+      const retriable = !error.response || [502, 503, 504].includes(error.response?.status)
+      if (!retriable || attempt === 2) break
+      await sleep(2500 * (attempt + 1))
+    }
+  }
+  throw lastError
+}
+
 const authService = {
   async getCurrentEduMindProfile(accessToken) {
     if (!accessToken) {
@@ -9,19 +26,17 @@ const authService = {
     }
 
     try {
-      const response = await axios.get(
-        `${apiBaseUrl}/api/v1/auth/me/profile`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+      const response = await requestWithWakeRetry(() =>
+        axios.get(`${apiBaseUrl}/api/v1/auth/me/profile`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 90000,
+        }),
       )
       return response.data
     } catch (error) {
       if (error.response?.status === 404) {
         const profileError = new Error(
-          'EduMind profile is not linked yet. Please contact EduMind admin.'
+          'EduMind profile is not linked yet. Please contact EduMind admin.',
         )
         profileError.code = 'PROFILE_NOT_LINKED'
         throw profileError
@@ -34,7 +49,9 @@ const authService = {
       }
 
       const networkError = new Error(
-        'EduMind profile could not be loaded. Please try again.'
+        !error.response
+          ? 'Server is waking up. Wait ~30s — profile will load automatically when you retry.'
+          : 'EduMind profile could not be loaded. Please try again.',
       )
       networkError.code = 'PROFILE_LOAD_FAILED'
       throw networkError
@@ -47,24 +64,22 @@ const authService = {
     }
 
     try {
-      const response = await axios.post(
-        `${apiBaseUrl}/api/v1/auth/bootstrap-student`,
-        {
-          full_name,
-          phone: phone || undefined,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
+      const response = await requestWithWakeRetry(() =>
+        axios.post(
+          `${apiBaseUrl}/api/v1/auth/bootstrap-student`,
+          { full_name, phone: phone || undefined },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 90000,
           },
-        }
+        ),
       )
       return response.data
     } catch (error) {
       if (error.response?.status === 409) {
         const conflictError = new Error(
           error.response?.data?.detail
-            || 'An EduMind account with these details already exists.'
+            || 'An EduMind account with these details already exists.',
         )
         conflictError.code = 'BOOTSTRAP_CONFLICT'
         throw conflictError
@@ -78,7 +93,7 @@ const authService = {
 
       const bootstrapError = new Error(
         error.response?.data?.detail
-          || 'Could not create your EduMind student profile. Please try again.'
+          || 'Could not create your EduMind student profile. Please try again.',
       )
       bootstrapError.code = 'BOOTSTRAP_FAILED'
       throw bootstrapError
@@ -91,24 +106,22 @@ const authService = {
     }
 
     try {
-      const response = await axios.post(
-        `${apiBaseUrl}/api/v1/auth/bootstrap-admin`,
-        {
-          full_name,
-          phone: phone || undefined,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
+      const response = await requestWithWakeRetry(() =>
+        axios.post(
+          `${apiBaseUrl}/api/v1/auth/bootstrap-admin`,
+          { full_name, phone: phone || undefined },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            timeout: 90000,
           },
-        }
+        ),
       )
       return response.data
     } catch (error) {
       if (error.response?.status === 409 || error.response?.status === 403) {
         const conflictError = new Error(
           error.response?.data?.detail
-            || 'Admin account could not be created for this login.'
+            || 'Admin account could not be created for this login.',
         )
         conflictError.code = 'BOOTSTRAP_CONFLICT'
         throw conflictError
@@ -122,7 +135,7 @@ const authService = {
 
       const bootstrapError = new Error(
         error.response?.data?.detail
-          || 'Could not create your EduMind admin profile. Please try again.'
+          || 'Could not create your EduMind admin profile. Please try again.',
       )
       bootstrapError.code = 'BOOTSTRAP_FAILED'
       throw bootstrapError
