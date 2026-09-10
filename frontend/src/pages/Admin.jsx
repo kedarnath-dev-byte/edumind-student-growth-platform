@@ -2,7 +2,7 @@
  * Admin Control Center — academic-ops command center for monitoring students.
  * Landing tab: Student Pulse / At-Risk board.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import api from '../services/api'
 
@@ -107,15 +107,43 @@ const Admin = () => {
     return token ? { Authorization: `Bearer ${token}` } : {}
   }, [getAccessToken])
 
+  // Render free-tier cold starts + parallel admin GETs often take 20–30s+.
+  const ADMIN_TIMEOUT_MS = 90000
+  const loadSeq = useRef(0)
+  const beginLoad = useCallback(() => {
+    const id = ++loadSeq.current
+    return () => id !== loadSeq.current
+  }, [])
+
+  const formatErr = (err, fallback) => {
+    if (err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '')) {
+      return `${fallback} (backend slow — tap Refresh)`
+    }
+    const detail = err?.response?.data?.detail
+    if (typeof detail === 'string' && detail.trim()) return detail
+    return err?.message || fallback
+  }
+
   const apiGet = useCallback(async (url, params) => {
-    const res = await api.get(url, { params, headers: authHeaders() })
+    const res = await api.get(url, {
+      params,
+      headers: authHeaders(),
+      timeout: ADMIN_TIMEOUT_MS,
+    })
     return res.data
   }, [authHeaders])
 
   const apiPost = useCallback(async (url, body) => {
-    const res = await api.post(url, body, { headers: authHeaders() })
+    const res = await api.post(url, body, {
+      headers: authHeaders(),
+      timeout: ADMIN_TIMEOUT_MS,
+    })
     return res.data
   }, [authHeaders])
+
+  const settledValue = (result, fallback) => (
+    result.status === 'fulfilled' ? result.value : fallback
+  )
 
   const loadSchools = useCallback(async () => {
     const data = await apiGet('/api/v1/schools')
@@ -123,28 +151,35 @@ const Admin = () => {
   }, [apiGet])
 
   const loadPulse = useCallback(async () => {
+    const isStale = beginLoad()
     setLoading(true)
     setError('')
     try {
       const params = { risk_only: riskOnly }
       if (filterSchoolId) params.school_id = Number(filterSchoolId)
       const data = await apiGet('/api/v1/admin/students/overview', params)
+      if (isStale()) return
       setStudents(data || [])
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to load student pulse')
+      if (isStale()) return
+      setError(formatErr(err, 'Failed to load student pulse'))
     } finally {
-      setLoading(false)
+      if (!isStale()) setLoading(false)
     }
-  }, [apiGet, riskOnly, filterSchoolId])
+  }, [apiGet, beginLoad, riskOnly, filterSchoolId])
 
   const openTimeline = async (studentId) => {
+    const isStale = beginLoad()
     setSelectedStudentId(studentId)
     setTimeline(null)
+    setError('')
     try {
       const data = await apiGet(`/api/v1/admin/students/${studentId}/timeline`)
+      if (isStale()) return
       setTimeline(data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load student timeline')
+      if (isStale()) return
+      setError(formatErr(err, 'Failed to load student timeline'))
     }
   }
 
@@ -155,12 +190,16 @@ const Admin = () => {
       setTopics([])
       return
     }
-    const [cls, subs] = await Promise.all([
+    const results = await Promise.allSettled([
       apiGet(`/api/v1/classrooms/school/${schoolId}`),
       apiGet(`/api/v1/subjects/school/${schoolId}`),
     ])
-    setClassrooms(cls || [])
-    setSubjects(subs || [])
+    setClassrooms(settledValue(results[0], []) || [])
+    setSubjects(settledValue(results[1], []) || [])
+    const failed = results.filter((r) => r.status === 'rejected')
+    if (failed.length) {
+      setError(formatErr(failed[0].reason, 'Failed to load school setup'))
+    }
   }, [apiGet])
 
   const loadTopics = useCallback(async (subjectId) => {
@@ -173,28 +212,40 @@ const Admin = () => {
   }, [apiGet])
 
   const loadPeople = useCallback(async () => {
+    const isStale = beginLoad()
     setLoading(true)
+    setError('')
     try {
       const params = roleFilter ? { role: roleFilter } : undefined
-      const data = await apiGet('/api/v1/users', params)
-      setUsers(data || [])
-      const [tp, pp] = await Promise.all([
+      const results = await Promise.allSettled([
+        apiGet('/api/v1/users', params),
         apiGet('/api/v1/admin/teacher-profiles'),
         apiGet('/api/v1/admin/parent-profiles'),
       ])
-      setTeacherProfiles(tp || [])
-      setParentProfiles(pp || [])
+      if (isStale()) return
+      setUsers(settledValue(results[0], []) || [])
+      setTeacherProfiles(settledValue(results[1], []) || [])
+      setParentProfiles(settledValue(results[2], []) || [])
+      if (results[0].status === 'rejected') {
+        setError(formatErr(results[0].reason, 'Failed to load people'))
+      } else if (results.some((r) => r.status === 'rejected')) {
+        setInfo('People loaded; some profile lists failed — retry if needed')
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load people')
+      if (isStale()) return
+      setError(formatErr(err, 'Failed to load people'))
     } finally {
-      setLoading(false)
+      if (!isStale()) setLoading(false)
     }
-  }, [apiGet, roleFilter])
+  }, [apiGet, beginLoad, roleFilter])
 
   const loadSupport = useCallback(async () => {
+    const isStale = beginLoad()
     setLoading(true)
+    setError('')
+    setPeers(null)
     try {
-      const [p, pl, tc, cs, tp, pp] = await Promise.all([
+      const results = await Promise.allSettled([
         apiGet('/api/v1/admin/peers/overview'),
         apiGet('/api/v1/admin/parent-student-links'),
         apiGet('/api/v1/admin/teacher-classrooms'),
@@ -202,36 +253,64 @@ const Admin = () => {
         apiGet('/api/v1/admin/teacher-profiles'),
         apiGet('/api/v1/admin/parent-profiles'),
       ])
-      setPeers(p)
-      setParentLinks(pl || [])
-      setTeacherClassrooms(tc || [])
-      setClassroomStudents(cs || [])
-      setTeacherProfiles(tp || [])
-      setParentProfiles(pp || [])
+      if (isStale()) return
+      const emptyPeers = {
+        open_requests: [],
+        available_offers: [],
+        recent_sessions: [],
+        open_request_count: 0,
+        available_offer_count: 0,
+        session_count: 0,
+      }
+      setPeers(settledValue(results[0], emptyPeers) || emptyPeers)
+      setParentLinks(settledValue(results[1], []) || [])
+      setTeacherClassrooms(settledValue(results[2], []) || [])
+      setClassroomStudents(settledValue(results[3], []) || [])
+      setTeacherProfiles(settledValue(results[4], []) || [])
+      setParentProfiles(settledValue(results[5], []) || [])
+      const failed = results.filter((r) => r.status === 'rejected')
+      if (failed.length === results.length) {
+        setError(formatErr(failed[0].reason, 'Failed to load support graph'))
+        setPeers(emptyPeers)
+      } else if (failed.length) {
+        setInfo(`Support graph partial (${failed.length} section(s) failed) — tap Refresh`)
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load support graph')
+      if (isStale()) return
+      setError(formatErr(err, 'Failed to load support graph'))
+      setPeers({
+        open_requests: [], available_offers: [], recent_sessions: [],
+        open_request_count: 0, available_offer_count: 0, session_count: 0,
+      })
     } finally {
-      setLoading(false)
+      if (!isStale()) setLoading(false)
     }
-  }, [apiGet])
+  }, [apiGet, beginLoad])
 
   const loadCoverage = useCallback(async () => {
+    const isStale = beginLoad()
     setLoading(true)
+    setError('')
+    setCoverage(null)
     try {
       const data = await apiGet('/api/v1/admin/coverage/overview')
+      if (isStale()) return
       setCoverage(data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load coverage')
+      if (isStale()) return
+      setError(formatErr(err, 'Failed to load coverage'))
     } finally {
-      setLoading(false)
+      if (!isStale()) setLoading(false)
     }
-  }, [apiGet])
+  }, [apiGet, beginLoad])
 
   useEffect(() => {
     loadSchools().catch(() => {})
   }, [loadSchools])
 
   useEffect(() => {
+    // Invalidate any in-flight loads from the previous tab.
+    loadSeq.current += 1
     setError('')
     setInfo('')
     if (tab === 'pulse') loadPulse()
@@ -240,7 +319,7 @@ const Admin = () => {
     if (tab === 'coverage') loadCoverage()
     if (tab === 'setup' && selectedSchoolId) {
       loadSetupForSchool(selectedSchoolId).catch((err) => {
-        setError(err.response?.data?.detail || 'Failed to load school setup')
+        setError(formatErr(err, 'Failed to load school setup'))
       })
     }
   }, [tab, loadPulse, loadPeople, loadSupport, loadCoverage, selectedSchoolId, loadSetupForSchool])
@@ -742,6 +821,18 @@ const Admin = () => {
                       <td>{u.supabase_user_id ? 'yes' : 'no'}</td>
                     </tr>
                   ))}
+                  {!loading && users.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-gray-500 text-sm">
+                        No users yet. Create one below, or Refresh if the list failed to load.
+                      </td>
+                    </tr>
+                  )}
+                  {loading && users.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-gray-500 text-sm">Loading users…</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
