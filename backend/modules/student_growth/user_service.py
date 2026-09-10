@@ -20,6 +20,7 @@ from modules.student_growth.user_schemas import (
     ClassroomStudentCreate,
     ParentProfileCreate,
     ParentStudentLinkCreate,
+    StudentProfileAssign,
     StudentProfileCreate,
     TeacherClassroomCreate,
     TeacherProfileCreate,
@@ -88,6 +89,85 @@ class UserService:
         self._ensure_profile_does_not_exist(StudentProfile, payload.user_id)
         profile = StudentProfile(**payload.model_dump())
         self.db.add(profile)
+        self.db.commit()
+        self.db.refresh(profile)
+        return profile
+
+
+    def assign_student_profile(self, payload: StudentProfileAssign) -> StudentProfile:
+        user = self.db.query(AppUser).filter(AppUser.id == payload.user_id).first()
+        if user is None:
+            raise UserNotFoundError("User not found")
+
+        school_id = payload.school_id
+        classroom_id = payload.classroom_id
+
+        if classroom_id is not None:
+            classroom = (
+                self.db.query(Classroom).filter(Classroom.id == classroom_id).first()
+            )
+            if classroom is None:
+                raise UserNotFoundError("Classroom not found")
+            if school_id is not None and classroom.school_id != school_id:
+                raise UserConstraintError("Classroom does not belong to that school.")
+            if school_id is None:
+                school_id = classroom.school_id
+
+        profile = (
+            self.db.query(StudentProfile)
+            .filter(StudentProfile.user_id == payload.user_id)
+            .first()
+        )
+
+        if profile is not None:
+            profile.school_id = school_id
+            profile.classroom_id = classroom_id
+            if payload.display_name is not None:
+                profile.display_name = payload.display_name
+            if payload.guardian_contact is not None:
+                profile.guardian_contact = payload.guardian_contact
+        else:
+            display_name = payload.display_name or user.full_name
+            if not display_name or not str(display_name).strip():
+                raise UserConstraintError(
+                    "display_name is required to create a student profile."
+                )
+            profile = StudentProfile(
+                user_id=payload.user_id,
+                school_id=school_id,
+                classroom_id=classroom_id,
+                display_name=str(display_name).strip(),
+                guardian_contact=payload.guardian_contact,
+            )
+            self.db.add(profile)
+
+        self.db.flush()
+
+        if classroom_id is not None:
+            existing_link = (
+                self.db.query(ClassroomStudent)
+                .filter(
+                    ClassroomStudent.classroom_id == classroom_id,
+                    ClassroomStudent.student_profile_id == profile.id,
+                )
+                .first()
+            )
+            if existing_link is None:
+                try:
+                    with self.db.begin_nested():
+                        self.db.add(
+                            ClassroomStudent(
+                                classroom_id=classroom_id,
+                                student_profile_id=profile.id,
+                                status="ACTIVE",
+                            )
+                        )
+                        self.db.flush()
+                except IntegrityError:
+                    pass
+            elif existing_link.status != "ACTIVE":
+                existing_link.status = "ACTIVE"
+
         self.db.commit()
         self.db.refresh(profile)
         return profile

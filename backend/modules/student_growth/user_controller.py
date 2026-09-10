@@ -17,6 +17,7 @@ from modules.student_growth.user_schemas import (
     ParentProfileResponse,
     ParentStudentLinkCreate,
     ParentStudentLinkResponse,
+    StudentProfileAssign,
     StudentProfileCreate,
     StudentProfileResponse,
     TeacherClassroomCreate,
@@ -68,6 +69,21 @@ async def create_student_profile(
         return UserService(db).create_student_profile(payload)
     except DuplicateProfileError as e:
         raise HTTPException(status_code=409, detail=str(e))
+
+
+
+@router.put("/student-profiles/assign", response_model=StudentProfileResponse)
+async def assign_student_profile(
+    payload: StudentProfileAssign,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
+    try:
+        return UserService(db).assign_student_profile(payload)
+    except UserNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except UserConstraintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get(
