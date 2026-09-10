@@ -90,6 +90,8 @@ def init_db():
         Topic,
         User,
         DriveUpload,
+        SubjectFollow,
+        SubjectPost,
     )
 
     Base.metadata.create_all(bind=engine)
