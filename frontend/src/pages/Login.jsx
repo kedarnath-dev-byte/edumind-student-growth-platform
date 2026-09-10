@@ -483,9 +483,9 @@ const Login = () => {
           </form>
         )}
 
-        <p className="text-gray-500 text-xs mt-6 text-center">
-          New students can register with email or phone OTP. Teachers and parents
-          are still provisioned by EduMind admin.
+                <p className="text-gray-500 text-xs mt-6 text-center">
+          New students: use Register with a real email (Gmail etc).
+          Phone OTP needs SMS provider setup. Pilot test account may be shared by admin.
         </p>
       </div>
     </div>

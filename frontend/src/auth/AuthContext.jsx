@@ -194,6 +194,19 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (error) {
+        const msg = (error.message || '').toLowerCase()
+        if (msg.includes('email not confirmed') || error.code === 'email_not_confirmed') {
+          const friendly =
+            'Email not confirmed yet. Open the confirmation link from your inbox, or ask EduMind admin to confirm your account for the pilot.'
+          setAuthError(friendly)
+          return { error: { ...error, message: friendly } }
+        }
+        if (msg.includes('invalid login credentials')) {
+          const friendly =
+            'Invalid email or password. New students: use Register first with a real email (not .local).'
+          setAuthError(friendly)
+          return { error: { ...error, message: friendly } }
+        }
         setAuthError(error.message || 'Login failed. Please check your details.')
         return { error }
       }
@@ -247,7 +260,7 @@ export const AuthProvider = ({ children }) => {
         return {
           data,
           needsEmailConfirmation: true,
-          message: 'Check your email to confirm your account, then sign in.',
+          message: 'Account created. Confirm your email from the inbox link, then use Sign in. For the pilot, admin can also confirm you in Supabase.',
         }
       }
 
