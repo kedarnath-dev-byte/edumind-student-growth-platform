@@ -18,6 +18,7 @@ import StudentRevisions from './pages/StudentRevisions'
 import TeacherDashboard from './pages/TeacherDashboard'
 import Unauthorized from './pages/Unauthorized'
 import Upload from './pages/Upload'
+import StudentDriveUpload from './pages/StudentDriveUpload'
 
 import Layout from './components/layout/Layout'
 
@@ -70,6 +71,14 @@ const AppRoutes = () => (
       <Route path="student-revisions" element={<StudentRevisions />} />
       <Route path="student-habits" element={<StudentHabits />} />
       <Route path="student-peer-learning" element={<StudentPeerLearning />} />
+      <Route
+        path="student-upload-proof"
+        element={(
+          <ProtectedRoute allowedRoles={['STUDENT']}>
+            <StudentDriveUpload />
+          </ProtectedRoute>
+        )}
+      />
       <Route path="finetuning" element={<FineTuning />} />
       <Route path="admin" element={<Admin />} />
     </Route>

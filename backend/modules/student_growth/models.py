@@ -290,3 +290,22 @@ class PeerHelpSession(Base):
     helper_reflection = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+
+
+class DriveUpload(Base):
+    """Metadata for a student file uploaded to Google Drive."""
+
+    __tablename__ = "drive_uploads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_profile_id = Column(Integer, index=True, nullable=False)
+    app_user_id = Column(Integer, index=True, nullable=False)
+    supabase_user_id = Column(String, index=True, nullable=False)
+    category = Column(String, index=True, nullable=False)  # proof | document
+    drive_file_id = Column(String, unique=True, index=True, nullable=False)
+    file_name = Column(String, nullable=False)
+    mime_type = Column(String, nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    web_view_link = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
