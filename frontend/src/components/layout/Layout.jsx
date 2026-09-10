@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { path: '/student-revisions', label: "Today's Revision", icon: 'TR' },
   { path: '/student-habits', label: 'Successful Habits', icon: 'SH' },
   { path: '/student-peer-learning', label: 'Peer Learning Circle', icon: 'PL' },
+  { path: '/student-upload-proof', label: 'Upload Proof', icon: 'UP' },
   { path: '/teacher-dashboard', label: 'Teacher Dashboard', icon: 'TD' },
   { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD' },
   { path: '/profile-status', label: 'Profile Status', icon: 'PS' },

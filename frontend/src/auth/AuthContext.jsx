@@ -47,6 +47,11 @@ export const AuthProvider = ({ children }) => {
     clearProfileState(setProfile, setProfileError)
     setSession(data.session)
     setUser(data.session?.user || null)
+    if (data.session?.access_token) {
+      localStorage.setItem('edumind_token', data.session.access_token)
+    } else {
+      localStorage.removeItem('edumind_token')
+    }
     return data.session
   }
 
@@ -103,6 +108,11 @@ export const AuthProvider = ({ children }) => {
         setSession(nextSession)
         setUser(nextSession?.user || null)
         setAuthError('')
+        if (nextSession?.access_token) {
+          localStorage.setItem('edumind_token', nextSession.access_token)
+        } else {
+          localStorage.removeItem('edumind_token')
+        }
         if (!nextSession) setProfileLoading(false)
       })
       subscription = data.subscription
@@ -158,6 +168,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null)
       clearProfileState(setProfile, setProfileError)
       setProfileLoading(false)
+      localStorage.removeItem('edumind_token')
       return
     }
 
@@ -173,6 +184,7 @@ export const AuthProvider = ({ children }) => {
       setSession(null)
       setUser(null)
       clearProfileState(setProfile, setProfileError)
+      localStorage.removeItem('edumind_token')
     } finally {
       setProfileLoading(false)
       setLoading(false)

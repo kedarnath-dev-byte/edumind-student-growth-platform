@@ -89,6 +89,7 @@ def init_db():
         TeacherProfile,
         Topic,
         User,
+        DriveUpload,
     )
 
     Base.metadata.create_all(bind=engine)

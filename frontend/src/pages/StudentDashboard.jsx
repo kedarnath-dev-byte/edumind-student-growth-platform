@@ -48,6 +48,12 @@ const actionCards = [
     label: 'Open peer learning',
     copy: 'Ask for support or offer help. Both build learning.',
   },
+  {
+    title: 'Upload Proof',
+    path: '/student-upload-proof',
+    label: 'Upload to Drive',
+    copy: 'Upload revision proofs or documents securely to EduMind Drive.',
+  },
 ]
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
