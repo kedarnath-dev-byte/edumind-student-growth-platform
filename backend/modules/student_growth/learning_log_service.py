@@ -14,12 +14,23 @@ class LearningLogService:
 
     DAILY_LOG_POINTS = 10
     HONEST_CONFUSION_POINTS = 5
+    MAX_NOTE_IMAGES = 8
 
     def __init__(self, db: Session):
         self.db = db
 
     def create_learning_log(self, payload: LearningLogCreate) -> dict:
-        learning_log = LearningLog(**payload.model_dump())
+        data = payload.model_dump()
+        urls = data.get("note_image_urls") or []
+        if not isinstance(urls, list):
+            urls = []
+        urls = [str(u).strip() for u in urls if str(u).strip()]
+        if len(urls) > self.MAX_NOTE_IMAGES:
+            raise ValueError(
+                f"At most {self.MAX_NOTE_IMAGES} textbook/class-notes photos are allowed"
+            )
+        data["note_image_urls"] = urls
+        learning_log = LearningLog(**data)
         self.db.add(learning_log)
         self.db.commit()
         self.db.refresh(learning_log)

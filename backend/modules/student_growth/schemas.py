@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RevisionTaskResponse(BaseModel):
@@ -44,6 +44,17 @@ class LearningLogCreate(BaseModel):
     not_understood: Optional[str] = None
     confidence_level: str = "MEDIUM"
     explanation_video_url: Optional[str] = None
+    note_image_urls: Optional[List[str]] = None
+
+    @field_validator("note_image_urls")
+    @classmethod
+    def validate_note_image_urls(cls, value):
+        if value is None:
+            return None
+        cleaned = [str(url).strip() for url in value if str(url).strip()]
+        if len(cleaned) > 8:
+            raise ValueError("At most 8 textbook/class-notes photos are allowed")
+        return cleaned
 
 
 class LearningLogResponse(BaseModel):
@@ -60,6 +71,7 @@ class LearningLogResponse(BaseModel):
     not_understood: Optional[str] = None
     confidence_level: str
     explanation_video_url: Optional[str] = None
+    note_image_urls: Optional[List[str]] = Field(default_factory=list)
     created_at: datetime
     revision_tasks: List[RevisionTaskResponse] = Field(default_factory=list)
     rewards: List[RewardEventResponse] = Field(default_factory=list)

@@ -7,7 +7,7 @@ automatic spaced revision tasks, and healthy reward events.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
 
 from core.database import Base
 
@@ -183,6 +183,8 @@ class LearningLog(Base):
     not_understood = Column(Text, nullable=True)
     confidence_level = Column(String, default="MEDIUM")
     explanation_video_url = Column(String, nullable=True)
+    # Playback/view URLs for textbook / class-notes photos (Drive links).
+    note_image_urls = Column(JSON, nullable=True, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

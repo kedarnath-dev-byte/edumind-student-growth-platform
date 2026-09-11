@@ -130,6 +130,8 @@ class CoverageOverviewResponse(BaseModel):
 
 
 def _serialize_learning_log(log: LearningLog) -> LearningLogResponse:
+    raw_notes = getattr(log, "note_image_urls", None)
+    note_urls = [str(u) for u in raw_notes if str(u).strip()] if isinstance(raw_notes, list) else []
     return LearningLogResponse(
         id=log.id,
         student_id=log.student_id,
@@ -141,6 +143,8 @@ def _serialize_learning_log(log: LearningLog) -> LearningLogResponse:
         understood=log.understood,
         not_understood=log.not_understood,
         confidence_level=log.confidence_level,
+        explanation_video_url=getattr(log, "explanation_video_url", None),
+        note_image_urls=note_urls,
         created_at=log.created_at,
         revision_tasks=[],
         rewards=[],
