@@ -15,6 +15,13 @@ from modules.student_growth.schemas import (
 router = APIRouter(prefix="/api/v1/learning-logs", tags=["Student Learning Logs"])
 
 
+def _note_image_urls(learning_log) -> list:
+    raw = getattr(learning_log, "note_image_urls", None)
+    if isinstance(raw, list):
+        return [str(u) for u in raw if str(u).strip()]
+    return []
+
+
 def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> LearningLogResponse:
     """Build a clean response model without leaking SQLAlchemy internals."""
     return LearningLogResponse(
@@ -29,6 +36,7 @@ def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> L
         not_understood=learning_log.not_understood,
         confidence_level=learning_log.confidence_level,
         explanation_video_url=getattr(learning_log, "explanation_video_url", None),
+        note_image_urls=_note_image_urls(learning_log),
         created_at=learning_log.created_at,
         revision_tasks=[
             RevisionTaskResponse.model_validate(task)
@@ -50,6 +58,8 @@ async def create_learning_log(payload: LearningLogCreate, db: Session = Depends(
             revision_tasks=result["revision_tasks"],
             rewards=result["rewards"],
         )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

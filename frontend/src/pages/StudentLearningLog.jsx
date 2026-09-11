@@ -1,12 +1,13 @@
 /**
  * @file StudentLearningLog.jsx
  * @description First student growth flow for daily learning logs.
- *              Optional front-camera selfie video explanation uploaded to Drive.
+ *              Optional front-camera selfie video + multi textbook/notes photos (Drive).
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import MediaCapture from '../components/MediaCapture'
+import MultiImageCapture from '../components/MultiImageCapture'
 import InlineMedia from '../components/InlineMedia'
 import driveUploadService from '../services/driveUploadService'
 import studentGrowthService from '../services/studentGrowthService'
@@ -67,7 +68,9 @@ const StudentLearningLog = () => {
 
   const [recordSelfie, setRecordSelfie] = useState(false)
   const [selfieFile, setSelfieFile] = useState(null)
+  const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadLabel, setUploadLabel] = useState('')
 
   const schoolOptions = toSafeArray(schools)
   const classroomOptions = toSafeArray(classrooms)
@@ -201,6 +204,10 @@ const StudentLearningLog = () => {
     setSelfieFile(null)
   }
 
+  const clearNotePhotos = () => {
+    setNoteFiles([])
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -218,14 +225,18 @@ const StudentLearningLog = () => {
     setError('')
     setValidation('')
     setUploadProgress(0)
+    setUploadLabel('')
 
     try {
+      const token = getAccessToken?.() || localStorage.getItem('edumind_token')
+      const needsUpload = (recordSelfie && selfieFile) || noteFiles.length > 0
+      if (needsUpload && !token) {
+        throw new Error('Please log in to upload photos or your explanation video.')
+      }
+
       let explanationVideoUrl = null
       if (recordSelfie && selfieFile) {
-        const token = getAccessToken?.() || localStorage.getItem('edumind_token')
-        if (!token) {
-          throw new Error('Please log in to upload your explanation video.')
-        }
+        setUploadLabel('Uploading explanation to Drive…')
         const uploaded = await driveUploadService.upload(
           selfieFile,
           'proof',
@@ -236,6 +247,26 @@ const StudentLearningLog = () => {
         explanationVideoUrl = urls.playbackUrl || urls.viewUrl
         if (!explanationVideoUrl) {
           throw new Error('Drive upload succeeded but no link was returned.')
+        }
+      }
+
+      const noteImageUrls = []
+      if (noteFiles.length > 0) {
+        for (let i = 0; i < noteFiles.length; i += 1) {
+          setUploadLabel(`Uploading note photo ${i + 1} of ${noteFiles.length}…`)
+          setUploadProgress(0)
+          const uploaded = await driveUploadService.upload(
+            noteFiles[i],
+            'document',
+            token,
+            setUploadProgress,
+          )
+          const urls = urlsFromDriveUpload(uploaded)
+          const link = urls.playbackUrl || urls.viewUrl
+          if (!link) {
+            throw new Error(`Drive upload for note photo ${i + 1} returned no link.`)
+          }
+          noteImageUrls.push(link)
         }
       }
 
@@ -250,6 +281,7 @@ const StudentLearningLog = () => {
         not_understood: form.not_understood.trim(),
         confidence_level: form.confidence_level,
         explanation_video_url: explanationVideoUrl,
+        note_image_urls: noteImageUrls,
       })
 
       setResult(saved)
@@ -271,12 +303,14 @@ const StudentLearningLog = () => {
       }))
       setRecordSelfie(false)
       clearSelfie()
+      clearNotePhotos()
     } catch (err) {
       console.error('Failed to save learning log:', err)
       setError(err.message)
     } finally {
       setLoading(false)
       setUploadProgress(0)
+      setUploadLabel('')
     }
   }
 
@@ -405,6 +439,19 @@ const StudentLearningLog = () => {
             </div>
           </div>
 
+          <div className="mb-5">
+            <MultiImageCapture
+              files={noteFiles}
+              onChange={(next) => {
+                setResult(null)
+                setNoteFiles(next)
+              }}
+              max={8}
+              disabled={loading}
+              label="Textbook / class notes photos"
+            />
+          </div>
+
           <div className="space-y-4">
             <div>
               <FieldLabel>What did your teacher teach today?</FieldLabel>
@@ -501,7 +548,9 @@ const StudentLearningLog = () => {
               {loading && uploadProgress > 0 && (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-400">Uploading explanation to Drive…</span>
+                    <span className="text-gray-400">
+                      {uploadLabel || 'Uploading to Drive…'}
+                    </span>
                     <span className="text-blue-400">{uploadProgress}%</span>
                   </div>
                   <div className="w-full bg-gray-800 rounded-full h-1.5">
@@ -566,6 +615,29 @@ const StudentLearningLog = () => {
                     viewUrl={result.explanation_video_url}
                     mediaType="video"
                   />
+                </div>
+              )}
+
+              {Array.isArray(result.note_image_urls) && result.note_image_urls.length > 0 && (
+                <div className="mt-4 rounded-xl overflow-hidden border border-gray-800">
+                  <p className="text-white text-sm font-semibold px-3 py-2 bg-gray-950">
+                    Textbook / class notes photos
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 p-3 bg-gray-950">
+                    {result.note_image_urls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className="rounded-lg overflow-hidden border border-gray-800"
+                      >
+                        <InlineMedia
+                          src={url}
+                          viewUrl={url}
+                          mediaType="image"
+                          alt={`Note photo ${index + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
