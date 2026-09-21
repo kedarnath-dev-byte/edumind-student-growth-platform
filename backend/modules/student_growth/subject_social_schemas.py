@@ -32,7 +32,24 @@ class SubjectPostResponse(BaseModel):
     like_count: int = 0
     created_at: datetime
     from_followed: bool = False
+    is_suggested: bool = False
+    suggestion_label: Optional[str] = None
     score: float = 0
+
+
+class SubjectSuggestedPerson(BaseModel):
+    student_id: int
+    display_name: str
+    post_count: int = 0
+    is_following: bool = False
+
+
+class SubjectFeedResponse(BaseModel):
+    subject_id: int
+    following_count: int = 0
+    mode: Literal["suggested", "following", "mixed"] = "suggested"
+    posts: list[SubjectPostResponse] = Field(default_factory=list)
+    suggested_people: list[SubjectSuggestedPerson] = Field(default_factory=list)
 
 
 class SubjectFollowCreate(BaseModel):
