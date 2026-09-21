@@ -4,6 +4,7 @@
  */
 import { Link } from 'react-router-dom'
 import InstallHint from '../components/InstallHint'
+import StudentDiscoverTip from '../components/StudentDiscoverTip'
 import { useEffect, useMemo, useState } from 'react'
 import studentGrowthService from '../services/studentGrowthService'
 
@@ -26,10 +27,18 @@ const defaultTopicCircle = {
 
 const actionCards = [
   {
+    title: 'Subject Worlds',
+    path: '/student-subjects',
+    label: 'Explore Worlds',
+    copy: 'Pick a subject. Scroll classmates’ posts. Follow people you learn from.',
+    featured: true,
+  },
+  {
     title: 'Daily Learning Log',
     path: '/student-growth',
     label: 'Open learning log',
     copy: 'Write what you learned, what you understood, and where you need support.',
+    featured: true,
   },
   {
     title: "Today's Revision",
@@ -318,6 +327,34 @@ const StudentDashboard = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <InstallHint className="mb-2" />
+      <StudentDiscoverTip className="mb-2" />
+
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link
+          to="/student-subjects"
+          className="rounded-2xl border border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-gray-900
+            p-5 hover:border-blue-400/70 transition-colors"
+        >
+          <p className="text-blue-300 text-xs font-semibold uppercase tracking-wide">Bottom tab · Worlds</p>
+          <h2 className="text-white text-xl font-bold mt-1">Subject Worlds</h2>
+          <p className="text-gray-300 text-sm mt-2">
+            Scroll classmate posts by subject and follow learners like Instagram.
+          </p>
+          <span className="inline-block text-blue-300 text-sm font-semibold mt-4">Open Worlds →</span>
+        </Link>
+        <Link
+          to="/student-growth"
+          className="rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-600/20 to-gray-900
+            p-5 hover:border-emerald-400/60 transition-colors"
+        >
+          <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide">Bottom tab · Log</p>
+          <h2 className="text-white text-xl font-bold mt-1">Learning Log</h2>
+          <p className="text-gray-300 text-sm mt-2">
+            Capture what you learned today and unlock your revision plan.
+          </p>
+          <span className="inline-block text-emerald-300 text-sm font-semibold mt-4">Open Log →</span>
+        </Link>
+      </section>
 
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-blue-300 text-sm font-semibold mb-2">
