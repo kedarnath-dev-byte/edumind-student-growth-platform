@@ -1,5 +1,7 @@
 """HTTP API for Instagram-style subject worlds."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -27,10 +29,13 @@ async def list_my_subjects(
 async def subject_feed(
     subject_id: int = Query(...),
     limit: int = Query(40, ge=1, le=100),
+    mode: Literal["all", "suggested", "following"] = Query("all"),
     db: Session = Depends(get_db),
     payload: dict = Depends(get_current_supabase_user),
 ):
-    return SubjectSocialService(db).feed(payload, subject_id=subject_id, limit=limit)
+    return SubjectSocialService(db).feed(
+        payload, subject_id=subject_id, limit=limit, mode=mode
+    )
 
 
 @router.post("/posts")
