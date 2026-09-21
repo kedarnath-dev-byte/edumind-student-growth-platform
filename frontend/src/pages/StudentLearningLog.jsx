@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext'
 import MediaCapture from '../components/MediaCapture'
 import MultiImageCapture from '../components/MultiImageCapture'
 import InlineMedia from '../components/InlineMedia'
+import InstallHint from '../components/InstallHint'
 import driveUploadService from '../services/driveUploadService'
 import studentGrowthService from '../services/studentGrowthService'
 import { urlsFromDriveUpload } from '../utils/driveMediaHelpers'
@@ -71,6 +72,10 @@ const StudentLearningLog = () => {
   const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadLabel, setUploadLabel] = useState('')
+  const [pastLogs, setPastLogs] = useState([])
+  const [pastLogsLoading, setPastLogsLoading] = useState(false)
+  const [pastLogsError, setPastLogsError] = useState('')
+  const [topicLabelById, setTopicLabelById] = useState({})
 
   const schoolOptions = toSafeArray(schools)
   const classroomOptions = toSafeArray(classrooms)
@@ -167,6 +172,63 @@ const StudentLearningLog = () => {
 
     loadTopics()
   }, [form.subject_id])
+
+  
+  const loadPastLogs = async () => {
+    if (!studentId) return
+    setPastLogsLoading(true)
+    setPastLogsError('')
+    try {
+      const logs = await studentGrowthService.getLearningLogsForStudent(studentId)
+      const list = Array.isArray(logs) ? logs : []
+      setPastLogs(list)
+
+      const subjectIds = [...new Set(list.map((l) => l.subject_id).filter(Boolean))]
+      const topicMap = { ...topicLabelById }
+      await Promise.all(
+        subjectIds.map(async (sid) => {
+          try {
+            const topicsForSubject = await studentGrowthService.getTopicsBySubject(sid)
+            for (const t of topicsForSubject || []) {
+              topicMap[t.id] = t.name
+            }
+          } catch (_) { /* non-blocking */ }
+        }),
+      )
+      setTopicLabelById(topicMap)
+    } catch (err) {
+      console.error('Failed to load past learning logs:', err)
+      setPastLogsError(err.message || 'Failed to load past logs')
+    } finally {
+      setPastLogsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPastLogs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId])
+
+
+  const subjectName = (subjectId) => {
+    const match = subjectOptions.find((s) => String(s.id) === String(subjectId))
+    return match?.name || (subjectId ? `Subject #${subjectId}` : 'Subject')
+  }
+
+  const topicName = (topicId) => {
+    if (!topicId) return null
+    if (topicLabelById[topicId]) return topicLabelById[topicId]
+    const match = topicOptions.find((t) => String(t.id) === String(topicId))
+    return match?.name || `Topic #${topicId}`
+  }
+
+  const formatLogDate = (value) => {
+    if (!value) return 'Unknown date'
+    return new Date(value).toLocaleString([], {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  }
 
   const canSubmit = useMemo(() => (
     form.school_id &&
@@ -285,6 +347,7 @@ const StudentLearningLog = () => {
       })
 
       setResult(saved)
+      loadPastLogs()
       try {
         localStorage.setItem(
           LAST_SUBJECT_KEY,
@@ -316,6 +379,8 @@ const StudentLearningLog = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <InstallHint className="mb-4" />
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Daily Learning Log · दैनिक लर्निंग लॉग</h1>
         <p className="text-gray-400 text-sm mt-1">
@@ -686,6 +751,93 @@ const StudentLearningLog = () => {
           )}
         </aside>
       </div>
+
+      <section className="mt-8 bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-white font-semibold text-lg">My past logs</h2>
+            <p className="text-gray-400 text-sm mt-1">
+              Your earlier learning logs with notes photos and explanation videos.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={loadPastLogs}
+            className="text-sm px-3 py-2 rounded-lg border border-gray-700 text-gray-200
+              hover:border-gray-500 bg-gray-950"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {pastLogsLoading && (
+          <p className="text-sm text-gray-400">Loading past logs…</p>
+        )}
+        {pastLogsError && (
+          <p className="text-sm text-red-300 mb-3">{pastLogsError}</p>
+        )}
+        {!pastLogsLoading && !pastLogsError && pastLogs.length === 0 && (
+          <p className="text-sm text-gray-500">No past logs yet. Save your first log above.</p>
+        )}
+
+        <div className="space-y-4">
+          {pastLogs.map((log) => (
+            <article
+              key={log.id}
+              className="bg-gray-950 border border-gray-800 rounded-xl p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-xs text-gray-400">{formatLogDate(log.created_at)}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-200 border border-blue-500/30">
+                  {subjectName(log.subject_id)}
+                </span>
+                {log.topic_id && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+                    {topicName(log.topic_id)}
+                  </span>
+                )}
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-600/15 text-emerald-200 border border-emerald-500/30">
+                  {log.confidence_level || '—'}
+                </span>
+              </div>
+              <p className="text-gray-200 text-sm whitespace-pre-wrap">
+                {(log.taught_today || '').slice(0, 280)}
+                {(log.taught_today || '').length > 280 ? '…' : ''}
+              </p>
+
+              {Array.isArray(log.note_image_urls) && log.note_image_urls.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {log.note_image_urls.map((url, index) => (
+                    <div
+                      key={`${log.id}-note-${index}`}
+                      className="rounded-lg overflow-hidden border border-gray-800 aspect-square bg-black"
+                    >
+                      <InlineMedia
+                        src={url}
+                        viewUrl={url}
+                        mediaType="image"
+                        alt={`Note ${index + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {log.explanation_video_url && (
+                <div className="mt-3 rounded-xl overflow-hidden border border-gray-800">
+                  <p className="text-xs text-gray-400 px-3 py-2 bg-gray-900">Explanation video</p>
+                  <InlineMedia
+                    src={log.explanation_video_url}
+                    viewUrl={log.explanation_video_url}
+                    mediaType="video"
+                  />
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+
     </div>
   )
 }

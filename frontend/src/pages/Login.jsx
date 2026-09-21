@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import InstallHint from '../components/InstallHint'
 import { useAuth } from '../auth/AuthContext'
 import { getDefaultRouteForRole } from '../auth/roleRoutes'
 
@@ -440,6 +441,9 @@ const Login = () => {
             Sign in, register, admin access, or phone OTP.
           </p>
         </div>
+
+        <InstallHint className="mb-5" />
+
 
         <div className="flex gap-2 mb-6" role="tablist" aria-label="Login modes">
           {MODES.map((item) => (
