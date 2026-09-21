@@ -1,0 +1,12 @@
+{
+  "appId": "app.edumind.studentgrowth",
+  "appName": "EduMind",
+  "webDir": "dist",
+  "server": {
+    "url": "https://edumind-student-growth.vercel.app",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

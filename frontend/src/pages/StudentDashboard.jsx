@@ -3,6 +3,7 @@
  * @description Student home dashboard connecting the MVP learning flows.
  */
 import { Link } from 'react-router-dom'
+import InstallHint from '../components/InstallHint'
 import { useEffect, useMemo, useState } from 'react'
 import studentGrowthService from '../services/studentGrowthService'
 
@@ -316,6 +317,8 @@ const StudentDashboard = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      <InstallHint className="mb-2" />
+
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-blue-300 text-sm font-semibold mb-2">
           Student MVP home

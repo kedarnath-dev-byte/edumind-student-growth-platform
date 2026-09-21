@@ -12,6 +12,7 @@ const TABS = [
   { id: 'people', label: 'People & Roles' },
   { id: 'support', label: 'Support Graph' },
   { id: 'coverage', label: 'Activity & Coverage' },
+  { id: 'subject-feed', label: 'Subject Feed' },
 ]
 
 const riskBadge = (level) => {
@@ -102,6 +103,9 @@ const Admin = () => {
   // Coverage
   const [coverage, setCoverage] = useState(null)
   const [couragePulse, setCouragePulse] = useState(null)
+  const [feedPosts, setFeedPosts] = useState([])
+  const [feedLoading, setFeedLoading] = useState(false)
+  const [feedSubjectFilter, setFeedSubjectFilter] = useState('')
 
   const ADMIN_TIMEOUT_MS = 90000
   const tabRef = useRef(tab)
@@ -320,6 +324,38 @@ const Admin = () => {
     }
   }, [apiGet, loadSchools])
 
+  const loadSubjectFeed = useCallback(async () => {
+    const reqId = ++requestIdRef.current
+    setFeedLoading(true)
+    setError('')
+    try {
+      const params = { limit: 50 }
+      if (feedSubjectFilter) params.subject_id = Number(feedSubjectFilter)
+      const data = await apiGet('/api/v1/subject-social/admin/posts', params)
+      if (reqId !== requestIdRef.current) return
+      setFeedPosts(Array.isArray(data) ? data : (data?.posts || data?.items || []))
+    } catch (err) {
+      if (reqId !== requestIdRef.current) return
+      setFeedPosts([])
+      setError(formatErr(err, 'Failed to load subject feed posts'))
+    } finally {
+      if (reqId === requestIdRef.current) setFeedLoading(false)
+    }
+  }, [apiGet, feedSubjectFilter, formatErr])
+
+  const removeFeedPost = async (postId) => {
+    if (!window.confirm(`Remove subject feed post #${postId}? This hides it from students.`)) return
+    setError('')
+    setInfo('')
+    try {
+      await apiDelete(`/api/v1/subject-social/admin/posts/${postId}`)
+      setInfo(`Post #${postId} removed`)
+      setFeedPosts((prev) => prev.filter((p) => p.id !== postId))
+    } catch (err) {
+      setError(formatErr(err, 'Failed to remove post'))
+    }
+  }
+
   const loadCoverage = useCallback(async () => {
     const reqId = ++requestIdRef.current
     setLoading(true)
@@ -371,11 +407,13 @@ const Admin = () => {
   const loadPeopleRef = useRef(loadPeople)
   const loadSupportRef = useRef(loadSupport)
   const loadCoverageRef = useRef(loadCoverage)
+  const loadSubjectFeedRef = useRef(loadSubjectFeed)
   const loadSetupRef = useRef(loadSetupForSchool)
   loadPulseRef.current = loadPulse
   loadPeopleRef.current = loadPeople
   loadSupportRef.current = loadSupport
   loadCoverageRef.current = loadCoverage
+  loadSubjectFeedRef.current = loadSubjectFeed
   loadSetupRef.current = loadSetupForSchool
 
   useEffect(() => {
@@ -389,12 +427,13 @@ const Admin = () => {
     if (tab === 'people') loadPeopleRef.current()
     if (tab === 'support') loadSupportRef.current()
     if (tab === 'coverage') loadCoverageRef.current()
+    if (tab === 'subject-feed') loadSubjectFeedRef.current()
     if (tab === 'setup' && selectedSchoolId) {
       loadSetupRef.current(selectedSchoolId).catch((err) => {
         setError(formatErr(err, 'Failed to load school setup'))
       })
     }
-  }, [tab, riskOnly, filterSchoolId, roleFilter, selectedSchoolId])
+  }, [tab, riskOnly, filterSchoolId, roleFilter, selectedSchoolId, feedSubjectFilter])
 
   useEffect(() => {
     if (selectedSubjectId) {
@@ -1294,6 +1333,90 @@ const Admin = () => {
               </ul>
             </>
           )}
+        </SectionCard>
+      )}
+
+      
+
+      {/* ─── SUBJECT FEED MODERATION ─── */}
+      {tab === 'subject-feed' && (
+        <SectionCard
+          title="Subject Feed moderation"
+          actions={(
+            <button type="button" className={btnSecondary} onClick={loadSubjectFeed}>
+              Refresh
+            </button>
+          )}
+        >
+          <p className="text-sm text-gray-400 mb-4">
+            Review recent Subject Worlds posts. Remove hides the post from student feeds
+            (soft-delete / REMOVED status).
+          </p>
+          <div className="flex flex-wrap gap-3 mb-4 items-end">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Filter by subject id (optional)</label>
+              <input
+                className={fieldClass}
+                style={{ maxWidth: 180 }}
+                value={feedSubjectFilter}
+                onChange={(e) => setFeedSubjectFilter(e.target.value)}
+                placeholder="e.g. 3"
+              />
+            </div>
+            <button type="button" className={btnPrimary} onClick={loadSubjectFeed}>
+              Apply
+            </button>
+          </div>
+
+          {feedLoading && <p className="text-sm text-gray-500">Loading posts…</p>}
+          {!feedLoading && feedPosts.length === 0 && (
+            <p className="text-sm text-gray-500">No posts found.</p>
+          )}
+
+          <ul className="space-y-3">
+            {feedPosts.map((post) => (
+              <li
+                key={post.id}
+                className="border border-gray-800 rounded-xl p-4 bg-gray-950"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-1">
+                      <span>#{post.id}</span>
+                      <span>subject {post.subject_id}</span>
+                      {post.topic_id && <span>topic {post.topic_id}</span>}
+                      <span>{post.created_at ? new Date(post.created_at).toLocaleString() : ''}</span>
+                      <span className="text-blue-300">
+                        {post.author_display_name || `Student #${post.author_student_id}`}
+                      </span>
+                      <span className="uppercase tracking-wide text-gray-500">{post.media_type || 'text'}</span>
+                    </div>
+                    <p className="text-sm text-gray-200 whitespace-pre-wrap">
+                      {post.caption || '(no caption)'}
+                    </p>
+                    {post.media_url && (
+                      <a
+                        href={post.media_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-400 hover:underline break-all"
+                      >
+                        {post.media_url}
+                      </a>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm px-3 py-2 rounded-lg border border-red-500/40
+                      text-red-200 bg-red-600/10 hover:bg-red-600/20 shrink-0"
+                    onClick={() => removeFeedPost(post.id)}
+                  >
+                    Remove / Hide
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </SectionCard>
       )}
 

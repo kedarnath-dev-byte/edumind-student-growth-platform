@@ -90,6 +90,15 @@ const studentGrowthService = {
     }
   },
 
+  async getLearningLogsForStudent(studentId) {
+    try {
+      const response = await api.get(`${apiPrefix}/learning-logs/student/${studentId}`)
+      return normalizeList(response, ['logs', 'items', 'learning_logs'])
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to load past learning logs'))
+    }
+  },
+
   async getRevisionsForStudent(studentId) {
     try {
       const response = await api.get(`${apiPrefix}/revisions/student/${studentId}`)
