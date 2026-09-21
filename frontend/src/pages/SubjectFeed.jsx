@@ -15,6 +15,26 @@ import {
   urlsFromDriveUpload,
 } from '../utils/driveMediaHelpers'
 
+
+function relativeTime(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000))
+  if (sec < 60) return 'just now'
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`
+  return d.toLocaleDateString()
+}
+
+function initials(name) {
+  const parts = String(name || '?').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
 const SubjectFeed = () => {
   const { getAccessToken, profile } = useAuth()
   const studentProfile = profile?.student_profile || null
@@ -24,6 +44,10 @@ const SubjectFeed = () => {
 
   const [subjects, setSubjects] = useState([])
   const [feed, setFeed] = useState([])
+  const [followingCount, setFollowingCount] = useState(0)
+  const [feedMode, setFeedMode] = useState('suggested')
+  const [suggestedPeople, setSuggestedPeople] = useState([])
+  const [followingIds, setFollowingIds] = useState(() => new Set())
   const [profileView, setProfileView] = useState(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -60,7 +84,19 @@ const SubjectFeed = () => {
         headers: authHeaders(),
         timeout: 90000,
       })
-      setFeed(res.data || [])
+      const data = res.data
+      // Tolerate legacy array briefly while backend rolls out
+      if (Array.isArray(data)) {
+        setFeed(data)
+        setFollowingCount(0)
+        setFeedMode('suggested')
+        setSuggestedPeople([])
+      } else {
+        setFeed(data?.posts || [])
+        setFollowingCount(data?.following_count ?? 0)
+        setFeedMode(data?.mode || 'suggested')
+        setSuggestedPeople(data?.suggested_people || [])
+      }
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to load feed')
     } finally {
@@ -77,6 +113,7 @@ const SubjectFeed = () => {
   useEffect(() => {
     if (subjectId) {
       setProfileView(null)
+      setFollowingIds(new Set())
       loadFeed(subjectId)
     }
   }, [subjectId, loadFeed])
@@ -172,6 +209,30 @@ const SubjectFeed = () => {
       setProfileView(res.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to open profile')
+    }
+  }
+
+
+  const followStudent = async (targetId) => {
+    if (!subjectId || !targetId || targetId === studentId) return
+    setError('')
+    try {
+      await api.post(
+        '/api/v1/subject-social/follows',
+        {
+          following_student_id: targetId,
+          subject_id: Number(subjectId),
+        },
+        { headers: authHeaders(), timeout: 90000 },
+      )
+      setFollowingIds((prev) => new Set([...prev, targetId]))
+      setInfo('Following')
+      await loadFeed(subjectId)
+      if (profileView?.student_id === targetId) {
+        await openProfile(targetId)
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Follow failed')
     }
   }
 
@@ -295,6 +356,55 @@ const SubjectFeed = () => {
 
       {subjectId && !profileView && (
         <>
+          <p className="text-xs text-gray-400 mb-3 px-1">
+            {followingCount === 0
+              ? 'Suggested for you · classmates in this subject'
+              : 'Following + suggested'}
+            {feedMode === 'mixed' && followingCount > 0 ? ' · mixed' : ''}
+          </p>
+
+          {suggestedPeople.length > 0 && (
+            <div className="mb-5">
+              <p className="text-sm font-semibold text-white mb-2 px-1">Suggested people</p>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {suggestedPeople.map((person) => {
+                  const already =
+                    person.is_following || followingIds.has(person.student_id)
+                  return (
+                    <div
+                      key={person.student_id}
+                      className="shrink-0 w-28 bg-gray-900 border border-gray-800 rounded-xl p-3 text-center"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => openProfile(person.student_id)}
+                        className="mx-auto mb-2 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm"
+                        aria-label={`Open ${person.display_name}`}
+                      >
+                        {initials(person.display_name)}
+                      </button>
+                      <p className="text-xs text-white font-medium truncate mb-2">
+                        {person.display_name}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={already}
+                        onClick={() => followStudent(person.student_id)}
+                        className={`w-full text-xs font-semibold py-1.5 rounded-lg ${
+                          already
+                            ? 'bg-gray-800 text-gray-400 border border-gray-700'
+                            : 'bg-blue-600 text-white hover:bg-blue-500'
+                        }`}
+                      >
+                        {already ? 'Following' : 'Follow'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <form onSubmit={createPost} className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-5 space-y-3">
             <p className="text-white font-semibold text-sm">
               Post to {selectedSubject?.name || 'subject'}
@@ -376,41 +486,65 @@ const SubjectFeed = () => {
 
           {loading && <p className="text-gray-500 text-sm mb-3">Loading feed…</p>}
           <div className="space-y-4">
-            {feed.map((post) => (
+            {feed.map((post) => {
+              const showSuggested =
+                post.is_suggested || Boolean(post.suggestion_label)
+              const canFollowAuthor =
+                studentId !== post.author_student_id &&
+                !post.from_followed &&
+                !followingIds.has(post.author_student_id)
+              return (
               <article key={post.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center justify-between px-4 py-3 gap-2">
                   <button
                     type="button"
                     onClick={() => openProfile(post.author_student_id)}
-                    className="text-left"
+                    className="text-left min-w-0"
                   >
-                    <p className="text-white text-sm font-semibold">
-                      {post.author_display_name}
+                    <p className="text-white text-sm font-semibold flex flex-wrap items-center gap-2">
+                      <span className="truncate">{post.author_display_name}</span>
                       {post.from_followed && (
-                        <span className="ml-2 text-xs text-blue-300 font-normal">Following</span>
+                        <span className="text-xs text-blue-300 font-normal">Following</span>
+                      )}
+                      {showSuggested && (
+                        <span className="text-[10px] uppercase tracking-wide bg-purple-500/20 text-purple-200 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-semibold">
+                          {post.suggestion_label || 'Suggested for you'}
+                        </span>
                       )}
                     </p>
-                    <p className="text-xs text-gray-500">score {post.score}</p>
+                    <p className="text-xs text-gray-500">{relativeTime(post.created_at)}</p>
                   </button>
-                  {(studentId === post.author_student_id) && (
-                    <button
-                      type="button"
-                      onClick={() => removePost(post.id)}
-                      className="text-xs text-red-300"
-                    >
-                      Remove
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {canFollowAuthor && (
+                      <button
+                        type="button"
+                        onClick={() => followStudent(post.author_student_id)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+                      >
+                        Follow
+                      </button>
+                    )}
+                    {studentId === post.author_student_id && (
+                      <button
+                        type="button"
+                        onClick={() => removePost(post.id)}
+                        className="text-xs text-red-300"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {renderPostMedia(post)}
                 {post.caption && (
                   <p className="px-4 py-3 text-sm text-gray-200 whitespace-pre-wrap">{post.caption}</p>
                 )}
               </article>
-            ))}
+              )
+            })}
             {!loading && feed.length === 0 && (
               <p className="text-center text-gray-500 text-sm py-8">
-                No posts yet. Be the first to share in this subject.
+                No posts in this subject yet — be first, or check back after classmates post.
               </p>
             )}
           </div>
