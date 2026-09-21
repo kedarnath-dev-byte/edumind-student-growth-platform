@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -78,6 +79,7 @@ class SubjectSocialService:
             score += 15
         score += min(15.0, 15.0 / (age_hours ** 0.35))
         score += min(10.0, (post.like_count or 0) * 0.5)
+        is_suggested = not from_followed and not same_author
         return {
             "id": post.id,
             "author_student_id": post.author_student_id,
@@ -93,6 +95,8 @@ class SubjectSocialService:
             "like_count": post.like_count or 0,
             "created_at": post.created_at,
             "from_followed": from_followed,
+            "is_suggested": is_suggested,
+            "suggestion_label": "Suggested for you" if is_suggested else None,
             "score": round(score, 2),
         }
 
@@ -129,7 +133,96 @@ class SubjectSocialService:
         self.db.refresh(post)
         return self._serialize_post(post, followed_ids=set(), me_id=student.id)
 
-    def feed(self, token_payload: dict[str, Any], subject_id: int, limit: int = 40) -> list[dict]:
+    def _suggested_people(
+        self,
+        *,
+        posts: list[SubjectPost],
+        me_id: int,
+        followed_ids: set[int],
+        limit: int = 8,
+    ) -> list[dict]:
+        stats: dict[int, dict[str, Any]] = defaultdict(
+            lambda: {"post_count": 0, "likes": 0, "display_name": ""}
+        )
+        for post in posts:
+            aid = post.author_student_id
+            if aid == me_id or aid in followed_ids:
+                continue
+            stats[aid]["post_count"] += 1
+            stats[aid]["likes"] += post.like_count or 0
+            if not stats[aid]["display_name"]:
+                stats[aid]["display_name"] = self._author_name(aid)
+
+        ranked = sorted(
+            stats.items(),
+            key=lambda item: (-item[1]["post_count"], -item[1]["likes"], item[0]),
+        )
+        return [
+            {
+                "student_id": sid,
+                "display_name": data["display_name"] or f"Student {sid}",
+                "post_count": data["post_count"],
+                "is_following": False,
+            }
+            for sid, data in ranked[:limit]
+        ]
+
+    def _rank_feed_posts(
+        self,
+        serialized: list[dict],
+        *,
+        following_count: int,
+        limit: int,
+        mode: str,
+    ) -> tuple[list[dict], str]:
+        """Instagram-style mix: followed-heavy first, then suggested fill."""
+        followed_posts = [p for p in serialized if p["from_followed"]]
+        own_posts = [
+            p for p in serialized if not p["from_followed"] and not p["is_suggested"]
+        ]
+        suggested_posts = [p for p in serialized if p["is_suggested"]]
+
+        key = lambda x: (-x["score"], -x["id"])
+        followed_posts.sort(key=key)
+        own_posts.sort(key=key)
+        suggested_posts.sort(key=key)
+
+        if mode == "following":
+            return followed_posts[:limit], "following"
+
+        if mode == "suggested":
+            if following_count == 0:
+                out = sorted(own_posts + suggested_posts, key=key)[:limit]
+            else:
+                out = suggested_posts[:limit]
+            return out, "suggested"
+
+        if following_count == 0:
+            out = sorted(own_posts + suggested_posts, key=key)[:limit]
+            return out, "suggested"
+
+        primary = followed_posts + own_posts
+        primary.sort(key=key)
+        take = primary[:limit]
+        remaining = limit - len(take)
+        if remaining > 0:
+            take = take + suggested_posts[:remaining]
+
+        if followed_posts and suggested_posts:
+            resolved = "mixed"
+        elif followed_posts or (following_count > 0 and not suggested_posts):
+            resolved = "following"
+        else:
+            resolved = "suggested"
+        return take, resolved
+
+    def feed(
+        self,
+        token_payload: dict[str, Any],
+        subject_id: int,
+        limit: int = 40,
+        mode: str = "all",
+    ) -> dict:
         _, student = self._student_ctx(token_payload)
         subject = (
             self.db.query(Subject)
@@ -138,6 +231,10 @@ class SubjectSocialService:
         )
         if subject is None:
             raise HTTPException(status_code=404, detail="Subject not found for your school.")
+
+        mode_norm = (mode or "all").strip().lower()
+        if mode_norm not in {"all", "suggested", "following"}:
+            mode_norm = "all"
 
         followed = {
             row.following_student_id
@@ -148,6 +245,7 @@ class SubjectSocialService:
             )
             .all()
         }
+        following_count = len(followed)
 
         posts = (
             self.db.query(SubjectPost)
@@ -164,8 +262,25 @@ class SubjectSocialService:
             self._serialize_post(p, followed_ids=followed, me_id=student.id)
             for p in posts
         ]
-        serialized.sort(key=lambda x: (-x["score"], -x["id"]))
-        return serialized[:limit]
+        ranked, resolved_mode = self._rank_feed_posts(
+            serialized,
+            following_count=following_count,
+            limit=limit,
+            mode=mode_norm,
+        )
+        suggested_people = self._suggested_people(
+            posts=posts,
+            me_id=student.id,
+            followed_ids=followed,
+            limit=8,
+        )
+        return {
+            "subject_id": subject_id,
+            "following_count": following_count,
+            "mode": resolved_mode,
+            "posts": ranked,
+            "suggested_people": suggested_people,
+        }
 
     def profile(
         self, token_payload: dict[str, Any], student_id: int, subject_id: int
