@@ -101,9 +101,11 @@ class MuxService:
         origin = (cors_origin or os.getenv("MUX_CORS_ORIGIN") or "*").strip() or "*"
         body = {
             "cors_origin": origin,
+            # Do not set mp4_support:"standard" — Mux basic plans reject it
+            # ("Deprecated 'standard' mp4_support is not allowed on basic assets")
+            # which our router maps to HTTP 502.
             "new_asset_settings": {
                 "playback_policy": ["public"],
-                "mp4_support": "standard",
             },
             # Passthrough for our own bookkeeping when webhooks land later.
             "passthrough": purpose[:255],
