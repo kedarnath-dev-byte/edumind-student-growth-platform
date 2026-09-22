@@ -11,6 +11,8 @@ import MultiImageCapture from '../components/MultiImageCapture'
 import InlineMedia from '../components/InlineMedia'
 import InstallHint from '../components/InstallHint'
 import driveUploadService from '../services/driveUploadService'
+import muxUploadService, { COMING_ONLINE as MUX_COMING_ONLINE } from '../services/muxUploadService'
+import ShortsPlayer from '../components/ShortsPlayer'
 import studentGrowthService from '../services/studentGrowthService'
 import { urlsFromDriveUpload } from '../utils/driveMediaHelpers'
 
@@ -69,6 +71,8 @@ const StudentLearningLog = () => {
 
   const [recordSelfie, setRecordSelfie] = useState(false)
   const [selfieFile, setSelfieFile] = useState(null)
+  const [muxConfigured, setMuxConfigured] = useState(null) // null=loading, bool
+  const [shortsOpen, setShortsOpen] = useState(false)
   const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadLabel, setUploadLabel] = useState('')
@@ -81,6 +85,14 @@ const StudentLearningLog = () => {
   const classroomOptions = toSafeArray(classrooms)
   const subjectOptions = toSafeArray(subjects)
   const topicOptions = toSafeArray(topics)
+
+  useEffect(() => {
+    let alive = true
+    muxUploadService.getStatus()
+      .then((s) => { if (alive) setMuxConfigured(!!s?.configured) })
+      .catch(() => { if (alive) setMuxConfigured(false) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     const applyAssignedSchool = () => {
@@ -297,18 +309,27 @@ const StudentLearningLog = () => {
       }
 
       let explanationVideoUrl = null
+      let muxMeta = null
       if (recordSelfie && selfieFile) {
-        setUploadLabel('Uploading explanation to Drive…')
-        const uploaded = await driveUploadService.upload(
-          selfieFile,
-          'proof',
-          token,
-          setUploadProgress,
-        )
-        const urls = urlsFromDriveUpload(uploaded)
-        explanationVideoUrl = urls.playbackUrl || urls.viewUrl
+        if (muxConfigured === false) {
+          throw new Error(MUX_COMING_ONLINE)
+        }
+        setUploadLabel('Uploading explanation Short to Mux…')
+        try {
+          muxMeta = await muxUploadService.uploadSelfieVideo(selfieFile, token, {
+            purpose: 'learning_log',
+            onProgress: setUploadProgress,
+            onStatus: setUploadLabel,
+          })
+        } catch (muxErr) {
+          if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
+            throw new Error(MUX_COMING_ONLINE)
+          }
+          throw muxErr
+        }
+        explanationVideoUrl = muxMeta.playback_url
         if (!explanationVideoUrl) {
-          throw new Error('Drive upload succeeded but no link was returned.')
+          throw new Error('Mux upload finished but no playback URL was returned.')
         }
       }
 
@@ -343,6 +364,10 @@ const StudentLearningLog = () => {
         not_understood: form.not_understood.trim(),
         confidence_level: form.confidence_level,
         explanation_video_url: explanationVideoUrl,
+        mux_asset_id: muxMeta?.asset_id || null,
+        mux_playback_id: muxMeta?.playback_id || null,
+        mux_upload_id: muxMeta?.upload_id || null,
+        video_duration_seconds: muxMeta?.duration_seconds || null,
         note_image_urls: noteImageUrls,
       })
 
@@ -589,32 +614,39 @@ const StudentLearningLog = () => {
                 />
                 <span>
                   <span className="block text-sm font-semibold text-white">
-                    Record a selfie explanation video
+                    Record a selfie explanation Short (30s–3 min)
                   </span>
                   <span className="block text-xs text-gray-400 mt-1">
-                    Optional. Use your front camera to explain the topic in ~60 seconds —
-                    like a Shorts clip for your teacher and future you.
+                    Optional. Use your front camera to explain the topic in ~30 seconds to 3 minutes —
+                    like an Instagram / YouTube Short for your teacher and future you.
                   </span>
                 </span>
               </label>
 
               {recordSelfie && (
-                <MediaCapture
-                  mode="video"
-                  label="Front camera / gallery"
-                  disabled={loading}
-                  onCaptured={(file) => {
-                    setSelfieFile(file)
-                  }}
-                  onCleared={clearSelfie}
-                />
+                <div className="space-y-2">
+                  {muxConfigured === false && (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-100 text-xs">
+                      Video uploads coming online — selfie Shorts will unlock once Mux is configured on the server. Photos still work.
+                    </div>
+                  )}
+                  <MediaCapture
+                    mode="video"
+                    disabled={loading || muxConfigured === false}
+                    label="Front camera / gallery"
+                    onCaptured={(file) => {
+                      setSelfieFile(file)
+                    }}
+                    onCleared={clearSelfie}
+                  />
+                </div>
               )}
 
               {loading && uploadProgress > 0 && (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-400">
-                      {uploadLabel || 'Uploading to Drive…'}
+                      {uploadLabel || 'Uploading…'}
                     </span>
                     <span className="text-blue-400">{uploadProgress}%</span>
                   </div>
@@ -760,6 +792,15 @@ const StudentLearningLog = () => {
               Your earlier learning logs with notes photos and explanation videos.
             </p>
           </div>
+          <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setShortsOpen(true)}
+            className="text-sm px-3 py-2 rounded-lg border border-blue-500/40 text-blue-200
+              hover:border-blue-400 bg-gray-950"
+          >
+            Watch Shorts
+          </button>
           <button
             type="button"
             onClick={loadPastLogs}
@@ -768,6 +809,7 @@ const StudentLearningLog = () => {
           >
             Refresh
           </button>
+          </div>
         </div>
 
         {pastLogsLoading && (
@@ -838,6 +880,14 @@ const StudentLearningLog = () => {
         </div>
       </section>
 
+      {shortsOpen && (
+        <ShortsPlayer
+          items={(pastLogs || []).filter(
+            (log) => log.mux_playback_id || log.explanation_video_url,
+          )}
+          onClose={() => setShortsOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -9,6 +9,8 @@ import InlineMedia from '../components/InlineMedia'
 import MediaCapture from '../components/MediaCapture'
 import api from '../services/api'
 import driveUploadService from '../services/driveUploadService'
+import muxUploadService, { COMING_ONLINE as MUX_COMING_ONLINE } from '../services/muxUploadService'
+import ShortsPlayer from '../components/ShortsPlayer'
 import {
   extractDriveFileId,
   mediaTypeFromUrl,
@@ -55,6 +57,8 @@ const SubjectFeed = () => {
   const [posting, setPosting] = useState(false)
   const [caption, setCaption] = useState('')
   const [mediaFile, setMediaFile] = useState(null)
+  const [muxConfigured, setMuxConfigured] = useState(null)
+  const [shortsOpen, setShortsOpen] = useState(false)
   const [mediaMeta, setMediaMeta] = useState(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
@@ -105,6 +109,14 @@ const SubjectFeed = () => {
   }, [authHeaders])
 
   useEffect(() => {
+    let alive = true
+    muxUploadService.getStatus()
+      .then((s) => { if (alive) setMuxConfigured(!!s?.configured) })
+      .catch(() => { if (alive) setMuxConfigured(false) })
+    return () => { alive = false }
+  }, [])
+
+  useEffect(() => {
     loadSubjects().catch((err) => {
       setError(err.response?.data?.detail || 'Could not load subjects')
     })
@@ -146,26 +158,43 @@ const SubjectFeed = () => {
       let driveUploadId = null
       let viewUrl = null
 
+      let muxMeta = null
       if (mediaFile) {
         const token = getAccessToken() || localStorage.getItem('edumind_token')
         if (!token) throw new Error('Please log in to upload media.')
-        const uploaded = await driveUploadService.upload(
-          mediaFile,
-          'proof',
-          token,
-          setUploadProgress,
-        )
-        const urls = urlsFromDriveUpload(uploaded)
-        finalMediaUrl = urls.playbackUrl || urls.viewUrl
-        viewUrl = urls.viewUrl
-        finalMediaType = mediaMeta?.mediaType || urls.mediaType || 'image'
-        driveUploadId = uploaded.id || null
-        if (!finalMediaUrl) {
-          throw new Error('Drive upload succeeded but no media link was returned.')
-        }
-        // Prefer storing playback URL; keep Drive view as fallback via same string if needed.
-        if (!urls.playbackUrl && viewUrl) {
-          finalMediaUrl = viewUrl
+        finalMediaType = mediaMeta?.mediaType || (String(mediaFile.type || '').startsWith('video/') ? 'video' : 'image')
+        if (finalMediaType === 'video') {
+          if (muxConfigured === false) throw new Error(MUX_COMING_ONLINE)
+          setInfo('Uploading Short to Mux…')
+          try {
+            muxMeta = await muxUploadService.uploadSelfieVideo(mediaFile, token, {
+              purpose: 'subject_post',
+              onProgress: setUploadProgress,
+              onStatus: (m) => setInfo(m),
+            })
+          } catch (muxErr) {
+            if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
+              throw new Error(MUX_COMING_ONLINE)
+            }
+            throw muxErr
+          }
+          finalMediaUrl = muxMeta.playback_url
+          if (!finalMediaUrl) throw new Error('Mux upload finished but no playback URL was returned.')
+        } else {
+          // Photos: keep temporary Drive path (Cloudflare Images later)
+          const uploaded = await driveUploadService.upload(
+            mediaFile,
+            'proof',
+            token,
+            setUploadProgress,
+          )
+          const urls = urlsFromDriveUpload(uploaded)
+          finalMediaUrl = urls.playbackUrl || urls.viewUrl
+          viewUrl = urls.viewUrl
+          driveUploadId = uploaded.id || null
+          if (!finalMediaUrl) {
+            throw new Error('Photo upload succeeded but no media link was returned.')
+          }
         }
       } else if (mediaUrl.trim()) {
         finalMediaUrl = mediaUrl.trim()
@@ -180,6 +209,10 @@ const SubjectFeed = () => {
           media_url: finalMediaUrl,
           media_type: finalMediaUrl ? finalMediaType : 'text',
           drive_upload_id: driveUploadId,
+          mux_asset_id: muxMeta?.asset_id || null,
+          mux_playback_id: muxMeta?.playback_id || null,
+          mux_upload_id: muxMeta?.upload_id || null,
+          video_duration_seconds: muxMeta?.duration_seconds || null,
         },
         { headers: authHeaders(), timeout: 90000 },
       )
@@ -280,16 +313,20 @@ const SubjectFeed = () => {
   }
 
   const renderPostMedia = (post) => {
-    if (!post.media_url || post.media_type === 'text') return null
-    const driveId = extractDriveFileId(post.media_url)
+    const muxSrc = post.mux_playback_id
+      ? `https://stream.mux.com/${post.mux_playback_id}.m3u8`
+      : null
+    const src = muxSrc || post.media_url
+    if (!src || post.media_type === 'text') return null
+    const driveId = extractDriveFileId(post.media_url || '')
     const viewUrl = driveId
       ? `https://drive.google.com/file/d/${driveId}/view`
       : post.media_url
     return (
       <InlineMedia
-        src={post.media_url}
-        viewUrl={viewUrl}
-        mediaType={post.media_type}
+        src={src}
+        viewUrl={viewUrl || src}
+        mediaType={post.media_type || (muxSrc ? 'video' : 'image')}
       />
     )
   }
@@ -417,6 +454,11 @@ const SubjectFeed = () => {
               className="w-full bg-gray-950 border border-gray-700 rounded-lg text-white px-3 py-2 text-sm"
             />
 
+            {muxConfigured === false && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-100 text-xs">
+                Video uploads coming online — Shorts video posts unlock once Mux is configured. Photos still work.
+              </div>
+            )}
             <MediaCapture
               mode="both"
               label="Camera or gallery"
@@ -432,7 +474,7 @@ const SubjectFeed = () => {
             {posting && uploadProgress > 0 && (
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-400">Uploading to Drive…</span>
+                  <span className="text-gray-400">Uploading…</span>
                   <span className="text-blue-400">{uploadProgress}%</span>
                 </div>
                 <div className="w-full bg-gray-800 rounded-full h-1.5">
@@ -483,6 +525,16 @@ const SubjectFeed = () => {
               {posting ? 'Sharing…' : 'Share'}
             </button>
           </form>
+
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShortsOpen(true)}
+              className="text-xs font-semibold px-3 py-2 rounded-full bg-blue-600 text-white"
+            >
+              Watch Shorts
+            </button>
+          </div>
 
           {loading && <p className="text-gray-500 text-sm mb-3">Loading feed…</p>}
           <div className="space-y-4">
@@ -591,6 +643,14 @@ const SubjectFeed = () => {
             ))}
           </div>
         </div>
+      )}
+      {shortsOpen && (
+        <ShortsPlayer
+          items={(Array.isArray(feed) ? feed : []).filter(
+            (p) => p.media_type === 'video' || p.mux_playback_id,
+          )}
+          onClose={() => setShortsOpen(false)}
+        />
       )}
     </div>
   )

@@ -13,6 +13,10 @@ class SubjectPostCreate(BaseModel):
     media_type: Literal["text", "image", "video"] = "text"
     topic_id: Optional[int] = None
     drive_upload_id: Optional[int] = None
+    mux_asset_id: Optional[str] = None
+    mux_playback_id: Optional[str] = None
+    mux_upload_id: Optional[str] = None
+    video_duration_seconds: Optional[float] = None
 
 
 class SubjectPostResponse(BaseModel):
@@ -28,6 +32,10 @@ class SubjectPostResponse(BaseModel):
     media_url: Optional[str] = None
     media_type: str
     drive_upload_id: Optional[int] = None
+    mux_asset_id: Optional[str] = None
+    mux_playback_id: Optional[str] = None
+    mux_upload_id: Optional[str] = None
+    video_duration_seconds: Optional[float] = None
     status: str
     like_count: int = 0
     created_at: datetime

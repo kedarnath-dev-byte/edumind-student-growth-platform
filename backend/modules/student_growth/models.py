@@ -7,7 +7,7 @@ automatic spaced revision tasks, and healthy reward events.
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
 
 from core.database import Base
 
@@ -183,7 +183,12 @@ class LearningLog(Base):
     not_understood = Column(Text, nullable=True)
     confidence_level = Column(String, default="MEDIUM")
     explanation_video_url = Column(String, nullable=True)
-    # Playback/view URLs for textbook / class-notes photos (Drive links).
+    # Mux Shorts fields (preferred over Drive for live feed video).
+    mux_asset_id = Column(String, nullable=True, index=True)
+    mux_playback_id = Column(String, nullable=True, index=True)
+    mux_upload_id = Column(String, nullable=True, index=True)
+    video_duration_seconds = Column(Float, nullable=True)
+    # Playback/view URLs for textbook / class-notes photos (Drive links / archive).
     note_image_urls = Column(JSON, nullable=True, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -327,6 +332,10 @@ class SubjectPost(Base):
     media_url = Column(String, nullable=True)
     media_type = Column(String, index=True, default="text")  # text | image | video
     drive_upload_id = Column(Integer, index=True, nullable=True)
+    mux_asset_id = Column(String, nullable=True, index=True)
+    mux_playback_id = Column(String, nullable=True, index=True)
+    mux_upload_id = Column(String, nullable=True, index=True)
+    video_duration_seconds = Column(Float, nullable=True)
     status = Column(String, index=True, default="ACTIVE")  # ACTIVE | REMOVED
     like_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
