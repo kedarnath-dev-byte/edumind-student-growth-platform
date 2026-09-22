@@ -44,6 +44,10 @@ class LearningLogCreate(BaseModel):
     not_understood: Optional[str] = None
     confidence_level: str = "MEDIUM"
     explanation_video_url: Optional[str] = None
+    mux_asset_id: Optional[str] = None
+    mux_playback_id: Optional[str] = None
+    mux_upload_id: Optional[str] = None
+    video_duration_seconds: Optional[float] = None
     note_image_urls: Optional[List[str]] = None
 
     @field_validator("note_image_urls")
@@ -71,6 +75,10 @@ class LearningLogResponse(BaseModel):
     not_understood: Optional[str] = None
     confidence_level: str
     explanation_video_url: Optional[str] = None
+    mux_asset_id: Optional[str] = None
+    mux_playback_id: Optional[str] = None
+    mux_upload_id: Optional[str] = None
+    video_duration_seconds: Optional[float] = None
     note_image_urls: Optional[List[str]] = Field(default_factory=list)
     created_at: datetime
     revision_tasks: List[RevisionTaskResponse] = Field(default_factory=list)

@@ -4,7 +4,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const MAX_RECORD_SECONDS = 60
+const MAX_RECORD_SECONDS = 180
+const MIN_HINT_SECONDS = 30
 
 const pickRecorderMime = () => {
   if (typeof MediaRecorder === 'undefined') return ''
@@ -322,7 +323,9 @@ const MediaCapture = ({
                 onClick={stopRecording}
                 className="flex-1 text-xs font-semibold py-2.5 rounded-lg bg-red-500 text-white"
               >
-                Stop ({seconds}s / {MAX_RECORD_SECONDS}s)
+                {`Stop (${seconds}s / ${MAX_RECORD_SECONDS}s${
+                  seconds < MIN_HINT_SECONDS ? ' · keep going ~30s+' : ''
+                })`}
               </button>
             )}
             {allowImage && !recording && (
@@ -377,7 +380,7 @@ const MediaCapture = ({
 
       <p className="text-[11px] text-gray-500">
         {allowVideo
-          ? `Selfie video capped at ~${MAX_RECORD_SECONDS}s. Uploads go to EduMind Drive.`
+          ? `Selfie video capped at ~${MAX_RECORD_SECONDS}s. Aim for ~30s–3 min. Uploads go via Mux Shorts (not Drive).`
           : 'Photos upload to EduMind Drive.'}
       </p>
     </div>

@@ -57,3 +57,8 @@ ADD COLUMN IF NOT EXISTS explanation_video_url TEXT;
 ```
 
 Also tracked in `supabase/migrations/20260910_learning_log_explanation_video.sql`.
+
+## Mux Shorts columns (2026-09-22)
+
+Apply `supabase/migrations/20260922_mux_shorts_fields.sql` before enabling Mux uploads in production.
+Adds `mux_asset_id`, `mux_playback_id`, `mux_upload_id`, `video_duration_seconds` to `learning_logs` and `subject_posts`.

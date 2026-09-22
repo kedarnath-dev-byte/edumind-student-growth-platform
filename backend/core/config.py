@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     max_file_size_mb: int = Field(default=50)
     upload_dir: str = Field(default="./data/uploads")
 
+    # --- Mux Shorts (set on Render; never commit real tokens) ---
+    mux_token_id: str = Field(default="")
+    mux_token_secret: str = Field(default="")
+    mux_cors_origin: str = Field(default="*")
+    mux_webhook_secret: str = Field(default="")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

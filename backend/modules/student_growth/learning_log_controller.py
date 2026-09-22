@@ -36,6 +36,10 @@ def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> L
         not_understood=learning_log.not_understood,
         confidence_level=learning_log.confidence_level,
         explanation_video_url=getattr(learning_log, "explanation_video_url", None),
+        mux_asset_id=getattr(learning_log, "mux_asset_id", None),
+        mux_playback_id=getattr(learning_log, "mux_playback_id", None),
+        mux_upload_id=getattr(learning_log, "mux_upload_id", None),
+        video_duration_seconds=getattr(learning_log, "video_duration_seconds", None),
         note_image_urls=_note_image_urls(learning_log),
         created_at=learning_log.created_at,
         revision_tasks=[
