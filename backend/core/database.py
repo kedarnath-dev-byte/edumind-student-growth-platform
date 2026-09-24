@@ -92,6 +92,8 @@ def init_db():
         DriveUpload,
         SubjectFollow,
         SubjectPost,
+        CourageLoop,
+        NotificationSend,
     )
 
     Base.metadata.create_all(bind=engine)

@@ -20,4 +20,52 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: WHATSAPP_PROVIDER
+        value: meta
+      - key: WHATSAPP_ENABLED
+        sync: false
+      - key: WHATSAPP_DRY_RUN
+        value: "true"
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_API_VERSION
+        value: v21.0
+      - key: WHATSAPP_TEMPLATE_REVISION_PLAN
+        value: edumind_revision_plan
+      - key: WHATSAPP_TEMPLATE_MORNING_DIGEST
+        value: edumind_morning_revisions
+      - key: GUPSHUP_API_KEY
+        sync: false
+      - key: GUPSHUP_APP_NAME
+        sync: false
+      - key: GUPSHUP_SOURCE_PHONE
+        sync: false
+      - key: GUPSHUP_TEMPLATE_REVISION_PLAN
+        sync: false
+      - key: GUPSHUP_TEMPLATE_MORNING_DIGEST
+        sync: false
+      - key: INTERNAL_JOB_SECRET
+        sync: false
     healthCheckPath: /api/v1/health
+
+  # Morning revision digests at 07:00 IST (= 01:30 UTC).
+  # Free-tier web services sleep; a cron job wakes / hits the API each morning.
+  # Set BACKEND_BASE_URL and INTERNAL_JOB_SECRET in the Render dashboard.
+  - type: cron
+    name: edumind-morning-revision-whatsapp
+    runtime: python
+    rootDir: backend
+    # 30 1 * * * UTC = 07:00 Asia/Kolkata (IST, no DST)
+    schedule: "30 1 * * *"
+    buildCommand: pip install httpx
+    startCommand: >
+      python -c "import os,sys,httpx; u=os.environ['BACKEND_BASE_URL'].rstrip('/')+'/api/v1/internal/jobs/morning-revision-whatsapp'; r=httpx.post(u,headers={'X-Internal-Job-Secret':os.environ['INTERNAL_JOB_SECRET']},timeout=120); print(r.status_code,r.text[:500]); sys.exit(0 if r.status_code<300 else 1)"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: BACKEND_BASE_URL
+        sync: false
+      - key: INTERNAL_JOB_SECRET
+        sync: false
