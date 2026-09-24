@@ -78,7 +78,7 @@ class WhatsAppNotificationService:
         # {{1}} student name, {{2}} subject/topic, {{3}} five-line plan block
         result = self.client.send_template(
             to_e164=recipient.phone_e164,
-            template_name=self.settings.whatsapp_template_revision_plan,
+            template_name=self.client.template_revision_plan(),
             body_parameters=[
                 recipient.student_display_name,
                 f"{subject_name} — {topic_name}",
@@ -180,7 +180,7 @@ class WhatsAppNotificationService:
             # Template: {{1}} student name, {{2}} date, {{3}} bullet list
             result = self.client.send_template(
                 to_e164=recipient.phone_e164,
-                template_name=self.settings.whatsapp_template_morning_digest,
+                template_name=self.client.template_morning_digest(),
                 body_parameters=[
                     recipient.student_display_name,
                     day.strftime("%d %b %Y"),

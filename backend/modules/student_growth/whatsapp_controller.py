@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hmac
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -22,14 +22,21 @@ router = APIRouter(tags=["WhatsApp"])
 
 
 class WhatsAppStatusResponse(BaseModel):
+    provider: str
     enabled: bool
     dry_run: bool
     credentials_configured: bool
-    api_version: str
     template_revision_plan: str
     template_morning_digest: str
     live_send_allowed: bool
     message: str
+    # Provider-specific configured flags (never secrets)
+    api_version: Optional[str] = None
+    meta_token_configured: Optional[bool] = None
+    meta_phone_number_id_configured: Optional[bool] = None
+    gupshup_api_key_configured: Optional[bool] = None
+    gupshup_app_name_configured: Optional[bool] = None
+    gupshup_source_phone_configured: Optional[bool] = None
 
 
 class MorningDigestJobResponse(BaseModel):
@@ -62,7 +69,8 @@ def _require_internal_job_secret(
 @router.get("/api/v1/whatsapp/status", response_model=WhatsAppStatusResponse)
 async def whatsapp_status():
     """Public-ish readiness probe (configured flags only — no secrets)."""
-    return WhatsAppStatusResponse(**WhatsAppClient().status_flags())
+    flags: dict[str, Any] = WhatsAppClient().status_flags()
+    return WhatsAppStatusResponse(**flags)
 
 
 @router.post(

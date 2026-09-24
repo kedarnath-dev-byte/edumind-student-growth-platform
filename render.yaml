@@ -20,6 +20,8 @@ services:
         sync: false
       - key: ENVIRONMENT
         value: production
+      - key: WHATSAPP_PROVIDER
+        value: meta
       - key: WHATSAPP_ENABLED
         sync: false
       - key: WHATSAPP_DRY_RUN
@@ -34,6 +36,16 @@ services:
         value: edumind_revision_plan
       - key: WHATSAPP_TEMPLATE_MORNING_DIGEST
         value: edumind_morning_revisions
+      - key: GUPSHUP_API_KEY
+        sync: false
+      - key: GUPSHUP_APP_NAME
+        sync: false
+      - key: GUPSHUP_SOURCE_PHONE
+        sync: false
+      - key: GUPSHUP_TEMPLATE_REVISION_PLAN
+        sync: false
+      - key: GUPSHUP_TEMPLATE_MORNING_DIGEST
+        sync: false
       - key: INTERNAL_JOB_SECRET
         sync: false
     healthCheckPath: /api/v1/health

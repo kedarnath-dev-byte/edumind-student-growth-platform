@@ -56,14 +56,23 @@ class Settings(BaseSettings):
     mux_cors_origin: str = Field(default="*")
     mux_webhook_secret: str = Field(default="")
 
-    # --- WhatsApp Cloud API (revision reminders; dry-run by default) ---
+    # --- WhatsApp (revision reminders; dry-run by default) ---
+    # WHATSAPP_PROVIDER=meta|gupshup (default meta — Meta Cloud API)
+    whatsapp_provider: str = Field(default="meta")
     whatsapp_enabled: bool = Field(default=False)
     whatsapp_dry_run: bool = Field(default=True)
+    # Meta Cloud API
     whatsapp_token: str = Field(default="")
     whatsapp_phone_number_id: str = Field(default="")
     whatsapp_api_version: str = Field(default="v21.0")
     whatsapp_template_revision_plan: str = Field(default="edumind_revision_plan")
     whatsapp_template_morning_digest: str = Field(default="edumind_morning_revisions")
+    # Gupshup Enterprise WhatsApp (used when whatsapp_provider=gupshup)
+    gupshup_api_key: str = Field(default="")
+    gupshup_app_name: str = Field(default="")
+    gupshup_source_phone: str = Field(default="")  # digits, e.g. 91XXXXXXXXXX
+    gupshup_template_revision_plan: str = Field(default="")  # Gupshup template UUID
+    gupshup_template_morning_digest: str = Field(default="")  # Gupshup template UUID
     internal_job_secret: str = Field(default="")
 
     class Config:

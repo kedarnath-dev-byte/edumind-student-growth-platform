@@ -110,7 +110,7 @@ class LearningLogService:
 
     @staticmethod
     def _schedule_revision_plan_whatsapp(log_id: int) -> None:
-        """Background thread so HTTP create never waits on Meta / dry-run I/O."""
+        """Background thread so HTTP create never waits on WhatsApp provider / dry-run I/O."""
 
         def _run() -> None:
             db = SessionLocal()
