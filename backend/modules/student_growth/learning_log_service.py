@@ -1,12 +1,19 @@
 """Business logic for student daily learning logs."""
 
+from __future__ import annotations
+
+import logging
+import threading
 from typing import List
 
 from sqlalchemy.orm import Session
 
+from core.database import SessionLocal
 from modules.student_growth.models import LearningLog, RevisionTask, RewardEvent
 from modules.student_growth.revision_schedule_factory import RevisionScheduleFactory
 from modules.student_growth.schemas import LearningLogCreate
+
+logger = logging.getLogger(__name__)
 
 
 class LearningLogService:
@@ -43,6 +50,9 @@ class LearningLogService:
             self.db.refresh(task)
         for reward in rewards:
             self.db.refresh(reward)
+
+        # Fire-and-forget WhatsApp revision plan; never fail learning-log create.
+        self._schedule_revision_plan_whatsapp(learning_log.id)
 
         return {
             "learning_log": learning_log,
@@ -97,3 +107,35 @@ class LearningLogService:
         for reward in rewards:
             self.db.add(reward)
         return rewards
+
+    @staticmethod
+    def _schedule_revision_plan_whatsapp(log_id: int) -> None:
+        """Background thread so HTTP create never waits on Meta / dry-run I/O."""
+
+        def _run() -> None:
+            db = SessionLocal()
+            try:
+                from modules.student_growth.whatsapp_notification_service import (
+                    WhatsAppNotificationService,
+                )
+
+                WhatsAppNotificationService(db).send_revision_plan_for_log(log_id)
+            except Exception:
+                logger.exception(
+                    "whatsapp_revision_plan_background_failed log_id=%s",
+                    log_id,
+                )
+            finally:
+                db.close()
+
+        try:
+            threading.Thread(
+                target=_run,
+                name=f"wa-revision-plan-{log_id}",
+                daemon=True,
+            ).start()
+        except Exception:
+            logger.exception(
+                "whatsapp_revision_plan_thread_start_failed log_id=%s",
+                log_id,
+            )

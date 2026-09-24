@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     mux_cors_origin: str = Field(default="*")
     mux_webhook_secret: str = Field(default="")
 
+    # --- WhatsApp Cloud API (revision reminders; dry-run by default) ---
+    whatsapp_enabled: bool = Field(default=False)
+    whatsapp_dry_run: bool = Field(default=True)
+    whatsapp_token: str = Field(default="")
+    whatsapp_phone_number_id: str = Field(default="")
+    whatsapp_api_version: str = Field(default="v21.0")
+    whatsapp_template_revision_plan: str = Field(default="edumind_revision_plan")
+    whatsapp_template_morning_digest: str = Field(default="edumind_morning_revisions")
+    internal_job_secret: str = Field(default="")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

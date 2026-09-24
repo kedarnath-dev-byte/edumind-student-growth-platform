@@ -37,6 +37,7 @@ from modules.drive.drive_controller import router as drive_router
 from modules.student_growth.subject_social_controller import router as subject_social_router
 from modules.student_growth.courage_loop_controller import router as courage_loop_router
 from modules.mux.mux_controller import router as mux_router
+from modules.student_growth.whatsapp_controller import router as whatsapp_router
 
 # ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -124,6 +125,7 @@ app.include_router(drive_router)
 app.include_router(subject_social_router)
 app.include_router(courage_loop_router)
 app.include_router(mux_router)
+app.include_router(whatsapp_router)
 # ─── Startup Event ────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup():
