@@ -36,9 +36,9 @@ from modules.student_growth.user_controller import router as user_router
 from modules.drive.drive_controller import router as drive_router
 from modules.student_growth.subject_social_controller import router as subject_social_router
 from modules.student_growth.courage_loop_controller import router as courage_loop_router
+from modules.student_growth.notification_controller import router as notification_router
 from modules.mux.mux_controller import router as mux_router
 
-# ─── App Instance ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title="EduMind AI",
     description="RAG + LangGraph + Fine-Tuning Education Platform",
@@ -66,7 +66,6 @@ def custom_openapi():
         "bearerFormat": "JWT",
         "description": "Paste Supabase access_token (JWT). Protected routes return 401 without it.",
     }
-    # Document global bearer expectation; individual routes still enforce via Depends.
     schema["security"] = [{"HTTPBearer": []}]
     app.openapi_schema = schema
     return app.openapi_schema
@@ -74,7 +73,6 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# ─── CORS ─────────────────────────────────────────────────────────────────────
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -101,10 +99,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Timing Middleware ────────────────────────────────────────────────────────
 app.add_middleware(TimingMiddleware)
 
-# ─── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(evaluation_router)
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 app.include_router(ingestion_router)
@@ -123,20 +119,15 @@ app.include_router(admin_router)
 app.include_router(drive_router)
 app.include_router(subject_social_router)
 app.include_router(courage_loop_router)
+app.include_router(notification_router)
 app.include_router(mux_router)
-# ─── Startup Event ────────────────────────────────────────────────────────────
+
 @app.on_event("startup")
 async def on_startup():
-    """Create all DB tables on first run."""
     init_db()
-    print("✅ EduMind AI started — database tables ready")
+    print("EduMind AI started — database tables ready")
 
 
-# ─── Root Health Check ────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    """Quick health check endpoint."""
     return {"status": "ok", "app": "EduMind AI", "version": "1.0.0"}
-
-
-
