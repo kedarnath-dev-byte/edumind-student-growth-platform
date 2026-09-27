@@ -24,6 +24,11 @@ import Upload from './pages/Upload'
 import StudentDriveUpload from './pages/StudentDriveUpload'
 import SubjectFeed from './pages/SubjectFeed'
 import StudentCourageLoop from './pages/StudentCourageLoop'
+import JoinClass from './pages/JoinClass'
+import InviteChild from './pages/InviteChild'
+import NotificationSettings from './pages/NotificationSettings'
+import TeacherClassroom from './pages/TeacherClassroom'
+import DevicesAndPin from './pages/DevicesAndPin'
 
 import Layout from './components/layout/Layout'
 
@@ -33,87 +38,31 @@ const AppRoutes = () => (
     <Route path="/privacy" element={<Privacy />} />
     <Route path="/terms" element={<Terms />} />
     <Route path="/reset-password" element={<ResetPassword />} />
-
     <Route path="/" element={<Layout />}>
       <Route index element={<AuthHomeRedirect />} />
       <Route path="dashboard" element={<Dashboard />} />
       <Route path="chat" element={<Chat />} />
       <Route path="upload" element={<Upload />} />
-      {/* STUDENT only */}
-      <Route
-        path="student-dashboard"
-        element={(
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentDashboard />
-          </ProtectedRoute>
-        )}
-      />
-      {/* TEACHER only */}
-      <Route
-        path="teacher-dashboard"
-        element={(
-          <ProtectedRoute allowedRoles={['TEACHER']}>
-            <TeacherDashboard />
-          </ProtectedRoute>
-        )}
-      />
-      {/* PARENT only */}
-      <Route
-        path="parent-dashboard"
-        element={(
-          <ProtectedRoute allowedRoles={['PARENT']}>
-            <ParentDashboard />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="profile-status"
-        element={(
-          <ProtectedRoute allowUnlinkedProfile>
-            <ProfileStatus />
-          </ProtectedRoute>
-        )}
-      />
+      <Route path="student-dashboard" element={(<ProtectedRoute allowedRoles={['STUDENT']}><StudentDashboard /></ProtectedRoute>)} />
+      <Route path="teacher-dashboard" element={(<ProtectedRoute allowedRoles={['TEACHER']}><TeacherDashboard /></ProtectedRoute>)} />
+      <Route path="parent-dashboard" element={(<ProtectedRoute allowedRoles={['PARENT']}><ParentDashboard /></ProtectedRoute>)} />
+      <Route path="profile-status" element={(<ProtectedRoute allowUnlinkedProfile><ProfileStatus /></ProtectedRoute>)} />
       <Route path="unauthorized" element={<Unauthorized />} />
       <Route path="student-growth" element={<StudentLearningLog />} />
       <Route path="student-revisions" element={<StudentRevisions />} />
       <Route path="student-habits" element={<StudentHabits />} />
       <Route path="student-peer-learning" element={<StudentPeerLearning />} />
-      <Route
-        path="student-upload-proof"
-        element={(
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentDriveUpload />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="student-subjects"
-        element={(
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <SubjectFeed />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="student-courage-loop"
-        element={(
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentCourageLoop />
-          </ProtectedRoute>
-        )}
-      />
+      <Route path="student-upload-proof" element={(<ProtectedRoute allowedRoles={['STUDENT']}><StudentDriveUpload /></ProtectedRoute>)} />
+      <Route path="student-subjects" element={(<ProtectedRoute allowedRoles={['STUDENT']}><SubjectFeed /></ProtectedRoute>)} />
+      <Route path="student-courage-loop" element={(<ProtectedRoute allowedRoles={['STUDENT']}><StudentCourageLoop /></ProtectedRoute>)} />
+      <Route path="join-class" element={(<ProtectedRoute allowedRoles={['STUDENT']}><JoinClass /></ProtectedRoute>)} />
+      <Route path="invite-child" element={(<ProtectedRoute allowedRoles={['PARENT']}><InviteChild /></ProtectedRoute>)} />
+      <Route path="notifications" element={(<ProtectedRoute><NotificationSettings /></ProtectedRoute>)} />
+      <Route path="teacher-classroom" element={(<ProtectedRoute allowedRoles={['TEACHER', 'ADMIN']}><TeacherClassroom /></ProtectedRoute>)} />
+      <Route path="devices" element={(<ProtectedRoute><DevicesAndPin /></ProtectedRoute>)} />
       <Route path="finetuning" element={<FineTuning />} />
-      <Route
-        path="admin"
-        element={(
-          <ProtectedRoute allowedRoles={['ADMIN']}>
-            <Admin />
-          </ProtectedRoute>
-        )}
-      />
+      <Route path="admin" element={(<ProtectedRoute allowedRoles={['ADMIN']}><Admin /></ProtectedRoute>)} />
     </Route>
-
     <Route path="*" element={<Navigate to="/student-dashboard" replace />} />
   </Routes>
 )
