@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext disabled. HTTPS to Render API + Vercel + Supabase + Mux is allowed by default. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- Emulator / local backend only when explicitly debugging a debug build via debug-overrides if needed later -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">edumind-backend-69e4.onrender.com</domain>
+        <domain includeSubdomains="true">edumind-student-growth-platform.vercel.app</domain>
+        <domain includeSubdomains="true">supabase.co</domain>
+        <domain includeSubdomains="true">mux.com</domain>
+        <domain includeSubdomains="true">vercel.app</domain>
+    </domain-config>
+</network-security-config>

@@ -1,0 +1,113 @@
+# Builds EduMind Android debug APK and a Play-uploadable AAB (signed when keystore secrets exist).
+name: Build EduMind Android (Play)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feat/play-store-android-readiness"
+      - "main"
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android-play.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build web application
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$VITE_API_BASE_URL" ]; then
+            echo "Missing GitHub Actions secret VITE_API_BASE_URL" >&2
+            exit 1
+          fi
+          npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug --no-daemon
+
+      - name: Stage debug APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk ../EduMind-debug.apk
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EduMind-Android-debug-APK
+          path: EduMind-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Materialize upload keystore (optional)
+        id: keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+            {
+              echo "storeFile=upload-keystore.jks"
+              echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+              echo "keyAlias=$ANDROID_KEY_ALIAS"
+              echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            } > android/keystore.properties
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No upload keystore secrets; skipping signed release AAB."
+          fi
+
+      - name: Build signed release AAB
+        if: steps.keystore.outputs.present == 'true'
+        run: cd android && ./gradlew bundleRelease --no-daemon
+
+      - name: Stage release AAB
+        if: steps.keystore.outputs.present == 'true'
+        run: cp android/app/build/outputs/bundle/release/app-release.aab ../EduMind-release.aab
+
+      - name: Upload release AAB
+        if: steps.keystore.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EduMind-Android-release-AAB
+          path: EduMind-release.aab
+          if-no-files-found: error
+          retention-days: 14
