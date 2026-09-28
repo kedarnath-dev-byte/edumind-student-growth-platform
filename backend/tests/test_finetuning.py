@@ -8,6 +8,11 @@
 
 import pytest
 import os
+
+# Fine-tuning frameworks need optional ML deps (datasets/transformers).
+# Skip collection when absent so Log/revision CI stays green on slim installs.
+pytest.importorskip("datasets")
+
 from modules.finetuning.finetuning_factory import FineTunerFactory
 
 # Path to sample training data
