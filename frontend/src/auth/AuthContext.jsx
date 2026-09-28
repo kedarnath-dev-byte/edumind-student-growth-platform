@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }) => {
         // "Profile not linked" during cold-start / transient API failures.
         setProfile((prev) => (profileHasLinkedRole(prev) ? prev : null))
         setProfileError(
-          'EduMind profile could not be loaded. Please try again.'
+          'EduMind profile could not be loaded (often a cold start). Wait ~30s and tap Retry.'
         )
       }
       return { errorCode: error.code || 'PROFILE_LOAD_FAILED' }
@@ -251,7 +251,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           setProfile((prev) => (profileHasLinkedRole(prev) ? prev : null))
           setProfileError(
-            'EduMind profile could not be loaded. Please try again.'
+            'EduMind profile could not be loaded (often a cold start). Wait ~30s and tap Retry.'
           )
         }
       } finally {

@@ -194,6 +194,7 @@ const StudentDashboard = () => {
   const [revisionsLoading, setRevisionsLoading] = useState(true)
   const [peerLearningLoading, setPeerLearningLoading] = useState(true)
   const [warning, setWarning] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
   const [sectionWarnings, setSectionWarnings] = useState({
     habits: '',
     revisions: '',
@@ -204,6 +205,7 @@ const StudentDashboard = () => {
     let isMounted = true
     let completedRequests = 0
     let failedRequests = 0
+    let peerTimer = null
 
     if (profileLoading) {
       return () => {
@@ -236,8 +238,9 @@ const StudentDashboard = () => {
       completedRequests += 1
       if (failed) failedRequests += 1
 
-      if (isMounted && completedRequests === 3 && failedRequests === 3) {
-        setWarning('Backend is waking or unreachable. Wait 30–60s (cold start) and retry — Log and Revisions stay available.')
+      // Primary wedge = revisions + habits. Peer is deferred and optional.
+      if (isMounted && completedRequests >= 2 && failedRequests >= 2) {
+        setWarning('Backend is waking or unreachable. Wait 30–60s (cold start) and tap Retry — Log and Revisions stay available.')
       }
     }
 
@@ -256,7 +259,7 @@ const StudentDashboard = () => {
         setHabitSummary(defaultHabitSummary)
         setSectionWarnings((current) => ({
           ...current,
-          habits: 'Habit snapshot could not refresh.',
+          habits: error?.message || 'Habit snapshot could not refresh.',
         }))
         markRequestDone(true)
       } finally {
@@ -279,7 +282,7 @@ const StudentDashboard = () => {
         setRevisions([])
         setSectionWarnings((current) => ({
           ...current,
-          revisions: 'Revision snapshot could not refresh.',
+          revisions: error?.message || 'Revision snapshot could not refresh.',
         }))
         markRequestDone(true)
       } finally {
@@ -295,30 +298,33 @@ const StudentDashboard = () => {
         const payload = await studentGrowthService.getPeerLearningTopicCircle(TOPIC_ID)
         if (!isMounted) return
         setTopicCircle(normalizeTopicCircle(payload))
-        markRequestDone(false)
       } catch (error) {
         console.error('Failed to load peer learning snapshot:', error)
         if (!isMounted) return
         setTopicCircle(defaultTopicCircle)
         setSectionWarnings((current) => ({
           ...current,
-          peerLearning: 'Peer learning snapshot could not refresh.',
+          peerLearning: error?.message || 'Peer learning snapshot could not refresh.',
         }))
-        markRequestDone(true)
       } finally {
         if (isMounted) setPeerLearningLoading(false)
       }
     }
 
     setWarning('')
+    // Primary wedge first (parallel). Defer peer circle so it does not contend
+    // with Log/Revision on a cold or single-CPU free Render instance.
     loadRevisions()
     loadHabits()
-    loadPeerLearning()
+    peerTimer = setTimeout(() => {
+      if (isMounted) loadPeerLearning()
+    }, 250)
 
     return () => {
       isMounted = false
+      if (peerTimer) clearTimeout(peerTimer)
     }
-  }, [effectiveStudentId, isAuthenticated, isLinked, profileLoading])
+  }, [effectiveStudentId, isAuthenticated, isLinked, profileLoading, reloadKey])
 
   const revisionSnapshot = useMemo(() => categorizeRevisions(revisions), [revisions])
   const hasRevisionTasks = revisions.length > 0
@@ -381,8 +387,15 @@ const StudentDashboard = () => {
 
       {warning && (
         <div className="bg-amber-500/10 border border-amber-500/30
-          text-amber-200 text-sm px-4 py-3 rounded-lg">
-          {warning} Navigation cards are still available.
+          text-amber-200 text-sm px-4 py-3 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3">
+          <p className="flex-1">{warning} Navigation cards are still available.</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="shrink-0 rounded-lg bg-amber-500/20 border border-amber-400/40 px-3 py-1.5 text-amber-50 text-xs font-semibold hover:bg-amber-500/30"
+          >
+            Retry home data
+          </button>
         </div>
       )}
 
@@ -397,9 +410,18 @@ const StudentDashboard = () => {
         ) : (
           <>
             {sectionWarnings.revisions && (
-              <p className="text-amber-200 text-sm mb-4">
-                {sectionWarnings.revisions}
-              </p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+                <p className="text-amber-200 text-sm flex-1">
+                  {sectionWarnings.revisions}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReloadKey((key) => key + 1)}
+                  className="self-start rounded-lg bg-amber-500/15 border border-amber-400/30 px-2.5 py-1 text-amber-100 text-xs font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
             )}
 
             {!hasRevisionTasks ? (
