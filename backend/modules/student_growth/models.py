@@ -7,7 +7,7 @@ automatic spaced revision tasks, and healthy reward events.
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text, UniqueConstraint
 
 from core.database import Base
 
@@ -376,3 +376,26 @@ class CourageLoop(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=True)
 
+
+class NotificationSend(Base):
+    """Idempotency / audit log for outbound WhatsApp (and future) notifications.
+
+    Unique on (kind, student_id, day_key) so morning digests and revision-plan
+    sends are not duplicated for the same student/day (or log key).
+    """
+
+    __tablename__ = "notification_sends"
+
+    __table_args__ = (
+        UniqueConstraint("kind", "student_id", "day_key", name="uq_notification_send_kind_student_day"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String, index=True, nullable=False)  # revision_plan | morning_digest
+    student_id = Column(Integer, index=True, nullable=False)
+    day_key = Column(String, index=True, nullable=False)  # YYYY-MM-DD or log:<id>
+    phone_e164 = Column(String, nullable=True)
+    recipient_source = Column(String, nullable=True)
+    status = Column(String, index=True, default="dry_run")  # dry_run | sent | failed
+    meta_json = Column(JSON, nullable=True, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
