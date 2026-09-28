@@ -6,6 +6,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import {
+  hasFaceShortsConsent,
+  saveFaceShortsConsent,
+} from '../utils/faceConsent'
 import MediaCapture from '../components/MediaCapture'
 import MultiImageCapture from '../components/MultiImageCapture'
 import InlineMedia from '../components/InlineMedia'
@@ -18,7 +22,6 @@ import { urlsFromDriveUpload, extractDriveFileId } from '../utils/driveMediaHelp
 import { preferMuxShorts, hasMuxPlayback } from '../utils/muxHls'
 import { withWakeLock } from '../utils/wakeLock'
 
-const DEMO_STUDENT_ID = 1
 const LAST_SUBJECT_KEY = 'edumind_last_subject_topic'
 
 const initialForm = {
@@ -56,9 +59,13 @@ const formatDueDate = (value) => {
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
 const StudentLearningLog = () => {
-  const { profile, getAccessToken } = useAuth()
+  const { profile, getAccessToken, isAuthenticated } = useAuth()
   const studentProfile = profile?.student_profile || null
-  const studentId = studentProfile?.id || DEMO_STUDENT_ID
+  const linkedId = studentProfile?.id != null ? Number(studentProfile.id) : null
+  const studentId = (Number.isFinite(linkedId) && linkedId > 0)
+    ? linkedId
+    : (!isAuthenticated ? 1 : null)
+  const [faceConsentOk, setFaceConsentOk] = useState(() => hasFaceShortsConsent())
 
   const [form, setForm] = useState(initialForm)
   const [schools, setSchools] = useState([])
@@ -369,6 +376,16 @@ const StudentLearningLog = () => {
 
     if (!canSubmit) {
       setValidation('Please complete the required dropdowns and reflection fields.')
+      return
+    }
+
+    if (!studentId) {
+      setValidation('Link your student profile before saving a log — we will not write as demo student #1.')
+      return
+    }
+
+    if (recordSelfie && !faceConsentOk) {
+      setValidation('Acknowledge the face Shorts privacy note before recording video.')
       return
     }
 
@@ -712,10 +729,43 @@ const StudentLearningLog = () => {
             </div>
 
             <div className="rounded-xl border border-gray-800 bg-gray-950 p-4 space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer">
+              {!faceConsentOk && (
+                <div className="rounded-lg border border-violet-500/35 bg-violet-500/10 px-3 py-3 space-y-2">
+                  <p className="text-sm font-semibold text-violet-100">Privacy before face Shorts</p>
+                  <p className="text-xs text-violet-100/80">
+                    Pilot rule: prefer hands/screen-only. Face video needs parent-aware acknowledgment.
+                    Your Log text stays private to the learning loop — not a public ranking.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold px-3 py-2"
+                      onClick={() => {
+                        saveFaceShortsConsent({ mode: 'parent_aware_face' })
+                        setFaceConsentOk(true)
+                      }}
+                    >
+                      I understand — allow face Shorts
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-gray-600 text-gray-200 text-xs font-semibold px-3 py-2"
+                      onClick={() => {
+                        saveFaceShortsConsent({ mode: 'hands_only' })
+                        setFaceConsentOk(true)
+                      }}
+                    >
+                      Hands / screen only (still acknowledge)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <label className={`flex items-start gap-3 ${faceConsentOk ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
                 <input
                   type="checkbox"
                   checked={recordSelfie}
+                  disabled={!faceConsentOk}
                   onChange={(e) => {
                     setRecordSelfie(e.target.checked)
                     if (!e.target.checked) clearSelfie()
@@ -729,11 +779,12 @@ const StudentLearningLog = () => {
                   <span className="block text-xs text-gray-400 mt-1">
                     Optional. Use your front camera to explain the topic in ~30 seconds to 3 minutes —
                     like an Instagram / YouTube Short for your teacher and future you.
+                    {!faceConsentOk && ' Acknowledge privacy above to unlock.'}
                   </span>
                 </span>
               </label>
 
-              {recordSelfie && (
+              {recordSelfie && faceConsentOk && (
                 <div className="space-y-2">
                   {muxConfigured === false && (
                     <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-100 text-xs">

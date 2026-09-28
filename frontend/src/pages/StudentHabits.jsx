@@ -3,9 +3,9 @@
  * @description Student habit summary page for healthy learning progress.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useStudentId } from '../hooks/useStudentId'
 import studentGrowthService from '../services/studentGrowthService'
-
-const STUDENT_ID = 1
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
@@ -22,7 +22,7 @@ const statusMessages = {
 }
 
 const defaultSummary = {
-  student_id: STUDENT_ID,
+  student_id: 0,
   message: 'Success is built through daily habits.',
   daily_learning_logs_count: 0,
   honest_confusion_count: 0,
@@ -45,7 +45,7 @@ const normalizeSummary = (payload) => {
   return {
     ...defaultSummary,
     ...payload,
-    student_id: toNumber(payload.student_id || STUDENT_ID),
+    student_id: toNumber(payload.student_id || 0),
     daily_learning_logs_count: toNumber(payload.daily_learning_logs_count),
     honest_confusion_count: toNumber(payload.honest_confusion_count),
     revision_completed_count: toNumber(payload.revision_completed_count),
@@ -86,6 +86,12 @@ const HabitCard = ({ card }) => (
 )
 
 const StudentHabits = () => {
+  const {
+    effectiveStudentId,
+    isLinked,
+    isAuthenticated,
+    profileLoading,
+  } = useStudentId()
   const [summary, setSummary] = useState(defaultSummary)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -93,18 +99,29 @@ const StudentHabits = () => {
 
   useEffect(() => {
     const loadHabitSummary = async () => {
+      if (profileLoading) return
+      if (isAuthenticated && !isLinked) {
+        setLoading(false)
+        setError('Link your student profile to see your habits — we will not load demo student #1.')
+        return
+      }
+      if (!effectiveStudentId) {
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setError('')
       setHadUnexpectedPayload(false)
 
       try {
-        const data = await studentGrowthService.getHabitSummary(STUDENT_ID)
+        const data = await studentGrowthService.getHabitSummary(effectiveStudentId)
         setHadUnexpectedPayload(!data || typeof data !== 'object')
         setSummary(normalizeSummary(data))
       } catch (err) {
         console.error('Failed to load habit summary:', err)
         setError(
-          err.message || 'Backend is not reachable. Please start the backend server.'
+          err.message || 'Backend is waking or unreachable. Wait ~30s and retry.'
         )
       } finally {
         setLoading(false)
@@ -112,7 +129,7 @@ const StudentHabits = () => {
     }
 
     loadHabitSummary()
-  }, [])
+  }, [effectiveStudentId, isAuthenticated, isLinked, profileLoading])
 
   const habitCards = useMemo(() => toSafeArray(summary.habit_cards), [summary])
   const hasNoData = (

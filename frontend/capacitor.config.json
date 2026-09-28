@@ -3,7 +3,7 @@
   "appName": "EduMind",
   "webDir": "dist",
   "server": {
-    "url": "https://edumind-student-growth.vercel.app",
+    "url": "https://edumind-student-growth-platform.vercel.app",
     "cleartext": false
   },
   "android": {

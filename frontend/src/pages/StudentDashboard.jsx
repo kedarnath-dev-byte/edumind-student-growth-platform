@@ -6,9 +6,9 @@ import { Link } from 'react-router-dom'
 import InstallHint from '../components/InstallHint'
 import StudentDiscoverTip from '../components/StudentDiscoverTip'
 import { useEffect, useMemo, useState } from 'react'
+import { useStudentId } from '../hooks/useStudentId'
 import studentGrowthService from '../services/studentGrowthService'
 
-const STUDENT_ID = 1
 const TOPIC_ID = 1
 
 const defaultHabitSummary = {
@@ -27,10 +27,10 @@ const defaultTopicCircle = {
 
 const actionCards = [
   {
-    title: 'Subject Worlds',
-    path: '/student-subjects',
-    label: 'Explore Worlds',
-    copy: 'Pick a subject. Scroll classmates’ posts. Follow people you learn from.',
+    title: "Today's Revision",
+    path: '/student-revisions',
+    label: 'Open revisions',
+    copy: "Protect your memory with today's revision mission.",
     featured: true,
   },
   {
@@ -39,12 +39,6 @@ const actionCards = [
     label: 'Open learning log',
     copy: 'Write what you learned, what you understood, and where you need support.',
     featured: true,
-  },
-  {
-    title: "Today's Revision",
-    path: '/student-revisions',
-    label: 'Open revisions',
-    copy: "Protect your memory with today's revision mission.",
   },
   {
     title: 'Successful Habits',
@@ -63,6 +57,12 @@ const actionCards = [
     path: '/student-courage-loop',
     label: 'Open Courage Loop',
     copy: 'Safely name a fear, find clarity, take one small brave step. Private by default.',
+  },
+  {
+    title: 'Subject Worlds',
+    path: '/student-subjects',
+    label: 'Explore Worlds',
+    copy: 'After your log: scroll classmate posts by subject (supporting, not the main job).',
   },
   {
     title: 'Upload Proof',
@@ -210,6 +210,12 @@ const StatCard = ({ label, value, helper }) => (
 )
 
 const StudentDashboard = () => {
+  const {
+    effectiveStudentId,
+    isLinked,
+    isAuthenticated,
+    profileLoading,
+  } = useStudentId()
   const [habitSummary, setHabitSummary] = useState(defaultHabitSummary)
   const [revisions, setRevisions] = useState([])
   const [topicCircle, setTopicCircle] = useState(defaultTopicCircle)
@@ -228,12 +234,39 @@ const StudentDashboard = () => {
     let completedRequests = 0
     let failedRequests = 0
 
+    if (profileLoading) {
+      return () => {
+        isMounted = false
+      }
+    }
+
+    if (isAuthenticated && !isLinked) {
+      setHabitsLoading(false)
+      setRevisionsLoading(false)
+      setPeerLearningLoading(false)
+      setWarning('Your student profile is not linked yet. Open Profile to connect — we will not load another student’s data.')
+      return () => {
+        isMounted = false
+      }
+    }
+
+    if (!effectiveStudentId) {
+      setHabitsLoading(false)
+      setRevisionsLoading(false)
+      setPeerLearningLoading(false)
+      return () => {
+        isMounted = false
+      }
+    }
+
+    const studentId = effectiveStudentId
+
     const markRequestDone = (failed = false) => {
       completedRequests += 1
       if (failed) failedRequests += 1
 
       if (isMounted && completedRequests === 3 && failedRequests === 3) {
-        setWarning('Backend is not reachable. Please start the backend server.')
+        setWarning('Backend is waking or unreachable. Wait 30–60s (cold start) and retry — Log and Revisions stay available.')
       }
     }
 
@@ -242,7 +275,7 @@ const StudentDashboard = () => {
       setSectionWarnings((current) => ({ ...current, habits: '' }))
 
       try {
-        const payload = await studentGrowthService.getHabitSummary(STUDENT_ID)
+        const payload = await studentGrowthService.getHabitSummary(studentId)
         if (!isMounted) return
         setHabitSummary(normalizeHabitSummary(payload))
         markRequestDone(false)
@@ -265,7 +298,7 @@ const StudentDashboard = () => {
       setSectionWarnings((current) => ({ ...current, revisions: '' }))
 
       try {
-        const tasks = await studentGrowthService.getRevisionsForStudent(STUDENT_ID)
+        const tasks = await studentGrowthService.getRevisionsForStudent(studentId)
         if (!isMounted) return
         setRevisions(toSafeArray(tasks))
         markRequestDone(false)
@@ -314,7 +347,7 @@ const StudentDashboard = () => {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [effectiveStudentId, isAuthenticated, isLinked, profileLoading])
 
   const revisionSnapshot = useMemo(() => categorizeRevisions(revisions), [revisions])
   const hasRevisionTasks = revisions.length > 0
@@ -327,44 +360,15 @@ const StudentDashboard = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <InstallHint className="mb-2" />
-      <StudentDiscoverTip className="mb-2" />
-
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link
-          to="/student-subjects"
-          className="rounded-2xl border border-blue-500/40 bg-gradient-to-br from-blue-600/25 to-gray-900
-            p-5 hover:border-blue-400/70 transition-colors"
-        >
-          <p className="text-blue-300 text-xs font-semibold uppercase tracking-wide">Bottom tab · Worlds</p>
-          <h2 className="text-white text-xl font-bold mt-1">Subject Worlds</h2>
-          <p className="text-gray-300 text-sm mt-2">
-            Scroll classmate posts by subject and follow learners like Instagram.
-          </p>
-          <span className="inline-block text-blue-300 text-sm font-semibold mt-4">Open Worlds →</span>
-        </Link>
-        <Link
-          to="/student-growth"
-          className="rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-600/20 to-gray-900
-            p-5 hover:border-emerald-400/60 transition-colors"
-        >
-          <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide">Bottom tab · Log</p>
-          <h2 className="text-white text-xl font-bold mt-1">Learning Log</h2>
-          <p className="text-gray-300 text-sm mt-2">
-            Capture what you learned today and unlock your revision plan.
-          </p>
-          <span className="inline-block text-emerald-300 text-sm font-semibold mt-4">Open Log →</span>
-        </Link>
-      </section>
-
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-blue-300 text-sm font-semibold mb-2">
-          Student MVP home
+          Launch wedge · Log + revision
         </p>
         <p className="text-green-300 text-sm font-semibold mb-2">
-          Start here: this dashboard connects learning, revision, habits, and peer help.
+          Primary job today: honest Learning Log + Today’s Revision Mission. Worlds and Shorts support — they are not the scoreboard.
         </p>
         <h1 className="text-3xl font-bold text-white">
-          EduMind Student Dashboard
+          EduMind Student Home
         </h1>
         <p className="text-gray-400 text-sm mt-2 max-w-3xl">
           Build successful habits through learning, revision, honesty, and
@@ -375,124 +379,41 @@ const StudentDashboard = () => {
         </p>
       </section>
 
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link
+          to="/student-revisions"
+          className="rounded-2xl border border-violet-500/45 bg-gradient-to-br from-violet-600/25 to-gray-900
+            p-5 hover:border-violet-400/70 transition-colors"
+        >
+          <p className="text-violet-300 text-xs font-semibold uppercase tracking-wide">Primary · Revision</p>
+          <h2 className="text-white text-xl font-bold mt-1">Today’s Revision Mission</h2>
+          <p className="text-gray-300 text-sm mt-2">
+            Protect memory with today’s spaced practice and Memory Rescue — no ranking.
+          </p>
+          <span className="inline-block text-violet-300 text-sm font-semibold mt-4">Open revisions →</span>
+        </Link>
+        <Link
+          to="/student-growth"
+          className="rounded-2xl border border-emerald-500/35 bg-gradient-to-br from-emerald-600/20 to-gray-900
+            p-5 hover:border-emerald-400/60 transition-colors"
+        >
+          <p className="text-emerald-300 text-xs font-semibold uppercase tracking-wide">Primary · Log</p>
+          <h2 className="text-white text-xl font-bold mt-1">Learning Log</h2>
+          <p className="text-gray-300 text-sm mt-2">
+            Capture what you learned today and unlock your 24H–6M revision plan.
+          </p>
+          <span className="inline-block text-emerald-300 text-sm font-semibold mt-4">Open Log →</span>
+        </Link>
+      </section>
+
+      <StudentDiscoverTip className="mb-2" />
+
       {warning && (
         <div className="bg-amber-500/10 border border-amber-500/30
           text-amber-200 text-sm px-4 py-3 rounded-lg">
           {warning} Navigation cards are still available.
         </div>
       )}
-
-      <section>
-        <div className="mb-3">
-          <h2 className="text-lg font-semibold text-white">
-            Today's Action Cards
-          </h2>
-          <p className="text-gray-400 text-sm mt-1">
-            Choose the next helpful action for your learning.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {actionCards.map((card) => (
-            <Link
-              key={card.path}
-              to={card.path}
-              className="bg-gray-900 border border-gray-800 rounded-xl p-5
-              hover:border-blue-500/60 hover:bg-gray-900/80 transition-colors"
-            >
-              <h3 className="text-white font-semibold">{card.title}</h3>
-              <p className="text-gray-400 text-sm mt-2 min-h-16">{card.copy}</p>
-              <span className="inline-block text-blue-300 text-sm font-semibold mt-4">
-                {card.label}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-5">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Habit Snapshot</h2>
-              <p className="text-gray-400 text-sm mt-1">
-                Successful habits are built through small honest actions.
-              </p>
-            </div>
-            <span className="self-start bg-gray-950 border border-gray-700 text-blue-300
-              rounded-lg px-3 py-2 text-sm font-semibold">
-              {habitSummary.today_habit_status}
-            </span>
-          </div>
-
-          {habitsLoading ? (
-            <p className="text-gray-400 text-sm">Loading habit snapshot...</p>
-          ) : (
-            <>
-              {sectionWarnings.habits && (
-                <p className="text-amber-200 text-sm mb-4">
-                  {sectionWarnings.habits}
-                </p>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <StatCard
-                  label="Learning logs"
-                  value={habitSummary.daily_learning_logs_count}
-                />
-                <StatCard
-                  label="Honest reflections"
-                  value={habitSummary.honest_confusion_count}
-                />
-                <StatCard
-                  label="Revisions completed"
-                  value={habitSummary.revision_completed_count}
-                />
-                <StatCard
-                  label="Memory rescue"
-                  value={habitSummary.memory_rescue_completed_count}
-                />
-                <StatCard
-                  label="Reward points"
-                  value={habitSummary.total_reward_points}
-                />
-              </div>
-              <p className="text-gray-300 text-sm mt-4">
-                {getHabitStatusMessage(habitSummary.today_habit_status)}
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h2 className="text-lg font-semibold text-white">Peer Learning Snapshot</h2>
-          <p className="text-gray-400 text-sm mt-1">
-            If you understand, explain. If you need support, ask.
-          </p>
-
-          {peerLearningLoading ? (
-            <p className="text-gray-400 text-sm mt-5">Loading help circle...</p>
-          ) : (
-            <>
-              {sectionWarnings.peerLearning && (
-                <p className="text-amber-200 text-sm mt-4">
-                  {sectionWarnings.peerLearning}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3 mt-5">
-                <StatCard
-                  label="Open requests"
-                  value={topicCircle.open_requests_count}
-                  helper="Needs support"
-                />
-                <StatCard
-                  label="Ready helpers"
-                  value={topicCircle.available_helpers_count}
-                  helper="Ready to explain"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      </section>
 
       <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
         {revisionsLoading ? (
@@ -592,10 +513,122 @@ const StudentDashboard = () => {
         )}
       </section>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-        <h2 className="text-lg font-semibold text-white">Demo Helper Note</h2>
-        <p className="text-gray-400 text-sm mt-2">
-          For local demo data, use Swagger {'->'} POST /api/v1/dev/seed-demo-data.
+
+      <section>
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold text-white">
+            More helpful actions
+          </h2>
+          <p className="text-gray-400 text-sm mt-1">
+            Choose the next helpful action for your learning.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {actionCards.map((card) => (
+            <Link
+              key={card.path}
+              to={card.path}
+              className="bg-gray-900 border border-gray-800 rounded-xl p-5
+              hover:border-blue-500/60 hover:bg-gray-900/80 transition-colors"
+            >
+              <h3 className="text-white font-semibold">{card.title}</h3>
+              <p className="text-gray-400 text-sm mt-2 min-h-16">{card.copy}</p>
+              <span className="inline-block text-blue-300 text-sm font-semibold mt-4">
+                {card.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-5">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Habit Snapshot</h2>
+              <p className="text-gray-400 text-sm mt-1">
+                Successful habits are built through small honest actions.
+              </p>
+            </div>
+            <span className="self-start bg-gray-950 border border-gray-700 text-blue-300
+              rounded-lg px-3 py-2 text-sm font-semibold">
+              {habitSummary.today_habit_status}
+            </span>
+          </div>
+
+          {habitsLoading ? (
+            <p className="text-gray-400 text-sm">Loading habit snapshot...</p>
+          ) : (
+            <>
+              {sectionWarnings.habits && (
+                <p className="text-amber-200 text-sm mb-4">
+                  {sectionWarnings.habits}
+                </p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <StatCard
+                  label="Learning logs"
+                  value={habitSummary.daily_learning_logs_count}
+                />
+                <StatCard
+                  label="Honest reflections"
+                  value={habitSummary.honest_confusion_count}
+                />
+                <StatCard
+                  label="Revisions completed"
+                  value={habitSummary.revision_completed_count}
+                />
+                <StatCard
+                  label="Memory rescue"
+                  value={habitSummary.memory_rescue_completed_count}
+                />
+                <StatCard
+                  label="Reward points"
+                  value={habitSummary.total_reward_points}
+                />
+              </div>
+              <p className="text-gray-300 text-sm mt-4">
+                {getHabitStatusMessage(habitSummary.today_habit_status)}
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <h2 className="text-lg font-semibold text-white">Peer help (supporting)</h2>
+          <p className="text-gray-400 text-sm mt-1">
+            Optional. If you understand, explain. If you need support, ask — after today’s revision.
+          </p>
+
+          {peerLearningLoading ? (
+            <p className="text-gray-400 text-sm mt-5">Loading help circle...</p>
+          ) : (
+            <>
+              {sectionWarnings.peerLearning && (
+                <p className="text-amber-200 text-sm mt-4">
+                  {sectionWarnings.peerLearning}
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                <StatCard
+                  label="Open requests"
+                  value={topicCircle.open_requests_count}
+                  helper="Needs support"
+                />
+                <StatCard
+                  label="Ready helpers"
+                  value={topicCircle.available_helpers_count}
+                  helper="Ready to explain"
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-gray-800 bg-gray-950/80 p-4">
+        <p className="text-gray-500 text-xs">
+          Supporting: Subject Worlds stay in the bottom tab after your Log. Face Shorts need a quick privacy acknowledgment on the Log screen.
         </p>
       </section>
     </div>
