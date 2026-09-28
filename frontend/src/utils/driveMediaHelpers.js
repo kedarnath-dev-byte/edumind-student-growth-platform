@@ -14,7 +14,11 @@ export function mediaTypeFromMime(mime) {
 
 export function mediaTypeFromUrl(url) {
   const value = (url || '').toLowerCase()
-  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(value) || value.includes('video')) {
+  if (
+    /\.(mp4|webm|mov|m4v|m3u8)(\?|$)/i.test(value)
+    || value.includes('stream.mux.com')
+    || value.includes('video')
+  ) {
     return 'video'
   }
   if (/\.(jpg|jpeg|png|gif|webp|heic|heif)(\?|$)/i.test(value)) {

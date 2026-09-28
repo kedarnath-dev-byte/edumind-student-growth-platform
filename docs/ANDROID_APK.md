@@ -45,3 +45,11 @@ Sign with your school/partner keystore before Play Store or MDM distribution.
 - Prefer **PWA Add to Home Screen** for pilots (see `docs/MOBILE_INSTALL_GUIDE.md`) — no store review.
 - Backend cold starts on Render free tier may make the first API call slow inside the WebView.
 - Google Drive media may open in the system browser when in-app playback is blocked.
+
+## Live web shell vs packaged assets
+
+This Capacitor config sets `server.url` to `https://edumind-student-growth.vercel.app`.
+
+- **Most student UX fixes (Mux reel inline play, Learning Log create-then-attach, wakeLock)** ship with a **Vercel frontend deploy** — reopen the APK after deploy; no new binary required.
+- Rebuild / `npx cap sync android` only when changing native Capacitor plugins, `appId`, icons, or removing `server.url` to package `dist/` offline.
+- Mux Shorts play via hls.js in the WebView; Drive “Open in Drive” is only for Drive-hosted photos/docs.
