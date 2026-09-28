@@ -14,7 +14,8 @@ import driveUploadService from '../services/driveUploadService'
 import muxUploadService, { COMING_ONLINE as MUX_COMING_ONLINE } from '../services/muxUploadService'
 import ShortsPlayer from '../components/ShortsPlayer'
 import studentGrowthService from '../services/studentGrowthService'
-import { urlsFromDriveUpload } from '../utils/driveMediaHelpers'
+import { urlsFromDriveUpload, extractDriveFileId } from '../utils/driveMediaHelpers'
+import { preferMuxShorts, hasMuxPlayback } from '../utils/muxHls'
 import { withWakeLock } from '../utils/wakeLock'
 
 const DEMO_STUDENT_ID = 1
@@ -74,6 +75,7 @@ const StudentLearningLog = () => {
   const [selfieFile, setSelfieFile] = useState(null)
   const [muxConfigured, setMuxConfigured] = useState(null) // null=loading, bool
   const [shortsOpen, setShortsOpen] = useState(false)
+  const [shortsStartIndex, setShortsStartIndex] = useState(0)
   const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadLabel, setUploadLabel] = useState('')
@@ -243,6 +245,23 @@ const StudentLearningLog = () => {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit',
     })
+  }
+
+
+  const muxShortsItems = useMemo(
+    () => preferMuxShorts(pastLogs || []),
+    [pastLogs],
+  )
+
+  const openShortsFeed = (logId = null) => {
+    const items = preferMuxShorts(pastLogs || [])
+    let idx = 0
+    if (logId != null) {
+      const found = items.findIndex((l) => String(l.id) === String(logId))
+      if (found >= 0) idx = found
+    }
+    setShortsStartIndex(idx)
+    setShortsOpen(true)
   }
 
   const canSubmit = useMemo(() => (
@@ -886,11 +905,15 @@ const StudentLearningLog = () => {
           <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setShortsOpen(true)}
+            onClick={() => openShortsFeed()}
+            disabled={muxShortsItems.length === 0}
             className="text-sm px-3 py-2 rounded-lg border border-blue-500/40 text-blue-200
-              hover:border-blue-400 bg-gray-950"
+              hover:border-blue-400 bg-gray-950 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={muxShortsItems.length === 0
+              ? 'No Mux Reels yet — record a selfie Short on a new log'
+              : 'Full-screen Reels feed (autoplay while scrolling)'}
           >
-            Watch Shorts
+            Watch Shorts{muxShortsItems.length ? ` (${muxShortsItems.length})` : ''}
           </button>
           <button
             type="button"
@@ -956,16 +979,41 @@ const StudentLearningLog = () => {
                 </div>
               )}
 
-              {(log.mux_playback_id || log.explanation_video_url) && (
+              {hasMuxPlayback(log) ? (
                 <div className="mt-3 rounded-xl overflow-hidden border border-gray-800">
-                  <p className="text-xs text-gray-400 px-3 py-2 bg-gray-900">Explanation video</p>
+                  <p className="text-xs text-gray-400 px-3 py-2 bg-gray-900 flex items-center justify-between gap-2">
+                    <span>Explanation Short · Reel</span>
+                    <button
+                      type="button"
+                      onClick={() => openShortsFeed(log.id)}
+                      className="text-[11px] font-semibold text-blue-300 hover:underline"
+                    >
+                      Open in Shorts
+                    </button>
+                  </p>
                   <InlineMedia
                     muxPlaybackId={log.mux_playback_id}
                     src={log.explanation_video_url}
                     mediaType="video"
+                    onPlayShort={() => openShortsFeed(log.id)}
                   />
                 </div>
-              )}
+              ) : log.explanation_video_url ? (
+                <div className="mt-3 rounded-xl overflow-hidden border border-amber-500/30">
+                  <p className="text-xs text-amber-200/90 px-3 py-2 bg-gray-900">
+                    Archive / Drive — not a Reel (re-upload to Mux for autoplay)
+                  </p>
+                  <InlineMedia
+                    src={log.explanation_video_url}
+                    viewUrl={
+                      extractDriveFileId(log.explanation_video_url)
+                        ? `https://drive.google.com/file/d/${extractDriveFileId(log.explanation_video_url)}/view`
+                        : log.explanation_video_url
+                    }
+                    mediaType="video"
+                  />
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
@@ -973,9 +1021,8 @@ const StudentLearningLog = () => {
 
       {shortsOpen && (
         <ShortsPlayer
-          items={(pastLogs || []).filter(
-            (log) => log.mux_playback_id || log.explanation_video_url,
-          )}
+          items={muxShortsItems}
+          startIndex={shortsStartIndex}
           onClose={() => setShortsOpen(false)}
         />
       )}

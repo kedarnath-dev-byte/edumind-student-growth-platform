@@ -16,6 +16,7 @@ import {
   mediaTypeFromUrl,
   urlsFromDriveUpload,
 } from '../utils/driveMediaHelpers'
+import { preferMuxShorts, hasMuxPlayback } from '../utils/muxHls'
 import { withWakeLock } from '../utils/wakeLock'
 
 
@@ -60,6 +61,7 @@ const SubjectFeed = () => {
   const [mediaFile, setMediaFile] = useState(null)
   const [muxConfigured, setMuxConfigured] = useState(null)
   const [shortsOpen, setShortsOpen] = useState(false)
+  const [shortsStartIndex, setShortsStartIndex] = useState(0)
   const [mediaMeta, setMediaMeta] = useState(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [mediaUrl, setMediaUrl] = useState('')
@@ -135,6 +137,22 @@ const SubjectFeed = () => {
     () => subjects.find((s) => String(s.id) === String(subjectId)),
     [subjects, subjectId],
   )
+
+  const muxShortsItems = useMemo(
+    () => preferMuxShorts(Array.isArray(feed) ? feed : []),
+    [feed],
+  )
+
+  const openShortsFeed = (postId = null) => {
+    const items = preferMuxShorts(Array.isArray(feed) ? feed : [])
+    let idx = 0
+    if (postId != null) {
+      const found = items.findIndex((p) => String(p.id) === String(postId))
+      if (found >= 0) idx = found
+    }
+    setShortsStartIndex(idx)
+    setShortsOpen(true)
+  }
 
   const openSubject = (id) => {
     setParams({ subject: String(id) })
@@ -370,8 +388,8 @@ const SubjectFeed = () => {
   }
 
   const renderPostMedia = (post) => {
-    const hasMux = !!post.mux_playback_id
-    const src = hasMux
+    const hasMux = hasMuxPlayback(post)
+    const src = post.mux_playback_id
       ? `https://stream.mux.com/${post.mux_playback_id}.m3u8`
       : post.media_url
     if ((!src && !hasMux) || (post.media_type === 'text' && !hasMux && !src)) return null
@@ -390,6 +408,7 @@ const SubjectFeed = () => {
         src={src}
         viewUrl={viewUrl}
         mediaType={kind}
+        onPlayShort={hasMux ? () => openShortsFeed(post.id) : undefined}
       />
     )
   }
@@ -592,10 +611,14 @@ const SubjectFeed = () => {
           <div className="mb-4 flex justify-end">
             <button
               type="button"
-              onClick={() => setShortsOpen(true)}
-              className="text-xs font-semibold px-3 py-2 rounded-full bg-blue-600 text-white"
+              onClick={() => openShortsFeed()}
+              disabled={muxShortsItems.length === 0}
+              className="text-xs font-semibold px-3 py-2 rounded-full bg-blue-600 text-white disabled:opacity-40"
+              title={muxShortsItems.length === 0
+                ? 'No Mux Reels in this subject yet'
+                : 'Full-screen Reels for this subject'}
             >
-              Watch Shorts
+              Watch Shorts{muxShortsItems.length ? ` (${muxShortsItems.length})` : ''}
             </button>
           </div>
 
@@ -709,9 +732,8 @@ const SubjectFeed = () => {
       )}
       {shortsOpen && (
         <ShortsPlayer
-          items={(Array.isArray(feed) ? feed : []).filter(
-            (p) => p.media_type === 'video' || p.mux_playback_id,
-          )}
+          items={muxShortsItems}
+          startIndex={shortsStartIndex}
           onClose={() => setShortsOpen(false)}
         />
       )}
