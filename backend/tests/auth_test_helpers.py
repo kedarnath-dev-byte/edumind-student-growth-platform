@@ -2,7 +2,11 @@
 
 from types import SimpleNamespace
 
-from core.auth import get_current_supabase_user, get_resolved_edumind_profile
+from core.auth import (
+    get_current_supabase_user,
+    get_resolved_edumind_profile,
+    require_admin_user,
+)
 
 SEED_HEADERS = {"X-Dev-Seed-Secret": "test-seed-secret"}
 
@@ -46,3 +50,6 @@ async def fake_supabase_user():
 def install_admin_auth_overrides(app) -> None:
     app.dependency_overrides[get_current_supabase_user] = fake_supabase_user
     app.dependency_overrides[get_resolved_edumind_profile] = admin_profile_override()
+    # Routes use require_admin_user (resolves profile from DB); override it too
+    # so empty in-memory DBs do not 404/403 admin-only setup/user endpoints.
+    app.dependency_overrides[require_admin_user] = admin_profile_override()
