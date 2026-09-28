@@ -1,12 +1,20 @@
 {
-  "appId": "app.edumind.studentgrowth",
+  "appId": "com.edumind.studentgrowth",
   "appName": "EduMind",
   "webDir": "dist",
   "server": {
-    "url": "https://edumind-student-growth.vercel.app",
+    "androidScheme": "https",
     "cleartext": false
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "backgroundColor": "#0b1220",
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#0b1220"
+    }
   }
 }

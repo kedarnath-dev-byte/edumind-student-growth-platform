@@ -7,7 +7,9 @@ __pycache__/
 .DS_Store
 node_modules/
 frontend/node_modules/
-
-# Capacitor native projects (generate locally)
-frontend/android/
-frontend/ios/
+frontend/dist/
+# Android build products (native project IS tracked)
+*.apk
+*.aab
+frontend/EduMind-debug.apk
+frontend/EduMind-release.aab

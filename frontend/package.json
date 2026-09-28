@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cap:sync": "npx cap sync android",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "android:add": "cap add android",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:aab": "npm run android:sync && cd android && ./gradlew bundleRelease",
+    "android:aab:debug": "npm run android:sync && cd android && ./gradlew bundleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
