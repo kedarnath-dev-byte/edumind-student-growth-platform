@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from modules.student_growth.auth_profile_service import AuthProfileService
 from modules.student_growth.models import (
+    LearningLog,
     StudentProfile,
     Subject,
     SubjectFollow,
@@ -55,6 +56,24 @@ class SubjectSocialService:
         sp = self.db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
         return (sp.display_name if sp and sp.display_name else f"Student {student_id}")
 
+
+    def _struggle_topic_ids(self, student_id: int, *, subject_id: int | None = None, limit: int = 40) -> set[int]:
+        """Topic ids from recent Learning Log not_understood rows (revision-help signal)."""
+        q = (
+            self.db.query(LearningLog.topic_id)
+            .filter(
+                LearningLog.student_id == student_id,
+                LearningLog.topic_id.isnot(None),
+                LearningLog.not_understood.isnot(None),
+                LearningLog.not_understood != "",
+            )
+            .order_by(LearningLog.created_at.desc())
+            .limit(limit)
+        )
+        if subject_id is not None:
+            q = q.filter(LearningLog.subject_id == subject_id)
+        return {tid for (tid,) in q.all() if tid is not None}
+
     def _serialize_post(
         self,
         post: SubjectPost,
@@ -75,11 +94,18 @@ class SubjectSocialService:
             score += 30
         if same_author:
             score += 5
-        if post.topic_id and post.topic_id in struggle_topic_ids:
-            score += 15
+        helps_revision = bool(post.topic_id and post.topic_id in struggle_topic_ids)
+        if helps_revision:
+            # Worlds-as-revision-help (T19): prefer classmate posts on topics you marked not_understood.
+            score += 25
         score += min(15.0, 15.0 / (age_hours ** 0.35))
         score += min(10.0, (post.like_count or 0) * 0.5)
         is_suggested = not from_followed and not same_author
+        suggestion_label = None
+        if helps_revision:
+            suggestion_label = "Helps your revision"
+        elif is_suggested:
+            suggestion_label = "Suggested for you"
         return {
             "id": post.id,
             "author_student_id": post.author_student_id,
@@ -100,7 +126,7 @@ class SubjectSocialService:
             "created_at": post.created_at,
             "from_followed": from_followed,
             "is_suggested": is_suggested,
-            "suggestion_label": "Suggested for you" if is_suggested else None,
+            "suggestion_label": suggestion_label,
             "score": round(score, 2),
         }
 
@@ -266,8 +292,14 @@ class SubjectSocialService:
             .limit(max(limit * 3, 60))
             .all()
         )
+        struggle_topics = self._struggle_topic_ids(student.id, subject_id=subject_id)
         serialized = [
-            self._serialize_post(p, followed_ids=followed, me_id=student.id)
+            self._serialize_post(
+                p,
+                followed_ids=followed,
+                me_id=student.id,
+                struggle_topic_ids=struggle_topics,
+            )
             for p in posts
         ]
         ranked, resolved_mode = self._rank_feed_posts(

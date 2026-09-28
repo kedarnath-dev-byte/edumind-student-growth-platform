@@ -15,6 +15,8 @@ Log + revision are primary. WhatsApp is the **habit channel** (plan after log + 
 - [ ] `WHATSAPP_ENABLED=true` only if you want dry-run logging; else leave `false`
 - [ ] **`WHATSAPP_DRY_RUN=true`** (default) — required until Approved
 - [ ] `INTERNAL_JOB_SECRET` set on web + morning cron
+- [ ] Apply `notification_outbox` migration; probe outbox drain in dry-run
+- [ ] cron-job.org (or GHA) configured per docs/CRON_WHATSAPP_AND_OUTBOX.md
 - [ ] Probe `GET /api/v1/whatsapp/status` → shows provider, configured flags, `live_send_allowed: false` while dry-run
 - [ ] Submit / confirm templates:
   - Revision plan (`edumind_revision_plan` or Gupshup UUID)

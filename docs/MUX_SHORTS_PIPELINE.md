@@ -83,3 +83,10 @@ Subject Worlds video posts follow the same create-then-attach pattern.
 - Feed items are **Mux-only** (`mux_playback_id` / Mux HLS). Drive-only archives are excluded so Reels always autoplay.
 - Learning Log list cards: Mux → thumbnail + play (deep-links into Shorts at that item). Drive-only → labeled **Archive / Drive** with Open in Drive.
 - Old Drive-only explanation videos will **not** become Reels until re-uploaded via Mux on a new/updated log.
+
+## Webhook readiness (P1 stub)
+
+- Endpoint: `POST /api/v1/mux/webhooks` acknowledges Mux events and records `mux_webhook_received` product events for `video.asset.*`.
+- **Not yet:** HMAC signature via `MUX_WEBHOOK_SECRET`, duration enforcement on webhook, orphan upload GC.
+- Until then, duration stays poll-based (`GET /api/v1/mux/uploads/{id}`).
+- Human: wire Mux dashboard webhook URL to the Render host when ready for trial.

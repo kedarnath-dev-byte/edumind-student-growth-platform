@@ -9,6 +9,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.auth import require_admin_user
+from modules.student_growth.ist_time import ist_calendar_date, ist_day_bounds_utc
 from core.database import get_db
 from modules.student_growth.models import (
     AppUser,
@@ -127,6 +128,25 @@ class CoverageOverviewResponse(BaseModel):
     with_overdue_revisions: int
     open_peer_requests: int
     struggle_themes: list[StruggleThemeItem]
+
+
+class NorthStarMetricsResponse(BaseModel):
+    """Pilot north-star: ≥4 logs/week AND same-IST-day due revision completion."""
+
+    as_of_ist: str
+    enrolled_students: int
+    students_with_4plus_logs_7d: int
+    pct_4plus_logs_7d: float
+    students_with_due_today: int
+    students_completed_all_due_today: int
+    pct_same_ist_day_due_complete: float
+    students_hitting_north_star: int
+    pct_north_star: float
+    definition: str = (
+        "% enrolled with ≥4 Daily Logs in trailing 7 IST days "
+        "AND completed all revisions due on today's IST calendar day "
+        "(students with no dues today count only the log half)."
+    )
 
 
 def _serialize_learning_log(log: LearningLog) -> LearningLogResponse:
@@ -340,12 +360,14 @@ def _student_overview_items(
         .group_by(RevisionTask.student_id)
         .all()
     )
+    # Overdue = PENDING with due_at before start of today IST (not UTC midnight).
+    today_start_ist, _ = ist_day_bounds_utc()
     overdue_counts = dict(
         db.query(RevisionTask.student_id, func.count(RevisionTask.id))
         .filter(
             RevisionTask.student_id.in_(profile_ids),
             RevisionTask.status == "PENDING",
-            RevisionTask.due_at < now,
+            RevisionTask.due_at < today_start_ist,
         )
         .group_by(RevisionTask.student_id)
         .all()
@@ -669,6 +691,98 @@ async def coverage_overview(
         with_overdue_revisions=with_overdue,
         open_peer_requests=int(open_peer),
         struggle_themes=themes,
+    )
+
+
+
+
+@router.get("/north-star", response_model=NorthStarMetricsResponse)
+async def north_star_metrics(
+    school_id: Optional[int] = Query(default=None),
+    classroom_id: Optional[int] = Query(default=None),
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(require_admin_user),
+):
+    """Live north-star pulse for Admin (Log + same-IST-day revision honesty)."""
+    today = ist_calendar_date()
+    today_start_for_week, _ = ist_day_bounds_utc(today)
+    week_start = today_start_for_week - timedelta(days=6)
+    today_start, tomorrow_start = ist_day_bounds_utc(today)
+
+    q = db.query(StudentProfile)
+    if school_id is not None:
+        q = q.filter(StudentProfile.school_id == school_id)
+    if classroom_id is not None:
+        q = q.filter(StudentProfile.classroom_id == classroom_id)
+    students = q.all()
+    enrolled = len(students)
+    if enrolled == 0:
+        return NorthStarMetricsResponse(
+            as_of_ist=today.isoformat(),
+            enrolled_students=0,
+            students_with_4plus_logs_7d=0,
+            pct_4plus_logs_7d=0.0,
+            students_with_due_today=0,
+            students_completed_all_due_today=0,
+            pct_same_ist_day_due_complete=0.0,
+            students_hitting_north_star=0,
+            pct_north_star=0.0,
+        )
+
+    ids = [s.id for s in students]
+    log_rows = (
+        db.query(LearningLog.student_id, func.count(LearningLog.id))
+        .filter(
+            LearningLog.student_id.in_(ids),
+            LearningLog.created_at >= week_start,
+            LearningLog.created_at < tomorrow_start,
+        )
+        .group_by(LearningLog.student_id)
+        .all()
+    )
+    logs_7d = {sid: int(c) for sid, c in log_rows}
+    with_4plus = {sid for sid, c in logs_7d.items() if c >= 4}
+
+    due_tasks = (
+        db.query(RevisionTask)
+        .filter(
+            RevisionTask.student_id.in_(ids),
+            RevisionTask.due_at >= today_start,
+            RevisionTask.due_at < tomorrow_start,
+        )
+        .all()
+    )
+    due_by_student: dict[int, list] = {}
+    for t in due_tasks:
+        due_by_student.setdefault(t.student_id, []).append(t)
+
+    with_due = set(due_by_student.keys())
+    completed_all_due = set()
+    for sid, tasks in due_by_student.items():
+        if tasks and all(t.status == "COMPLETED" for t in tasks):
+            completed_all_due.add(sid)
+
+    # North-star hit: ≥4 logs/week AND (no dues today OR all dues completed).
+    hitting = set()
+    for sid in ids:
+        if sid not in with_4plus:
+            continue
+        if sid not in with_due or sid in completed_all_due:
+            hitting.add(sid)
+
+    def pct(n: int, d: int) -> float:
+        return round((100.0 * n / d), 1) if d else 0.0
+
+    return NorthStarMetricsResponse(
+        as_of_ist=today.isoformat(),
+        enrolled_students=enrolled,
+        students_with_4plus_logs_7d=len(with_4plus),
+        pct_4plus_logs_7d=pct(len(with_4plus), enrolled),
+        students_with_due_today=len(with_due),
+        students_completed_all_due_today=len(completed_all_due),
+        pct_same_ist_day_due_complete=pct(len(completed_all_due), len(with_due)),
+        students_hitting_north_star=len(hitting),
+        pct_north_star=pct(len(hitting), enrolled),
     )
 
 

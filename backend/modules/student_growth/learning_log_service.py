@@ -118,18 +118,46 @@ class LearningLogService:
             self.db.add(reward)
         return rewards
 
-    @staticmethod
-    def _schedule_revision_plan_whatsapp(log_id: int) -> None:
-        """Background thread so HTTP create never waits on WhatsApp provider / dry-run I/O."""
+    def _schedule_revision_plan_whatsapp(self, log_id: int) -> None:
+        """Enqueue outbox intent, then drain in a background thread (never blocks HTTP)."""
+        student_id = None
+        try:
+            log = (
+                self.db.query(LearningLog)
+                .filter(LearningLog.id == log_id)
+                .first()
+            )
+            student_id = log.student_id if log else None
+            from modules.student_growth.notification_outbox_service import (
+                NotificationOutboxService,
+            )
+
+            if student_id is not None:
+                NotificationOutboxService(self.db).enqueue_revision_plan(
+                    learning_log_id=log_id,
+                    student_id=student_id,
+                )
+        except Exception:
+            logger.exception(
+                "whatsapp_revision_plan_outbox_enqueue_failed log_id=%s",
+                log_id,
+            )
 
         def _run() -> None:
             db = SessionLocal()
             try:
-                from modules.student_growth.whatsapp_notification_service import (
-                    WhatsAppNotificationService,
+                from modules.student_growth.notification_outbox_service import (
+                    NotificationOutboxService,
                 )
 
-                WhatsAppNotificationService(db).send_revision_plan_for_log(log_id)
+                # Prefer draining the outbox row; falls back to direct send if empty.
+                summary = NotificationOutboxService(db).drain_pending(limit=20)
+                if summary.get("claimed", 0) == 0:
+                    from modules.student_growth.whatsapp_notification_service import (
+                        WhatsAppNotificationService,
+                    )
+
+                    WhatsAppNotificationService(db).send_revision_plan_for_log(log_id)
             except Exception:
                 logger.exception(
                     "whatsapp_revision_plan_background_failed log_id=%s",

@@ -2,6 +2,8 @@
 
 from collections import defaultdict
 from datetime import datetime
+
+from modules.student_growth.ist_time import ist_calendar_date
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -32,7 +34,7 @@ class TeacherDashboardService:
         school_id: Optional[int] = None,
         subject_id: Optional[int] = None,
     ) -> dict:
-        today = datetime.utcnow().date()
+        today = ist_calendar_date()
         logs_query = self._filtered_learning_logs(classroom_id, school_id, subject_id)
         learning_logs = logs_query.all()
         learning_log_ids = [log.id for log in learning_logs]
@@ -49,7 +51,7 @@ class TeacherDashboardService:
             RevisionTask.status == "COMPLETED"
         ).count()
         overdue_revisions_count = sum(
-            1 for task in pending_revisions if task.due_at.date() < today
+            1 for task in pending_revisions if ist_calendar_date(task.due_at) < today
         )
 
         confusion_logs = [
@@ -180,7 +182,7 @@ class TeacherDashboardService:
             summary = student_support[task.student_id]
             summary["student_id"] = task.student_id
             summary["pending_revisions_count"] += 1
-            if task.due_at.date() < today:
+            if ist_calendar_date(task.due_at) < today:
                 summary["overdue_revisions_count"] += 1
 
         return sorted(

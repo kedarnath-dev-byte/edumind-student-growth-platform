@@ -100,3 +100,35 @@ async def morning_revision_whatsapp_job(
 
     summary = WhatsAppNotificationService(db).send_morning_digests(for_date=day)
     return MorningDigestJobResponse(ok=True, **summary)
+
+
+class OutboxDrainJobResponse(BaseModel):
+    ok: bool = True
+    claimed: int = 0
+    sent: int = 0
+    dry_run: int = 0
+    skipped: int = 0
+    failed: int = 0
+    details: list = Field(default_factory=list)
+
+
+@router.post(
+    "/api/v1/internal/jobs/drain-notification-outbox",
+    response_model=OutboxDrainJobResponse,
+)
+async def drain_notification_outbox_job(
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_internal_job_secret),
+):
+    """Cron target: drain WhatsApp outbox intents (respects WHATSAPP_DRY_RUN)."""
+    from modules.student_growth.notification_outbox_service import (
+        NotificationOutboxService,
+    )
+
+    summary = NotificationOutboxService(db).drain_pending(limit=limit)
+    return OutboxDrainJobResponse(ok=True, **{
+        k: summary.get(k, 0 if k != "details" else [])
+        for k in ("claimed", "sent", "dry_run", "skipped", "failed", "details")
+    })
+

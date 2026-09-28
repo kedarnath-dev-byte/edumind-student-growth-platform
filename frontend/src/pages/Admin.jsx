@@ -104,6 +104,7 @@ const Admin = () => {
   // Coverage
   const [coverage, setCoverage] = useState(null)
   const [couragePulse, setCouragePulse] = useState(null)
+  const [northStar, setNorthStar] = useState(null)
   const [feedPosts, setFeedPosts] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
   const [feedSubjectFilter, setFeedSubjectFilter] = useState('')
@@ -175,9 +176,15 @@ const Admin = () => {
     try {
       const params = { risk_only: riskOnly }
       if (filterSchoolId) params.school_id = Number(filterSchoolId)
-      const data = await apiGet('/api/v1/admin/students/overview', params)
+      const nsParams = {}
+      if (filterSchoolId) nsParams.school_id = Number(filterSchoolId)
+      const [data, ns] = await Promise.all([
+        apiGet('/api/v1/admin/students/overview', params),
+        apiGet('/api/v1/admin/north-star', nsParams).catch(() => null),
+      ])
       if (reqId !== requestIdRef.current) return
       setStudents(data || [])
+      setNorthStar(ns)
     } catch (err) {
       if (reqId !== requestIdRef.current) return
       setError(formatErr(err, 'Failed to load student pulse'))
@@ -809,10 +816,34 @@ const Admin = () => {
             <p className="text-sm text-indigo-50 mt-1">
               % enrolled students with ≥4 Daily Logs / week AND same-IST-day completion of due revisions.
             </p>
-            <p className="text-xs text-indigo-200/80 mt-2">
-              Live funnel metrics wire to <code className="text-indigo-100">product_events</code> next —
-              this board stays support-risk for now. See docs/P0_PRD_TRD.md.
-            </p>
+            {northStar ? (
+              <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="rounded-lg bg-indigo-950/40 border border-indigo-400/20 px-3 py-2">
+                  <p className="text-[10px] uppercase text-indigo-300">North-star</p>
+                  <p className="text-xl font-bold text-white">{northStar.pct_north_star}%</p>
+                  <p className="text-[10px] text-indigo-200/80">{northStar.students_hitting_north_star}/{northStar.enrolled_students} enrolled</p>
+                </div>
+                <div className="rounded-lg bg-indigo-950/40 border border-indigo-400/20 px-3 py-2">
+                  <p className="text-[10px] uppercase text-indigo-300">≥4 logs / 7d</p>
+                  <p className="text-xl font-bold text-white">{northStar.pct_4plus_logs_7d}%</p>
+                  <p className="text-[10px] text-indigo-200/80">{northStar.students_with_4plus_logs_7d} students</p>
+                </div>
+                <div className="rounded-lg bg-indigo-950/40 border border-indigo-400/20 px-3 py-2">
+                  <p className="text-[10px] uppercase text-indigo-300">Due today done (IST)</p>
+                  <p className="text-xl font-bold text-white">{northStar.pct_same_ist_day_due_complete}%</p>
+                  <p className="text-[10px] text-indigo-200/80">{northStar.students_completed_all_due_today}/{northStar.students_with_due_today} with dues</p>
+                </div>
+                <div className="rounded-lg bg-indigo-950/40 border border-indigo-400/20 px-3 py-2">
+                  <p className="text-[10px] uppercase text-indigo-300">As of IST</p>
+                  <p className="text-xl font-bold text-white">{northStar.as_of_ist}</p>
+                  <p className="text-[10px] text-indigo-200/80">See docs/NORTH_STAR.md</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-indigo-200/80 mt-2">
+                Loading live north-star… Refresh pulse if empty. See docs/NORTH_STAR.md.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             {[

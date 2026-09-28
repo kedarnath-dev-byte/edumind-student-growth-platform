@@ -5,6 +5,11 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
+from modules.student_growth.ist_time import (
+    completed_on_due_date_ist,
+    days_late_ist,
+    is_future_due_ist,
+)
 from modules.student_growth.models import RevisionAttempt, RevisionTask, RewardEvent
 from modules.student_growth.product_events import REVISION_COMPLETED, record_product_event
 
@@ -58,7 +63,8 @@ class RevisionService:
             }
 
         completed_at = datetime.utcnow()
-        if task.due_at.date() > completed_at.date():
+        # North-star uses Asia/Kolkata calendar days, not UTC midnight.
+        if is_future_due_ist(task.due_at, completed_at):
             raise FutureRevisionLockedError(
                 "Future revision is locked until its due date."
             )
@@ -68,14 +74,14 @@ class RevisionService:
         if difficulty_after_revision:
             task.difficulty_after_revision = difficulty_after_revision
 
-        days_late = max((completed_at.date() - task.due_at.date()).days, 0)
+        days_late = days_late_ist(task.due_at, completed_at)
         attempt = RevisionAttempt(
             revision_task_id=task.id,
             student_id=task.student_id,
             learning_log_id=task.learning_log_id,
             attempt_number=1,
             completed_at=completed_at,
-            completed_on_due_date=completed_at.date() == task.due_at.date(),
+            completed_on_due_date=completed_on_due_date_ist(task.due_at, completed_at),
             days_late=days_late,
             difficulty_after_revision=difficulty_after_revision,
             revision_text_summary=revision_text_summary,

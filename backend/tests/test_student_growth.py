@@ -11,6 +11,10 @@ from core.database import Base
 from modules.student_growth.learning_log_controller import serialize_learning_log
 from modules.student_growth.learning_log_service import LearningLogService
 from modules.student_growth.models import RewardEvent, RevisionAttempt, RevisionTask
+from modules.student_growth.ist_time import (
+    completed_on_due_date_ist,
+    days_late_ist,
+)
 from modules.student_growth.revision_service import (
     FutureRevisionLockedError,
     RevisionService,
@@ -180,12 +184,9 @@ def test_revision_attempt_stores_due_date_status_and_days_late(db_session):
         .first()
     )
 
-    expected_days_late = max(
-        (attempt.completed_at.date() - revision_task.due_at.date()).days,
-        0,
-    )
-    assert attempt.completed_on_due_date == (
-        attempt.completed_at.date() == revision_task.due_at.date()
+    expected_days_late = days_late_ist(revision_task.due_at, attempt.completed_at)
+    assert attempt.completed_on_due_date == completed_on_due_date_ist(
+        revision_task.due_at, attempt.completed_at
     )
     assert attempt.days_late == expected_days_late
 

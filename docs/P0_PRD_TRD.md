@@ -61,3 +61,11 @@ Play Store, live WhatsApp, Worlds algorithm, event warehouse, microservice split
 
 Table `product_events` records: `log_created`, `revision_completed`, `mux_attach_ok` / `mux_attach_fail`, `whatsapp_sent` / `whatsapp_skip`.
 Helper: `modules.student_growth.product_events.record_product_event` (never raises into primary flows).
+
+## Follow-ups landed in P1 corrections PR
+
+- Live Admin `GET /api/v1/admin/north-star` + Pulse cards
+- Revision due honesty on IST calendar (lock / on-time / habit today)
+- WhatsApp `notification_outbox` + drain job (dry-run preserved)
+- Parent dashboard linked children (no silent student_id=1 when authenticated)
+- Worlds feed boost for topics marked not_understood ("Helps your revision")

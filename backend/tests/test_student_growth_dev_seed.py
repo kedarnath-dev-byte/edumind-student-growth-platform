@@ -192,6 +192,8 @@ def test_seed_demo_data_requires_auth_or_secret(client, monkeypatch):
 
 
 def test_seed_demo_data_blocked_in_production(client, monkeypatch):
+    # CI sets ENVIRONMENT=test; override the vars _is_production() checks first.
+    monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("ENV", "production")
     response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
     assert response.status_code == 403
