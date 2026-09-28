@@ -14,6 +14,11 @@ from modules.mux.mux_schemas import (
     MuxUploadStatusResponse,
 )
 from modules.mux.mux_service import MuxService, mux_status_payload
+from modules.student_growth.product_events import (
+    MUX_ATTACH_FAIL,
+    MUX_ATTACH_OK,
+    record_product_event,
+)
 
 router = APIRouter(prefix="/api/v1/mux", tags=["Mux Shorts"])
 
@@ -62,20 +67,36 @@ async def attach_mux_media(
     db: Session = Depends(get_db),
 ):
     """Attach a ready Mux asset to a learning log or subject post."""
-    result = MuxService(db).attach(
-        payload,
-        upload_id=body.upload_id,
-        asset_id=body.asset_id,
-        playback_id=body.playback_id,
-        duration_seconds=body.duration_seconds,
-        target=body.target,
-        learning_log_id=body.learning_log_id,
-        subject_post_id=body.subject_post_id,
-        subject_id=body.subject_id,
-        caption=body.caption,
-        topic_id=body.topic_id,
-    )
-    return MuxAttachResponse(**result)
+    try:
+        result = MuxService(db).attach(
+            payload,
+            upload_id=body.upload_id,
+            asset_id=body.asset_id,
+            playback_id=body.playback_id,
+            duration_seconds=body.duration_seconds,
+            target=body.target,
+            learning_log_id=body.learning_log_id,
+            subject_post_id=body.subject_post_id,
+            subject_id=body.subject_id,
+            caption=body.caption,
+            topic_id=body.topic_id,
+        )
+        record_product_event(
+            MUX_ATTACH_OK,
+            entity_type=body.target,
+            entity_id=body.learning_log_id or body.subject_post_id,
+            payload={"target": body.target, "upload_id": body.upload_id},
+        )
+        return MuxAttachResponse(**result)
+    except Exception as exc:
+        detail = getattr(exc, "detail", None) or str(exc)
+        record_product_event(
+            MUX_ATTACH_FAIL,
+            entity_type=body.target,
+            entity_id=body.learning_log_id or body.subject_post_id,
+            payload={"target": body.target, "error": str(detail)[:300]},
+        )
+        raise
 
 
 @router.post("/webhooks")

@@ -36,7 +36,11 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def client(db_session, monkeypatch):
+    monkeypatch.setenv("DEV_SEED_SECRET", "test-seed-secret")
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.setenv("ENV", "test")
+
     def override_get_db():
         yield db_session
 
@@ -46,8 +50,11 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
+SEED_HEADERS = {"X-Dev-Seed-Secret": "test-seed-secret"}
+
+
 def test_seed_demo_data_returns_success(client):
-    response = client.post("/api/v1/dev/seed-demo-data")
+    response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
@@ -63,7 +70,7 @@ def test_seed_demo_data_returns_success(client):
 
 
 def test_seed_demo_data_creates_setup_learning_log_and_revisions(client, db_session):
-    response = client.post("/api/v1/dev/seed-demo-data")
+    response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
     data = response.json()
 
     assert db_session.query(School).count() == 1
@@ -79,7 +86,7 @@ def test_seed_demo_data_creates_setup_learning_log_and_revisions(client, db_sess
 
 
 def test_seed_demo_revisions_include_overdue_today_and_future(client, db_session):
-    response = client.post("/api/v1/dev/seed-demo-data")
+    response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
     data = response.json()
     tasks = (
         db_session.query(RevisionTask)
@@ -100,8 +107,8 @@ def test_seed_demo_revisions_include_overdue_today_and_future(client, db_session
 
 
 def test_seed_demo_twice_reuses_setup_data(client, db_session):
-    first = client.post("/api/v1/dev/seed-demo-data").json()
-    second = client.post("/api/v1/dev/seed-demo-data").json()
+    first = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS).json()
+    second = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS).json()
 
     assert first["school_id"] == second["school_id"]
     assert first["classroom_id"] == second["classroom_id"]
@@ -126,7 +133,18 @@ def test_future_revision_completion_returns_400_without_side_effects(
     client,
     db_session,
 ):
-    response = client.post("/api/v1/dev/seed-demo-data")
+    from core.auth import get_resolved_edumind_profile
+    from types import SimpleNamespace
+
+    async def _admin_profile():
+        return {
+            "app_user": SimpleNamespace(role="ADMIN", id=1),
+            "student_profile": None,
+            "parent_children": [],
+        }
+
+    app.dependency_overrides[get_resolved_edumind_profile] = _admin_profile
+    response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
     data = response.json()
     future_task = (
         db_session.query(RevisionTask)
@@ -165,3 +183,16 @@ def test_future_revision_completion_returns_400_without_side_effects(
     assert future_task.status == "PENDING"
     assert attempts == []
     assert rewards == []
+
+
+def test_seed_demo_data_requires_auth_or_secret(client, monkeypatch):
+    monkeypatch.delenv("DEV_SEED_SECRET", raising=False)
+    response = client.post("/api/v1/dev/seed-demo-data")
+    assert response.status_code in (401, 403)
+
+
+def test_seed_demo_data_blocked_in_production(client, monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    response = client.post("/api/v1/dev/seed-demo-data", headers=SEED_HEADERS)
+    assert response.status_code == 403
+    assert "production" in response.json()["detail"].lower()

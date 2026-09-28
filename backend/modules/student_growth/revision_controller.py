@@ -3,7 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from core.auth import assert_can_access_student, get_resolved_edumind_profile
 from core.database import get_db
+from modules.student_growth.models import RevisionTask
 from modules.student_growth.revision_service import (
     FutureRevisionLockedError,
     RevisionService,
@@ -19,7 +21,12 @@ router = APIRouter(prefix="/api/v1", tags=["Student Revisions & Rewards"])
 
 
 @router.get("/revisions/student/{student_id}", response_model=list[RevisionTaskResponse])
-async def get_revisions_for_student(student_id: int, db: Session = Depends(get_db)):
+async def get_revisions_for_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, student_id)
     return RevisionService(db).list_revisions_for_student(student_id)
 
 
@@ -28,7 +35,12 @@ async def complete_revision(
     revision_task_id: int,
     payload: RevisionCompleteRequest,
     db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
 ):
+    task = db.query(RevisionTask).filter(RevisionTask.id == revision_task_id).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Revision task not found")
+    assert_can_access_student(profile, task.student_id)
     try:
         result = RevisionService(db).complete_revision(
             revision_task_id=revision_task_id,
@@ -46,7 +58,12 @@ async def complete_revision(
 
 
 @router.get("/rewards/student/{student_id}", response_model=list[RewardEventResponse])
-async def get_rewards_for_student(student_id: int, db: Session = Depends(get_db)):
+async def get_rewards_for_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, student_id)
     return RevisionService(db).list_rewards_for_student(student_id)
 
 
@@ -57,7 +74,12 @@ async def get_rewards_for_student(student_id: int, db: Session = Depends(get_db)
 async def get_attempts_for_revision(
     revision_task_id: int,
     db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
 ):
+    task = db.query(RevisionTask).filter(RevisionTask.id == revision_task_id).first()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Revision task not found")
+    assert_can_access_student(profile, task.student_id)
     return RevisionService(db).list_attempts_for_revision(revision_task_id)
 
 
@@ -65,5 +87,10 @@ async def get_attempts_for_revision(
     "/revisions/student/{student_id}/attempts",
     response_model=list[RevisionAttemptResponse],
 )
-async def get_attempts_for_student(student_id: int, db: Session = Depends(get_db)):
+async def get_attempts_for_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, student_id)
     return RevisionService(db).list_attempts_for_student(student_id)

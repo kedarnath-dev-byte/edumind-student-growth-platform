@@ -399,3 +399,22 @@ class NotificationSend(Base):
     status = Column(String, index=True, default="dry_run")  # dry_run | sent | failed
     meta_json = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProductEvent(Base):
+    """Minimal product analytics funnel rows (P0 instrumentation).
+
+    event_name examples: log_created, revision_completed,
+    mux_attach_ok, mux_attach_fail, whatsapp_sent, whatsapp_skip
+    """
+
+    __tablename__ = "product_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_name = Column(String, index=True, nullable=False)
+    student_id = Column(Integer, index=True, nullable=True)
+    school_id = Column(Integer, index=True, nullable=True)
+    entity_type = Column(String, nullable=True)
+    entity_id = Column(String, nullable=True)
+    payload_json = Column(JSON, nullable=True, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

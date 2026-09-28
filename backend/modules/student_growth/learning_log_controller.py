@@ -1,10 +1,17 @@
 """HTTP endpoints for student learning logs."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
+from typing import List
 
+from core.auth import (
+    assert_can_access_student,
+    get_resolved_edumind_profile,
+)
 from core.database import get_db
 from modules.student_growth.learning_log_service import LearningLogService
+from modules.student_growth.models import LearningLog
 from modules.student_growth.schemas import (
     LearningLogCreate,
     LearningLogResponse,
@@ -13,6 +20,20 @@ from modules.student_growth.schemas import (
 )
 
 router = APIRouter(prefix="/api/v1/learning-logs", tags=["Student Learning Logs"])
+
+
+class LearningLogNoteImagesUpdate(BaseModel):
+    """Append/replace Drive note photo URLs after create-then-upload."""
+
+    note_image_urls: List[str] = Field(default_factory=list)
+
+    @field_validator("note_image_urls")
+    @classmethod
+    def validate_note_image_urls(cls, value):
+        cleaned = [str(url).strip() for url in (value or []) if str(url).strip()]
+        if len(cleaned) > 8:
+            raise ValueError("At most 8 textbook/class-notes photos are allowed")
+        return cleaned
 
 
 def _note_image_urls(learning_log) -> list:
@@ -54,7 +75,12 @@ def serialize_learning_log(learning_log, revision_tasks=None, rewards=None) -> L
 
 
 @router.post("", response_model=LearningLogResponse)
-async def create_learning_log(payload: LearningLogCreate, db: Session = Depends(get_db)):
+async def create_learning_log(
+    payload: LearningLogCreate,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, payload.student_id)
     try:
         result = LearningLogService(db).create_learning_log(payload)
         return serialize_learning_log(
@@ -69,6 +95,29 @@ async def create_learning_log(payload: LearningLogCreate, db: Session = Depends(
 
 
 @router.get("/student/{student_id}", response_model=list[LearningLogResponse])
-async def get_learning_logs_for_student(student_id: int, db: Session = Depends(get_db)):
+async def get_learning_logs_for_student(
+    student_id: int,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, student_id)
     logs = LearningLogService(db).get_learning_logs_for_student(student_id)
     return [serialize_learning_log(log) for log in logs]
+
+
+@router.patch("/{learning_log_id}/note-images", response_model=LearningLogResponse)
+async def update_learning_log_note_images(
+    learning_log_id: int,
+    body: LearningLogNoteImagesUpdate,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    """Attach Drive photo URLs after text save (create-then-photos; never lose text)."""
+    log = db.query(LearningLog).filter(LearningLog.id == learning_log_id).first()
+    if log is None:
+        raise HTTPException(status_code=404, detail="Learning log not found")
+    assert_can_access_student(profile, log.student_id)
+    log.note_image_urls = body.note_image_urls
+    db.commit()
+    db.refresh(log)
+    return serialize_learning_log(log)

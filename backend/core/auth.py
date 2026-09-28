@@ -123,3 +123,58 @@ async def require_admin_user(
             detail="Admin access required",
         )
     return profile
+
+
+async def get_resolved_edumind_profile(
+    payload: dict[str, Any] = Depends(get_current_supabase_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """JWT + linked EduMind AppUser/profile (404 if not linked)."""
+    from modules.student_growth.auth_profile_service import AuthProfileService
+
+    return AuthProfileService(db).resolve_current_user(payload)
+
+
+def require_roles(*roles: str):
+    """FastAPI dependency factory: require JWT + linked profile with one of roles."""
+    allowed = {r.upper() for r in roles}
+
+    async def _require(
+        profile: dict[str, Any] = Depends(get_resolved_edumind_profile),
+    ) -> dict[str, Any]:
+        app_user = profile.get("app_user")
+        role = (getattr(app_user, "role", None) or "").upper()
+        if role not in allowed:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Requires role: {', '.join(sorted(allowed))}",
+            )
+        return profile
+
+    return _require
+
+
+def assert_can_access_student(profile: dict[str, Any], student_id: int) -> None:
+    """STUDENT → own profile only; ADMIN/TEACHER any; PARENT → linked children."""
+    app_user = profile.get("app_user")
+    role = (getattr(app_user, "role", None) or "").upper()
+    if role in {"ADMIN", "TEACHER"}:
+        return
+    if role == "STUDENT":
+        student_profile = profile.get("student_profile")
+        if student_profile is None or int(student_profile.id) != int(student_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot access another student's data",
+            )
+        return
+    if role == "PARENT":
+        children = profile.get("parent_children") or []
+        child_ids = {int(c.id) for c in children if getattr(c, "id", None) is not None}
+        if int(student_id) not in child_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot access a student who is not linked to this parent",
+            )
+        return
+    raise HTTPException(status_code=403, detail="Insufficient role for student data")

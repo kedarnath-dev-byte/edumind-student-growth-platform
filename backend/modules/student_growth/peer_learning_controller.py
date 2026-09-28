@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from core.auth import assert_can_access_student, get_current_supabase_user, get_resolved_edumind_profile
 from core.database import get_db
 from modules.student_growth.peer_learning_schemas import (
     AcceptHelpRequestRequest,
@@ -29,6 +30,7 @@ router = APIRouter(prefix="/api/v1/peer-learning", tags=["Peer Learning Circle"]
 async def create_help_request(
     payload: PeerHelpRequestCreate,
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     return PeerLearningService(db).create_help_request(payload)
 
@@ -40,6 +42,7 @@ async def list_open_requests(
     subject_id: Optional[int] = Query(default=None),
     topic_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     return PeerLearningService(db).list_open_requests(
         school_id=school_id,
@@ -53,6 +56,7 @@ async def list_open_requests(
 async def create_help_offer(
     payload: PeerHelpOfferCreate,
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     return PeerLearningService(db).create_help_offer(payload)
 
@@ -64,6 +68,7 @@ async def list_available_offers(
     subject_id: Optional[int] = Query(default=None),
     topic_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     return PeerLearningService(db).list_available_offers(
         school_id=school_id,
@@ -81,6 +86,7 @@ async def accept_help_request(
     help_request_id: int,
     payload: AcceptHelpRequestRequest,
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     try:
         return PeerLearningService(db).accept_help_request(
@@ -102,6 +108,7 @@ async def complete_help_session(
     session_id: int,
     payload: CompletePeerHelpSessionRequest,
     db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_supabase_user),
 ):
     try:
         return PeerLearningService(db).complete_session(session_id, payload)
@@ -115,7 +122,12 @@ async def complete_help_session(
     "/student/{student_id}/sessions",
     response_model=list[PeerHelpSessionResponse],
 )
-async def list_student_sessions(student_id: int, db: Session = Depends(get_db)):
+async def list_student_sessions(
+    student_id: int,
+    db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
+):
+    assert_can_access_student(profile, student_id)
     return PeerLearningService(db).list_sessions_for_student(student_id)
 
 
@@ -123,5 +135,5 @@ async def list_student_sessions(student_id: int, db: Session = Depends(get_db)):
     "/topic/{topic_id}/circle",
     response_model=TopicSupportCircleResponse,
 )
-async def get_topic_support_circle(topic_id: int, db: Session = Depends(get_db)):
+async def get_topic_support_circle(topic_id: int, db: Session = Depends(get_db), _user: dict = Depends(get_current_supabase_user)):
     return PeerLearningService(db).get_topic_circle(topic_id)

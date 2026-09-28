@@ -27,12 +27,23 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def client(db_session, monkeypatch):
+    from auth_test_helpers import (
+        SEED_HEADERS,
+        install_admin_auth_overrides,
+        install_dev_seed_env,
+    )
+
+    install_dev_seed_env(monkeypatch)
+
     def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    install_admin_auth_overrides(app)
     with TestClient(app) as test_client:
+        # expose for helpers that post seed
+        test_client.seed_headers = SEED_HEADERS
         yield test_client
     app.dependency_overrides.clear()
 
@@ -84,7 +95,7 @@ def test_empty_student_habit_summary_returns_zeros_and_no_revision_due(client):
 
 
 def test_seed_demo_data_creates_learning_and_honest_reflection_habits(client):
-    client.post("/api/v1/dev/seed-demo-data")
+    client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {}))
 
     summary = get_habit_summary(client)
 
@@ -98,7 +109,7 @@ def test_completing_due_today_revision_updates_completed_count(
     client,
     db_session,
 ):
-    seed = client.post("/api/v1/dev/seed-demo-data").json()
+    seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
     due_today_task = get_seed_task(db_session, seed["learning_log_id"], "7D")
 
     response = complete_revision(client, due_today_task.id, difficulty="EASY")
@@ -113,7 +124,7 @@ def test_completing_overdue_revision_updates_memory_rescue_count(
     client,
     db_session,
 ):
-    seed = client.post("/api/v1/dev/seed-demo-data").json()
+    seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
     overdue_task = get_seed_task(db_session, seed["learning_log_id"], "24H")
 
     response = complete_revision(client, overdue_task.id, difficulty="HARD")
@@ -125,7 +136,7 @@ def test_completing_overdue_revision_updates_memory_rescue_count(
 
 
 def test_reward_points_are_summed_correctly(client, db_session):
-    seed = client.post("/api/v1/dev/seed-demo-data").json()
+    seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
     due_today_task = get_seed_task(db_session, seed["learning_log_id"], "7D")
 
     complete_revision(client, due_today_task.id, difficulty="MEDIUM")
@@ -138,7 +149,7 @@ def test_today_habit_status_changes_for_due_today_pending_and_completed(
     client,
     db_session,
 ):
-    seed = client.post("/api/v1/dev/seed-demo-data").json()
+    seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
     due_today_task = get_seed_task(db_session, seed["learning_log_id"], "7D")
 
     pending_summary = get_habit_summary(client)
@@ -157,8 +168,8 @@ def test_today_habit_status_in_progress_when_some_due_today_done(
     client,
     db_session,
 ):
-    first_seed = client.post("/api/v1/dev/seed-demo-data").json()
-    second_seed = client.post("/api/v1/dev/seed-demo-data").json()
+    first_seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
+    second_seed = client.post("/api/v1/dev/seed-demo-data", headers=getattr(client, "seed_headers", {})).json()
     first_due_today_task = get_seed_task(db_session, first_seed["learning_log_id"], "7D")
 
     complete_revision(client, first_due_today_task.id, difficulty="MEDIUM")

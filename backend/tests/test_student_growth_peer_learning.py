@@ -32,12 +32,23 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def client(db_session, monkeypatch):
+    from auth_test_helpers import (
+        SEED_HEADERS,
+        install_admin_auth_overrides,
+        install_dev_seed_env,
+    )
+
+    install_dev_seed_env(monkeypatch)
+
     def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    install_admin_auth_overrides(app)
     with TestClient(app) as test_client:
+        # expose for helpers that post seed
+        test_client.seed_headers = SEED_HEADERS
         yield test_client
     app.dependency_overrides.clear()
 

@@ -94,6 +94,7 @@ def init_db():
         SubjectPost,
         CourageLoop,
         NotificationSend,
+        ProductEvent,
     )
 
     Base.metadata.create_all(bind=engine)

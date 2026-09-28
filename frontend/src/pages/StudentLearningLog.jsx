@@ -86,6 +86,8 @@ const StudentLearningLog = () => {
   const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadLabel, setUploadLabel] = useState('')
+  /** idle | saving_text | photos | video | done | video_failed */
+  const [submitStage, setSubmitStage] = useState('idle')
   /** When Mux fails after log is saved: keep file + log id for retry. */
   const [pendingMuxRetry, setPendingMuxRetry] = useState(null)
   const [pastLogs, setPastLogs] = useState([])
@@ -312,6 +314,7 @@ const StudentLearningLog = () => {
   }
 
   const attachMuxToLog = async (logId, file, token) => {
+    setSubmitStage('video')
     setUploadLabel('Uploading explanation Short to Mux…')
     setUploadProgress(0)
     const muxMeta = await withWakeLock(async () => (
@@ -340,6 +343,7 @@ const StudentLearningLog = () => {
     if (!pendingMuxRetry?.logId || !pendingMuxRetry?.file) return
     setLoading(true)
     setError('')
+    setSubmitStage('video')
     setUploadLabel('Retrying video upload…')
     try {
       const token = getAccessToken?.() || localStorage.getItem('edumind_token')
@@ -359,7 +363,9 @@ const StudentLearningLog = () => {
       clearSelfie()
       loadPastLogs()
       setUploadLabel('')
+      setSubmitStage('done')
     } catch (muxErr) {
+      setSubmitStage('video_failed')
       if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
         setError(MUX_COMING_ONLINE)
       } else {
@@ -400,6 +406,8 @@ const StudentLearningLog = () => {
     setUploadProgress(0)
     setUploadLabel('')
     setPendingMuxRetry(null)
+    setSubmitStage('saving_text')
+    let textSaved = false
 
     try {
       const token = getAccessToken?.() || localStorage.getItem('edumind_token')
@@ -412,29 +420,8 @@ const StudentLearningLog = () => {
         throw new Error(MUX_COMING_ONLINE)
       }
 
-      // 1) Drive note photos (unchanged OAuth path)
-      const noteImageUrls = []
-      if (noteFiles.length > 0) {
-        for (let i = 0; i < noteFiles.length; i += 1) {
-          setUploadLabel(`Uploading note photo ${i + 1} of ${noteFiles.length}…`)
-          setUploadProgress(0)
-          const uploaded = await driveUploadService.upload(
-            noteFiles[i],
-            'document',
-            token,
-            setUploadProgress,
-          )
-          const urls = urlsFromDriveUpload(uploaded)
-          const link = urls.playbackUrl || urls.viewUrl
-          if (!link) {
-            throw new Error(`Drive upload for note photo ${i + 1} returned no link.`)
-          }
-          noteImageUrls.push(link)
-        }
-      }
-
-      // 2) Persist learning log FIRST so sleep/background during Mux cannot lose the row
-      setUploadLabel('Saving learning log…')
+      // 1) Persist TEXT first so photo/video failures never lose the log
+      setUploadLabel('Saving your learning log text…')
       setUploadProgress(0)
       let saved = await studentGrowthService.createLearningLog({
         student_id: studentId,
@@ -451,9 +438,10 @@ const StudentLearningLog = () => {
         mux_playback_id: null,
         mux_upload_id: null,
         video_duration_seconds: null,
-        note_image_urls: noteImageUrls,
+        note_image_urls: [],
       })
 
+      textSaved = true
       setResult(saved)
       loadPastLogs()
       try {
@@ -466,7 +454,45 @@ const StudentLearningLog = () => {
         )
       } catch { /* ignore */ }
 
-      // 3) Then Mux upload + attach (wake lock while uploading)
+      // 2) Drive note photos → attach URLs (log already saved)
+      const noteImageUrls = []
+      if (noteFiles.length > 0) {
+        setSubmitStage('photos')
+        for (let i = 0; i < noteFiles.length; i += 1) {
+          setUploadLabel(`Uploading note photo ${i + 1} of ${noteFiles.length}…`)
+          setUploadProgress(0)
+          const uploaded = await driveUploadService.upload(
+            noteFiles[i],
+            'document',
+            token,
+            setUploadProgress,
+          )
+          const urls = urlsFromDriveUpload(uploaded)
+          const link = urls.playbackUrl || urls.viewUrl
+          if (!link) {
+            throw new Error(
+              `Drive upload for note photo ${i + 1} returned no link. `
+              + 'Your log text is already saved.',
+            )
+          }
+          noteImageUrls.push(link)
+        }
+        try {
+          saved = await studentGrowthService.updateLearningLogNoteImages(
+            saved.id,
+            noteImageUrls,
+          )
+          setResult(saved)
+        } catch (photoAttachErr) {
+          // Photos uploaded but attach failed — text still safe
+          setError(
+            (photoAttachErr.message || 'Could not link note photos')
+            + ' — your learning log text is saved.',
+          )
+        }
+      }
+
+      // 3) Mux upload + attach (wake lock); Retry video if this fails
       if (recordSelfie && selfieFile) {
         try {
           const muxMeta = await attachMuxToLog(saved.id, selfieFile, token)
@@ -483,21 +509,23 @@ const StudentLearningLog = () => {
           setRecordSelfie(false)
           clearSelfie()
           loadPastLogs()
+          setSubmitStage('done')
         } catch (muxErr) {
+          setSubmitStage('video_failed')
+          setPendingMuxRetry({ logId: saved.id, file: selfieFile })
           if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
-            setPendingMuxRetry({ logId: saved.id, file: selfieFile })
-            setError(`${MUX_COMING_ONLINE}. Your log is saved — retry the video when Mux is ready.`)
+            setError(`${MUX_COMING_ONLINE}. Your log is saved — tap Retry video when Mux is ready.`)
           } else {
-            setPendingMuxRetry({ logId: saved.id, file: selfieFile })
             setError(
               (muxErr.message || 'Video upload interrupted')
-              + ' — your learning log is saved. Keep the app open and tap Retry video.',
+              + ' — your learning log text is saved. Keep the app open and tap Retry video.',
             )
           }
         }
       } else {
         setRecordSelfie(false)
         clearSelfie()
+        setSubmitStage('done')
       }
 
       setForm((prev) => ({
@@ -511,6 +539,7 @@ const StudentLearningLog = () => {
     } catch (err) {
       console.error('Failed to save learning log:', err)
       setError(err.message)
+      if (!textSaved) setSubmitStage('idle')
     } finally {
       setLoading(false)
       setUploadProgress(0)
@@ -529,21 +558,29 @@ const StudentLearningLog = () => {
         </p>
       </div>
 
+      {pendingMuxRetry && (
+        <div className="mb-4 sticky top-2 z-20 bg-blue-600/95 border border-blue-400/50
+          text-white text-sm px-4 py-3 rounded-xl shadow-lg backdrop-blur">
+          <p className="font-semibold">Your learning log text is saved.</p>
+          <p className="text-blue-100 text-xs mt-1">
+            Video still needs a retry — photos (if any) may already be attached.
+          </p>
+          <button
+            type="button"
+            onClick={retryPendingMux}
+            disabled={loading}
+            className="mt-3 w-full sm:w-auto px-4 py-2.5 rounded-lg bg-white text-blue-700
+              hover:bg-blue-50 disabled:opacity-50 text-sm font-bold"
+          >
+            {loading ? 'Retrying video…' : 'Retry video'}
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 bg-red-500/10 border border-red-500/30
           text-red-300 text-sm px-4 py-3 rounded-lg">
           {error}
-          {pendingMuxRetry && (
-            <button
-              type="button"
-              onClick={retryPendingMux}
-              disabled={loading}
-              className="mt-3 block w-full sm:w-auto px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500
-                disabled:opacity-50 text-white text-sm font-semibold"
-            >
-              {loading ? 'Retrying…' : 'Retry video upload'}
-            </button>
-          )}
         </div>
       )}
 
@@ -551,6 +588,50 @@ const StudentLearningLog = () => {
         <div className="mb-4 bg-amber-500/10 border border-amber-500/30
           text-amber-200 text-sm px-4 py-3 rounded-lg">
           {validation}
+        </div>
+      )}
+
+      {(loading || submitStage === 'video_failed' || submitStage === 'done') && submitStage !== 'idle' && (
+        <div className="mb-4 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+          <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">
+            Submit progress
+          </p>
+          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            {[
+              { id: 'saving_text', label: '1. Save text' },
+              { id: 'photos', label: '2. Drive photos' },
+              { id: 'video', label: '3. Mux video' },
+            ].map((step) => {
+              const order = ['saving_text', 'photos', 'video', 'done', 'video_failed']
+              const cur = order.indexOf(submitStage === 'video_failed' ? 'video' : submitStage)
+              const mine = order.indexOf(step.id)
+              const done = cur > mine || submitStage === 'done'
+                || (step.id === 'video' && submitStage === 'done')
+              const active = (submitStage === step.id)
+                || (step.id === 'video' && submitStage === 'video_failed')
+              const failed = step.id === 'video' && submitStage === 'video_failed'
+              return (
+                <li
+                  key={step.id}
+                  className={`rounded-lg px-3 py-2 border ${
+                    failed
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-100'
+                      : done
+                        ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                        : active
+                          ? 'border-blue-500/50 bg-blue-500/10 text-blue-100'
+                          : 'border-gray-800 text-gray-500'
+                  }`}
+                >
+                  {step.label}
+                  {failed ? ' · needs retry' : done ? ' · done' : active ? ' · in progress' : ''}
+                </li>
+              )
+            })}
+          </ol>
+          {uploadLabel && (
+            <p className="text-xs text-gray-400 mt-2">{uploadLabel}</p>
+          )}
         </div>
       )}
 
@@ -803,7 +884,7 @@ const StudentLearningLog = () => {
                 </div>
               )}
 
-              {loading && uploadProgress > 0 && (
+              {loading && (uploadProgress > 0 || uploadLabel) && (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-400">
@@ -829,7 +910,13 @@ const StudentLearningLog = () => {
             disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg
             transition-colors"
           >
-            {loading ? 'Saving learning log...' : 'Save learning log'}
+            {loading
+              ? (submitStage === 'photos'
+                ? 'Uploading photos…'
+                : submitStage === 'video'
+                  ? 'Uploading video…'
+                  : 'Saving learning log…')
+              : 'Save learning log'}
           </button>
         </form>
 

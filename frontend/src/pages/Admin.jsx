@@ -801,6 +801,18 @@ const Admin = () => {
       {/* ─── STUDENT PULSE ─── */}
       {tab === 'pulse' && (
         <>
+          <div className="mb-5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-indigo-300 font-semibold">
+              North-star (pilot)
+            </p>
+            <p className="text-sm text-indigo-50 mt-1">
+              % enrolled students with ≥4 Daily Logs / week AND same-IST-day completion of due revisions.
+            </p>
+            <p className="text-xs text-indigo-200/80 mt-2">
+              Live funnel metrics wire to <code className="text-indigo-100">product_events</code> next —
+              this board stays support-risk for now. See docs/P0_PRD_TRD.md.
+            </p>
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             {[
               { label: 'Shown', value: pulseStats.total, color: 'blue' },
