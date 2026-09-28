@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from modules.student_growth.ist_time import ist_day_bounds_utc
 from modules.student_growth.models import (
     LearningLog,
     RewardEvent,
@@ -20,9 +21,8 @@ class HabitService:
         self.db = db
 
     def get_student_habit_summary(self, student_id: int) -> dict:
-        today = datetime.utcnow().date()
-        today_start = datetime.combine(today, datetime.min.time())
-        tomorrow_start = today_start + timedelta(days=1)
+        # "Today" for habit cards = IST calendar day (north-star aligned).
+        today_start, tomorrow_start = ist_day_bounds_utc()
 
         daily_learning_logs_count = (
             self.db.query(LearningLog)

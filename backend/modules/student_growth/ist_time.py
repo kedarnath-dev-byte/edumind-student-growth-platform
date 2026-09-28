@@ -72,3 +72,23 @@ UtcDateTime = Annotated[
     datetime,
     PlainSerializer(utc_isoformat, return_type=str, when_used="json"),
 ]
+
+
+def is_future_due_ist(due_at: datetime, reference: datetime | None = None) -> bool:
+    """True when due_at's IST calendar day is after reference's IST day."""
+    return ist_calendar_date(due_at) > ist_calendar_date(reference)
+
+
+def days_late_ist(due_at: datetime, completed_at: datetime | None = None) -> int:
+    """Non-negative IST calendar days late (0 if same day or early)."""
+    completed = completed_at or datetime.utcnow()
+    delta = (ist_calendar_date(completed) - ist_calendar_date(due_at)).days
+    return max(delta, 0)
+
+
+def completed_on_due_date_ist(
+    due_at: datetime, completed_at: datetime | None = None
+) -> bool:
+    completed = completed_at or datetime.utcnow()
+    return ist_calendar_date(due_at) == ist_calendar_date(completed)
+

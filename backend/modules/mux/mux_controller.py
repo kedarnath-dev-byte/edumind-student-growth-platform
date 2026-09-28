@@ -102,22 +102,47 @@ async def attach_mux_media(
 @router.post("/webhooks")
 async def mux_webhooks(request: Request):
     """
-    Deferred webhook receiver.
+    Mux webhook receiver (readiness stub).
 
-    Wire Mux dashboard → POST /api/v1/mux/webhooks for video.asset.ready and
-    enforce duration there. Signature verification (MUX_WEBHOOK_SECRET) is not
-    enabled yet — this endpoint acknowledges payloads so trial wiring is safe.
+    Wire Mux dashboard → POST /api/v1/mux/webhooks for video.asset.ready.
+    Signature verification (MUX_WEBHOOK_SECRET) is not enforced yet — safe for
+    trial wiring. Duration policy still via GET /api/v1/mux/uploads/{id}.
+    Orphan GC remains a follow-up once asset inventory is durable.
     See docs/MUX_SHORTS_PIPELINE.md.
     """
+    payload = None
     try:
-        _ = await request.json()
+        payload = await request.json()
     except Exception:
-        _ = None
+        payload = None
+
+    event_type = None
+    asset_id = None
+    if isinstance(payload, dict):
+        event_type = payload.get("type") or payload.get("event")
+        data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
+        asset_id = data.get("id") or payload.get("id")
+        # Record readiness signal for funnel / future attach reconcile.
+        if event_type and "video.asset" in str(event_type):
+            try:
+                from modules.student_growth.product_events import record_product_event
+
+                record_product_event(
+                    "mux_webhook_received",
+                    entity_type="mux_asset",
+                    entity_id=asset_id,
+                    payload={"type": str(event_type)[:120]},
+                )
+            except Exception:
+                pass
+
     return {
         "ok": True,
-        "deferred": True,
+        "deferred": event_type not in ("video.asset.ready", "video.asset.created"),
+        "type": event_type,
+        "asset_id": asset_id,
         "message": (
-            "Mux webhooks acknowledged but processing is deferred. "
-            "Duration is enforced via GET /api/v1/mux/uploads/{id} for now."
+            "Mux webhook acknowledged. Full duration enforcement + orphan GC "
+            "remain poll-based until webhook secret verification is enabled."
         ),
     }

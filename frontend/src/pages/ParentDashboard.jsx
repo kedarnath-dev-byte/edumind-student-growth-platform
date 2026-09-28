@@ -3,16 +3,15 @@
  * @description Parent growth dashboard for emotionally safe learning signals.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../auth/AuthContext'
 import studentGrowthService from '../services/studentGrowthService'
 import { formatIstDateTime } from '../utils/istTime'
 
-const STUDENT_ID = 1
-const SCHOOL_ID = 1
-const CLASSROOM_ID = 1
-const SUBJECT_ID = 1
+/** Demo-only fallback when parent shell is opened without auth (local preview). */
+const DEMO_STUDENT_ID = 1
 
 const defaultSummary = {
-  student_id: STUDENT_ID,
+  student_id: DEMO_STUDENT_ID,
   message: 'Parent growth summary for your child.',
   learning_logs_count: 0,
   latest_learning_logs: [],
@@ -62,7 +61,7 @@ const normalizeSummary = (payload) => {
   return {
     ...defaultSummary,
     ...payload,
-    student_id: toNumber(payload.student_id || STUDENT_ID),
+    student_id: toNumber(payload.student_id || DEMO_STUDENT_ID),
     learning_logs_count: toNumber(payload.learning_logs_count),
     latest_learning_logs: toSafeArray(payload.latest_learning_logs),
     honest_confusion_count: toNumber(payload.honest_confusion_count),
@@ -114,23 +113,64 @@ const EmptyState = ({ children }) => (
 )
 
 const ParentDashboard = () => {
+  const { isAuthenticated, profile, profileLoading } = useAuth()
+  const linkedChildren = useMemo(() => {
+    const rows = Array.isArray(profile?.parent_children) ? profile.parent_children : []
+    return rows
+      .map((c) => ({
+        id: Number(c.id),
+        display_name: c.display_name || `Student ${c.id}`,
+        school_id: c.school_id != null ? Number(c.school_id) : null,
+        classroom_id: c.classroom_id != null ? Number(c.classroom_id) : null,
+      }))
+      .filter((c) => Number.isFinite(c.id) && c.id > 0)
+  }, [profile])
+
+  const [selectedChildId, setSelectedChildId] = useState(null)
   const [summary, setSummary] = useState(defaultSummary)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (profileLoading) return
+    if (linkedChildren.length > 0) {
+      setSelectedChildId((prev) => {
+        if (prev && linkedChildren.some((c) => c.id === prev)) return prev
+        return linkedChildren[0].id
+      })
+      return
+    }
+    // Authenticated parent with no links must not silently use demo id=1.
+    if (isAuthenticated) {
+      setSelectedChildId(null)
+      return
+    }
+    setSelectedChildId(DEMO_STUDENT_ID)
+  }, [profileLoading, linkedChildren, isAuthenticated])
+
+  useEffect(() => {
     const loadSummary = async () => {
+      if (profileLoading) return
+      if (selectedChildId == null) {
+        setLoading(false)
+        setSummary(defaultSummary)
+        if (isAuthenticated) {
+          setError('No linked children on this parent profile. Ask EduMind admin to link a student.')
+        }
+        return
+      }
+
       setLoading(true)
       setError('')
 
       try {
+        const child = linkedChildren.find((c) => c.id === selectedChildId)
+        const opts = {}
+        if (child?.school_id) opts.school_id = child.school_id
+        if (child?.classroom_id) opts.classroom_id = child.classroom_id
         const data = await studentGrowthService.getParentStudentSummary(
-          STUDENT_ID,
-          {
-            school_id: SCHOOL_ID,
-            classroom_id: CLASSROOM_ID,
-            subject_id: SUBJECT_ID,
-          }
+          selectedChildId,
+          opts,
         )
         setSummary(normalizeSummary(data))
       } catch (err) {
@@ -143,7 +183,7 @@ const ParentDashboard = () => {
     }
 
     loadSummary()
-  }, [])
+  }, [selectedChildId, linkedChildren, profileLoading, isAuthenticated])
 
   const latestLogs = useMemo(() => (
     toSafeArray(summary.latest_learning_logs)
@@ -171,6 +211,25 @@ const ParentDashboard = () => {
         <p className="text-gray-300 text-sm mt-4">
           {summary.message || 'Parent growth summary for your child.'}
         </p>
+        {linkedChildren.length > 1 && (
+          <label className="block mt-4 text-sm text-gray-400">
+            Child
+            <select
+              className="mt-1 w-full max-w-sm bg-gray-950 border border-gray-700 rounded-lg text-white px-3 py-2"
+              value={selectedChildId || ''}
+              onChange={(e) => setSelectedChildId(Number(e.target.value))}
+            >
+              {linkedChildren.map((c) => (
+                <option key={c.id} value={c.id}>{c.display_name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {linkedChildren.length === 1 && (
+          <p className="text-gray-400 text-xs mt-3">
+            Viewing {linkedChildren[0].display_name}
+          </p>
+        )}
       </section>
 
       {error && (

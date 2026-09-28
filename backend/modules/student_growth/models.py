@@ -418,3 +418,32 @@ class ProductEvent(Base):
     entity_id = Column(String, nullable=True)
     payload_json = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class NotificationOutbox(Base):
+    """Reliable WhatsApp delivery prep (Messenger outbox pattern).
+
+    Log create enqueues an intent row; a worker/cron drains it. Primary HTTP
+    never waits on provider I/O. Dry-run still records status=dry_run.
+    """
+
+    __tablename__ = "notification_outbox"
+
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_notification_outbox_idempotency"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String, index=True, nullable=False)  # revision_plan | morning_digest
+    student_id = Column(Integer, index=True, nullable=True)
+    learning_log_id = Column(Integer, index=True, nullable=True)
+    payload_json = Column(JSON, nullable=True, default=dict)
+    status = Column(
+        String, index=True, default="pending"
+    )  # pending | processing | sent | dry_run | failed | skipped
+    attempts = Column(Integer, default=0)
+    last_error = Column(String, nullable=True)
+    idempotency_key = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    processed_at = Column(DateTime, nullable=True)
+

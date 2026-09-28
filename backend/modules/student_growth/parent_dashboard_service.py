@@ -2,6 +2,8 @@
 
 from collections import defaultdict
 from datetime import datetime
+
+from modules.student_growth.ist_time import ist_calendar_date
 from typing import Optional
 
 from sqlalchemy import or_
@@ -108,7 +110,7 @@ class ParentDashboardService:
         learning_log_ids: list[int],
         filters_active: bool,
     ) -> dict:
-        today = datetime.utcnow().date()
+        today = ist_calendar_date()
         task_query = self.db.query(RevisionTask).filter(
             RevisionTask.student_id == student_id
         )
@@ -134,7 +136,7 @@ class ParentDashboardService:
         return {
             "pending_revisions_count": len(pending_tasks),
             "overdue_revisions_count": sum(
-                1 for task in pending_tasks if task.due_at.date() < today
+                1 for task in pending_tasks if ist_calendar_date(task.due_at) < today
             ),
             "completed_revisions_count": task_query.filter(
                 RevisionTask.status == "COMPLETED"

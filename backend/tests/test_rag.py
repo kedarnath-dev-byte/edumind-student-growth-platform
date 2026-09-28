@@ -6,8 +6,15 @@
 @author    EduMind AI Engineering
 """
 
-import pytest
+import os
 from unittest.mock import MagicMock, patch
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not (os.getenv("GROQ_API_KEY") or "").strip(),
+    reason="GROQ_API_KEY required for live RAG portfolio tests",
+)
 from modules.rag import NaiveRAG, HybridRAG, ContextualRAG, SelfQueryRAG, ParentDocumentRAG, EnsembleRAG, AdaptiveRAG, GraphRAG, MultiQueryRAG, StepBackRAG, RaptorRAG, CorrectiveRAG, SpeculativeRAG, FusionRAG, SentenceWindowRAG, ReRankRAG, RAGQuery, RAGResult
 
 class TestNaiveRAG:

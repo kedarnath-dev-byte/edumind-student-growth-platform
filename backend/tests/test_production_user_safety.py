@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.database import Base, get_db
 from main import app
+from auth_test_helpers import install_admin_auth_overrides
 
 
 @pytest.fixture(scope="function")
@@ -31,6 +32,7 @@ def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    install_admin_auth_overrides(app)
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
