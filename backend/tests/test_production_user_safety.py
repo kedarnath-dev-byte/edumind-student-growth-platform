@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from core.database import Base, get_db
 from main import app
-from tests.auth_test_helpers import install_admin_auth_overrides
+from auth_test_helpers import install_admin_auth_overrides
 
 
 @pytest.fixture(scope="function")
