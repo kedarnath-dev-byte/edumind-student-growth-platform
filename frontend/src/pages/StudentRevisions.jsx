@@ -3,9 +3,9 @@
  * @description Student revision dashboard for spaced memory practice.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useStudentId } from '../hooks/useStudentId'
 import studentGrowthService from '../services/studentGrowthService'
-
-const STUDENT_ID = 1
 
 const DIFFICULTY_OPTIONS = [
   { value: 'HARD', label: 'Still need support' },
@@ -346,6 +346,12 @@ const RewardSummary = ({ rewards }) => {
 }
 
 const StudentRevisions = () => {
+  const {
+    effectiveStudentId,
+    isLinked,
+    isAuthenticated,
+    profileLoading,
+  } = useStudentId()
   const [revisions, setRevisions] = useState([])
   const [rewards, setRewards] = useState([])
   const [proofDrafts, setProofDrafts] = useState({})
@@ -359,12 +365,13 @@ const StudentRevisions = () => {
   const grouped = useMemo(() => categorizeRevisions(revisions), [revisions])
   const hasAnyRevision = toSafeArray(revisions).length > 0
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (studentId) => {
     setError('')
+    setLoading(true)
     try {
       const [revisionData, rewardData] = await Promise.all([
-        studentGrowthService.getRevisionsForStudent(STUDENT_ID),
-        studentGrowthService.getRewardsForStudent(STUDENT_ID),
+        studentGrowthService.getRevisionsForStudent(studentId),
+        studentGrowthService.getRewardsForStudent(studentId),
       ])
       setRevisions(toSafeArray(revisionData))
       setRewards(toSafeArray(rewardData))
@@ -377,8 +384,20 @@ const StudentRevisions = () => {
   }
 
   useEffect(() => {
-    loadDashboard()
-  }, [])
+    if (profileLoading) return
+    if (isAuthenticated && !isLinked) {
+      setLoading(false)
+      setRevisions([])
+      setRewards([])
+      setError('Link your student profile to see your revision plan (we never show another student’s tasks).')
+      return
+    }
+    if (!effectiveStudentId) {
+      setLoading(false)
+      return
+    }
+    loadDashboard(effectiveStudentId)
+  }, [effectiveStudentId, isAuthenticated, isLinked, profileLoading])
 
   const openProof = (taskId) => {
     setActiveProofTaskId(taskId)
@@ -463,6 +482,16 @@ const StudentRevisions = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {isAuthenticated && !isLinked && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-100 text-sm px-4 py-3 rounded-lg">
+          Profile not linked.{' '}
+          <Link to="/profile-status" className="underline font-semibold text-amber-50">
+            Open Profile Status
+          </Link>{' '}
+          so your revision plan loads correctly.
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">
           Today's Revision Mission

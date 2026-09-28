@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { normalizeRole } from '../../auth/roleRoutes'
 import StudentBottomNav from './StudentBottomNav'
+import ApiWarmBanner from '../ApiWarmBanner'
 
 const NAV_ITEMS = [
   { path: '/student-dashboard', label: 'Student Dashboard', icon: 'SD', roles: ['STUDENT'] },
@@ -17,7 +18,7 @@ const NAV_ITEMS = [
   { path: '/parent-dashboard', label: 'Parent Dashboard', icon: 'PD', roles: ['PARENT'] },
   { path: '/profile-status', label: 'Profile Status', icon: 'PS' },
   { path: '/dashboard', label: 'Dashboard', icon: 'DB', roles: ['ADMIN'] },
-  { path: '/chat', label: 'AI Tutor', icon: 'AI' },
+  { path: '/chat', label: 'AI Tutor', icon: 'AI', roles: ['ADMIN', 'TEACHER'] },
   { path: '/upload', label: 'Upload Docs', icon: 'UP', roles: ['ADMIN', 'TEACHER'] },
   { path: '/finetuning', label: 'Fine-Tuning', icon: 'FT', roles: ['ADMIN'] },
   { path: '/admin', label: 'Admin Control', icon: 'AD', roles: ['ADMIN'] },
@@ -194,6 +195,7 @@ const Layout = () => {
           className={`flex-1 overflow-auto bg-gray-950
             ${isStudentShell ? 'p-4 sm:p-6 pb-28' : 'p-6'}`}
         >
+          {isStudentShell && <ApiWarmBanner />}
           <Outlet />
         </main>
 
