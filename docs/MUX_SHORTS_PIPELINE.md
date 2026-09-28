@@ -58,3 +58,20 @@ See `supabase/migrations/20260922_mux_shorts_fields.sql`:
 - `ShortsPlayer.jsx` — vertical snap feed, autoplay muted, tap unmute (hls.js CDN when needed)
 - `MediaCapture.jsx` — max 180s, ~30s hint
 - Learning Log + Subject Feed — video → Mux; photos unchanged for now
+
+## Android / Capacitor reel playback
+
+- **Inline feed cards** use `MuxInlineVideo` + shared `muxHls.js` (hls.js CDN) — same pattern as `ShortsPlayer`.
+- Pass `mux_playback_id` into `InlineMedia` (`muxPlaybackId` prop). Do **not** set Drive `viewUrl` for Mux HLS.
+- Drive “Open in Drive” footer appears **only** when `extractDriveFileId(url)` is truthy.
+
+## Upload survival (Learning Log)
+
+Order on submit:
+
+1. Upload Drive note photos (unchanged).
+2. **Create learning log** (text + notes) with empty Mux fields.
+3. Upload selfie to Mux under `navigator.wakeLock`, then `POST /api/v1/mux/attach`.
+4. If Mux fails / phone sleeps mid-upload, the log row still exists; UI offers **Retry video upload**.
+
+Subject Worlds video posts follow the same create-then-attach pattern.

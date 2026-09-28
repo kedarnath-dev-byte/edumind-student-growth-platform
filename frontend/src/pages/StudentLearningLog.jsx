@@ -15,6 +15,7 @@ import muxUploadService, { COMING_ONLINE as MUX_COMING_ONLINE } from '../service
 import ShortsPlayer from '../components/ShortsPlayer'
 import studentGrowthService from '../services/studentGrowthService'
 import { urlsFromDriveUpload } from '../utils/driveMediaHelpers'
+import { withWakeLock } from '../utils/wakeLock'
 
 const DEMO_STUDENT_ID = 1
 const LAST_SUBJECT_KEY = 'edumind_last_subject_topic'
@@ -76,6 +77,8 @@ const StudentLearningLog = () => {
   const [noteFiles, setNoteFiles] = useState([])
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadLabel, setUploadLabel] = useState('')
+  /** When Mux fails after log is saved: keep file + log id for retry. */
+  const [pendingMuxRetry, setPendingMuxRetry] = useState(null)
   const [pastLogs, setPastLogs] = useState([])
   const [pastLogsLoading, setPastLogsLoading] = useState(false)
   const [pastLogsError, setPastLogsError] = useState('')
@@ -102,7 +105,7 @@ const StudentLearningLog = () => {
       let last = {}
       try {
         last = JSON.parse(localStorage.getItem(LAST_SUBJECT_KEY) || '{}') || {}
-      } catch (_) {
+      } catch {
         last = {}
       }
       setForm((prev) => ({
@@ -204,7 +207,7 @@ const StudentLearningLog = () => {
             for (const t of topicsForSubject || []) {
               topicMap[t.id] = t.name
             }
-          } catch (_) { /* non-blocking */ }
+          } catch { /* non-blocking */ }
         }),
       )
       setTopicLabelById(topicMap)
@@ -282,6 +285,66 @@ const StudentLearningLog = () => {
     setNoteFiles([])
   }
 
+  const attachMuxToLog = async (logId, file, token) => {
+    setUploadLabel('Uploading explanation Short to Mux…')
+    setUploadProgress(0)
+    const muxMeta = await withWakeLock(async () => (
+      muxUploadService.uploadSelfieVideo(file, token, {
+        purpose: 'learning_log',
+        onProgress: setUploadProgress,
+        onStatus: setUploadLabel,
+      })
+    ))
+    if (!muxMeta?.playback_id && !muxMeta?.playback_url) {
+      throw new Error('Mux upload finished but no playback URL was returned.')
+    }
+    setUploadLabel('Attaching video to your log…')
+    await muxUploadService.attach(token, {
+      target: 'learning_log',
+      learning_log_id: logId,
+      upload_id: muxMeta.upload_id || null,
+      asset_id: muxMeta.asset_id || null,
+      playback_id: muxMeta.playback_id || null,
+      duration_seconds: muxMeta.duration_seconds || null,
+    })
+    return muxMeta
+  }
+
+  const retryPendingMux = async () => {
+    if (!pendingMuxRetry?.logId || !pendingMuxRetry?.file) return
+    setLoading(true)
+    setError('')
+    setUploadLabel('Retrying video upload…')
+    try {
+      const token = getAccessToken?.() || localStorage.getItem('edumind_token')
+      if (!token) throw new Error('Please log in to upload your explanation video.')
+      if (muxConfigured === false) throw new Error(MUX_COMING_ONLINE)
+      const muxMeta = await attachMuxToLog(pendingMuxRetry.logId, pendingMuxRetry.file, token)
+      setResult((prev) => (prev ? {
+        ...prev,
+        explanation_video_url: muxMeta.playback_url,
+        mux_playback_id: muxMeta.playback_id,
+        mux_asset_id: muxMeta.asset_id,
+        mux_upload_id: muxMeta.upload_id,
+        video_duration_seconds: muxMeta.duration_seconds,
+      } : prev))
+      setPendingMuxRetry(null)
+      setRecordSelfie(false)
+      clearSelfie()
+      loadPastLogs()
+      setUploadLabel('')
+    } catch (muxErr) {
+      if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
+        setError(MUX_COMING_ONLINE)
+      } else {
+        setError(muxErr.message || 'Video upload failed — your log is saved. Tap Retry.')
+      }
+    } finally {
+      setLoading(false)
+      setUploadProgress(0)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
@@ -300,6 +363,7 @@ const StudentLearningLog = () => {
     setValidation('')
     setUploadProgress(0)
     setUploadLabel('')
+    setPendingMuxRetry(null)
 
     try {
       const token = getAccessToken?.() || localStorage.getItem('edumind_token')
@@ -308,31 +372,11 @@ const StudentLearningLog = () => {
         throw new Error('Please log in to upload photos or your explanation video.')
       }
 
-      let explanationVideoUrl = null
-      let muxMeta = null
-      if (recordSelfie && selfieFile) {
-        if (muxConfigured === false) {
-          throw new Error(MUX_COMING_ONLINE)
-        }
-        setUploadLabel('Uploading explanation Short to Mux…')
-        try {
-          muxMeta = await muxUploadService.uploadSelfieVideo(selfieFile, token, {
-            purpose: 'learning_log',
-            onProgress: setUploadProgress,
-            onStatus: setUploadLabel,
-          })
-        } catch (muxErr) {
-          if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
-            throw new Error(MUX_COMING_ONLINE)
-          }
-          throw muxErr
-        }
-        explanationVideoUrl = muxMeta.playback_url
-        if (!explanationVideoUrl) {
-          throw new Error('Mux upload finished but no playback URL was returned.')
-        }
+      if (recordSelfie && selfieFile && muxConfigured === false) {
+        throw new Error(MUX_COMING_ONLINE)
       }
 
+      // 1) Drive note photos (unchanged OAuth path)
       const noteImageUrls = []
       if (noteFiles.length > 0) {
         for (let i = 0; i < noteFiles.length; i += 1) {
@@ -353,7 +397,10 @@ const StudentLearningLog = () => {
         }
       }
 
-      const saved = await studentGrowthService.createLearningLog({
+      // 2) Persist learning log FIRST so sleep/background during Mux cannot lose the row
+      setUploadLabel('Saving learning log…')
+      setUploadProgress(0)
+      let saved = await studentGrowthService.createLearningLog({
         student_id: studentId,
         school_id: Number(form.school_id),
         classroom_id: Number(form.classroom_id),
@@ -363,11 +410,11 @@ const StudentLearningLog = () => {
         understood: form.understood.trim(),
         not_understood: form.not_understood.trim(),
         confidence_level: form.confidence_level,
-        explanation_video_url: explanationVideoUrl,
-        mux_asset_id: muxMeta?.asset_id || null,
-        mux_playback_id: muxMeta?.playback_id || null,
-        mux_upload_id: muxMeta?.upload_id || null,
-        video_duration_seconds: muxMeta?.duration_seconds || null,
+        explanation_video_url: null,
+        mux_asset_id: null,
+        mux_playback_id: null,
+        mux_upload_id: null,
+        video_duration_seconds: null,
         note_image_urls: noteImageUrls,
       })
 
@@ -381,7 +428,42 @@ const StudentLearningLog = () => {
             topic_id: form.topic_id,
           }),
         )
-      } catch (_) { /* ignore */ }
+      } catch { /* ignore */ }
+
+      // 3) Then Mux upload + attach (wake lock while uploading)
+      if (recordSelfie && selfieFile) {
+        try {
+          const muxMeta = await attachMuxToLog(saved.id, selfieFile, token)
+          saved = {
+            ...saved,
+            explanation_video_url: muxMeta.playback_url,
+            mux_playback_id: muxMeta.playback_id,
+            mux_asset_id: muxMeta.asset_id,
+            mux_upload_id: muxMeta.upload_id,
+            video_duration_seconds: muxMeta.duration_seconds,
+          }
+          setResult(saved)
+          setPendingMuxRetry(null)
+          setRecordSelfie(false)
+          clearSelfie()
+          loadPastLogs()
+        } catch (muxErr) {
+          if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
+            setPendingMuxRetry({ logId: saved.id, file: selfieFile })
+            setError(`${MUX_COMING_ONLINE}. Your log is saved — retry the video when Mux is ready.`)
+          } else {
+            setPendingMuxRetry({ logId: saved.id, file: selfieFile })
+            setError(
+              (muxErr.message || 'Video upload interrupted')
+              + ' — your learning log is saved. Keep the app open and tap Retry video.',
+            )
+          }
+        }
+      } else {
+        setRecordSelfie(false)
+        clearSelfie()
+      }
+
       setForm((prev) => ({
         ...initialForm,
         school_id: prev.school_id,
@@ -389,8 +471,6 @@ const StudentLearningLog = () => {
         subject_id: prev.subject_id,
         topic_id: prev.topic_id,
       }))
-      setRecordSelfie(false)
-      clearSelfie()
       clearNotePhotos()
     } catch (err) {
       console.error('Failed to save learning log:', err)
@@ -417,6 +497,17 @@ const StudentLearningLog = () => {
         <div className="mb-4 bg-red-500/10 border border-red-500/30
           text-red-300 text-sm px-4 py-3 rounded-lg">
           {error}
+          {pendingMuxRetry && (
+            <button
+              type="button"
+              onClick={retryPendingMux}
+              disabled={loading}
+              className="mt-3 block w-full sm:w-auto px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500
+                disabled:opacity-50 text-white text-sm font-semibold"
+            >
+              {loading ? 'Retrying…' : 'Retry video upload'}
+            </button>
+          )}
         </div>
       )}
 
@@ -702,14 +793,14 @@ const StudentLearningLog = () => {
                 Your revision plan has been created.
               </p>
 
-              {result.explanation_video_url && (
+              {(result.mux_playback_id || result.explanation_video_url) && (
                 <div className="mt-4 rounded-xl overflow-hidden border border-gray-800">
                   <p className="text-white text-sm font-semibold px-3 py-2 bg-gray-950">
                     Your explanation video
                   </p>
                   <InlineMedia
+                    muxPlaybackId={result.mux_playback_id}
                     src={result.explanation_video_url}
-                    viewUrl={result.explanation_video_url}
                     mediaType="video"
                   />
                 </div>
@@ -865,12 +956,12 @@ const StudentLearningLog = () => {
                 </div>
               )}
 
-              {log.explanation_video_url && (
+              {(log.mux_playback_id || log.explanation_video_url) && (
                 <div className="mt-3 rounded-xl overflow-hidden border border-gray-800">
                   <p className="text-xs text-gray-400 px-3 py-2 bg-gray-900">Explanation video</p>
                   <InlineMedia
+                    muxPlaybackId={log.mux_playback_id}
                     src={log.explanation_video_url}
-                    viewUrl={log.explanation_video_url}
                     mediaType="video"
                   />
                 </div>

@@ -16,6 +16,7 @@ import {
   mediaTypeFromUrl,
   urlsFromDriveUpload,
 } from '../utils/driveMediaHelpers'
+import { withWakeLock } from '../utils/wakeLock'
 
 
 function relativeTime(value) {
@@ -156,66 +157,122 @@ const SubjectFeed = () => {
       let finalMediaUrl = null
       let finalMediaType = 'text'
       let driveUploadId = null
-      let viewUrl = null
 
-      let muxMeta = null
-      if (mediaFile) {
-        const token = getAccessToken() || localStorage.getItem('edumind_token')
+      const token = getAccessToken() || localStorage.getItem('edumind_token')
+      const isVideoFile = mediaFile && (
+        (mediaMeta?.mediaType === 'video')
+        || String(mediaFile.type || '').startsWith('video/')
+      )
+
+      if (mediaFile && isVideoFile) {
         if (!token) throw new Error('Please log in to upload media.')
-        finalMediaType = mediaMeta?.mediaType || (String(mediaFile.type || '').startsWith('video/') ? 'video' : 'image')
-        if (finalMediaType === 'video') {
-          if (muxConfigured === false) throw new Error(MUX_COMING_ONLINE)
-          setInfo('Uploading Short to Mux…')
-          try {
-            muxMeta = await muxUploadService.uploadSelfieVideo(mediaFile, token, {
+        if (muxConfigured === false) throw new Error(MUX_COMING_ONLINE)
+
+        // Persist caption/post first, then Mux attach — survive sleep mid-upload
+        setInfo('Saving post…')
+        const created = await api.post(
+          '/api/v1/subject-social/posts',
+          {
+            subject_id: Number(subjectId),
+            caption: caption.trim() || null,
+            media_url: null,
+            media_type: 'text',
+          },
+          { headers: authHeaders(), timeout: 90000 },
+        )
+        const postId = created.data?.id
+        if (!postId) throw new Error('Post saved but no id returned.')
+
+        setInfo('Uploading Short to Mux…')
+        try {
+          const muxMeta = await withWakeLock(async () => (
+            muxUploadService.uploadSelfieVideo(mediaFile, token, {
               purpose: 'subject_post',
               onProgress: setUploadProgress,
               onStatus: (m) => setInfo(m),
             })
-          } catch (muxErr) {
-            if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
-              throw new Error(MUX_COMING_ONLINE)
-            }
-            throw muxErr
+          ))
+          if (!muxMeta?.playback_id && !muxMeta?.playback_url) {
+            throw new Error('Mux upload finished but no playback URL was returned.')
           }
-          finalMediaUrl = muxMeta.playback_url
-          if (!finalMediaUrl) throw new Error('Mux upload finished but no playback URL was returned.')
-        } else {
-          // Photos: keep temporary Drive path (Cloudflare Images later)
-          const uploaded = await driveUploadService.upload(
-            mediaFile,
-            'proof',
-            token,
-            setUploadProgress,
-          )
-          const urls = urlsFromDriveUpload(uploaded)
-          finalMediaUrl = urls.playbackUrl || urls.viewUrl
-          viewUrl = urls.viewUrl
-          driveUploadId = uploaded.id || null
-          if (!finalMediaUrl) {
-            throw new Error('Photo upload succeeded but no media link was returned.')
+          setInfo('Attaching video…')
+          await muxUploadService.attach(token, {
+            target: 'subject_post',
+            subject_post_id: postId,
+            upload_id: muxMeta.upload_id || null,
+            asset_id: muxMeta.asset_id || null,
+            playback_id: muxMeta.playback_id || null,
+            duration_seconds: muxMeta.duration_seconds || null,
+          })
+        } catch (muxErr) {
+          if (muxErr.code === 'MUX_UNAVAILABLE' || /coming online/i.test(muxErr.message || '')) {
+            setError(`${MUX_COMING_ONLINE}. Your text post is saved — re-post video later.`)
+          } else {
+            setError(
+              (muxErr.message || 'Video upload interrupted')
+              + ' — your text post is saved. Open the feed and try again with a new Short.',
+            )
           }
+          setCaption('')
+          setMediaUrl('')
+          clearMedia()
+          setAdvancedOpen(false)
+          await loadFeed(subjectId)
+          return
         }
+      } else if (mediaFile) {
+        if (!token) throw new Error('Please log in to upload media.')
+        finalMediaType = mediaMeta?.mediaType || 'image'
+        // Photos: keep temporary Drive path (Cloudflare Images later)
+        const uploaded = await driveUploadService.upload(
+          mediaFile,
+          'proof',
+          token,
+          setUploadProgress,
+        )
+        const urls = urlsFromDriveUpload(uploaded)
+        finalMediaUrl = urls.playbackUrl || urls.viewUrl
+        driveUploadId = uploaded.id || null
+        if (!finalMediaUrl) {
+          throw new Error('Photo upload succeeded but no media link was returned.')
+        }
+        await api.post(
+          '/api/v1/subject-social/posts',
+          {
+            subject_id: Number(subjectId),
+            caption: caption.trim() || null,
+            media_url: finalMediaUrl,
+            media_type: finalMediaUrl ? finalMediaType : 'text',
+            drive_upload_id: driveUploadId,
+          },
+          { headers: authHeaders(), timeout: 90000 },
+        )
       } else if (mediaUrl.trim()) {
         finalMediaUrl = mediaUrl.trim()
         finalMediaType = mediaType || mediaTypeFromUrl(finalMediaUrl) || 'image'
+        await api.post(
+          '/api/v1/subject-social/posts',
+          {
+            subject_id: Number(subjectId),
+            caption: caption.trim() || null,
+            media_url: finalMediaUrl,
+            media_type: finalMediaUrl ? finalMediaType : 'text',
+          },
+          { headers: authHeaders(), timeout: 90000 },
+        )
+      } else {
+        await api.post(
+          '/api/v1/subject-social/posts',
+          {
+            subject_id: Number(subjectId),
+            caption: caption.trim() || null,
+            media_url: null,
+            media_type: 'text',
+          },
+          { headers: authHeaders(), timeout: 90000 },
+        )
       }
 
-      await api.post(
-        '/api/v1/subject-social/posts',
-        {
-          subject_id: Number(subjectId),
-          caption: caption.trim() || null,
-          media_url: finalMediaUrl,
-          media_type: finalMediaUrl ? finalMediaType : 'text',
-          drive_upload_id: driveUploadId,
-          mux_asset_id: muxMeta?.asset_id || null,
-          mux_playback_id: muxMeta?.playback_id || null,
-          mux_upload_id: muxMeta?.upload_id || null,
-          video_duration_seconds: muxMeta?.duration_seconds || null,
-        },
-        { headers: authHeaders(), timeout: 90000 },
-      )
       setCaption('')
       setMediaUrl('')
       clearMedia()
@@ -313,20 +370,26 @@ const SubjectFeed = () => {
   }
 
   const renderPostMedia = (post) => {
-    const muxSrc = post.mux_playback_id
+    const hasMux = !!post.mux_playback_id
+    const src = hasMux
       ? `https://stream.mux.com/${post.mux_playback_id}.m3u8`
-      : null
-    const src = muxSrc || post.media_url
-    if (!src || post.media_type === 'text') return null
-    const driveId = extractDriveFileId(post.media_url || '')
+      : post.media_url
+    if ((!src && !hasMux) || (post.media_type === 'text' && !hasMux && !src)) return null
+    if (post.media_type === 'text' && !hasMux && !post.media_url) return null
+    const driveId = hasMux ? null : extractDriveFileId(post.media_url || '')
     const viewUrl = driveId
       ? `https://drive.google.com/file/d/${driveId}/view`
-      : post.media_url
+      : (hasMux ? undefined : post.media_url)
+    const kind = hasMux
+      ? 'video'
+      : (post.media_type || mediaTypeFromUrl(src) || 'image')
+    if (kind === 'text' && !hasMux) return null
     return (
       <InlineMedia
+        muxPlaybackId={post.mux_playback_id || undefined}
         src={src}
-        viewUrl={viewUrl || src}
-        mediaType={post.media_type || (muxSrc ? 'video' : 'image')}
+        viewUrl={viewUrl}
+        mediaType={kind}
       />
     )
   }

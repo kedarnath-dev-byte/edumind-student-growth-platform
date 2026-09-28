@@ -4,27 +4,11 @@
  * Autoplay muted; tap to unmute. Prefers Mux HLS (stream.mux.com/{id}.m3u8).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-const loadHls = (() => {
-  let promise = null
-  return () => {
-    if (window.Hls) return Promise.resolve(window.Hls)
-    if (promise) return promise
-    promise = new Promise((resolve, reject) => {
-      const s = document.createElement('script')
-      s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js'
-      s.async = true
-      s.onload = () => resolve(window.Hls)
-      s.onerror = () => reject(new Error('Failed to load HLS'))
-      document.head.appendChild(s)
-    })
-    return promise
-  }
-})()
+import { attachMediaSource, resolveMuxSrc } from '../utils/muxHls'
 
 function resolvePlaybackSrc(item) {
   if (item?.mux_playback_id) {
-    return `https://stream.mux.com/${item.mux_playback_id}.m3u8`
+    return resolveMuxSrc(item.mux_playback_id)
   }
   if (item?.playback_url) return item.playback_url
   if (item?.media_url) return item.media_url
@@ -35,51 +19,20 @@ function resolvePlaybackSrc(item) {
 
 const ShortSlide = ({ item, active, muted, onToggleMute }) => {
   const videoRef = useRef(null)
-  const hlsRef = useRef(null)
   const src = resolvePlaybackSrc(item)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    setFailed(false)
     const video = videoRef.current
     if (!video || !src) return undefined
-
     let cancelled = false
-
-    const setup = async () => {
-      try {
-        if (hlsRef.current) {
-          hlsRef.current.destroy()
-          hlsRef.current = null
-        }
-        const isHls = /\.m3u8(\?|$)/i.test(src)
-        if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = src
-        } else if (isHls) {
-          const Hls = await loadHls()
-          if (cancelled || !Hls?.isSupported()) {
-            video.src = src
-            return
-          }
-          const hls = new Hls({ enableWorker: true, lowLatencyMode: true })
-          hlsRef.current = hls
-          hls.loadSource(src)
-          hls.attachMedia(video)
-        } else {
-          video.src = src
-        }
-      } catch (_) {
-        if (!cancelled) setFailed(true)
-      }
-    }
-
-    setup()
+    const cleanup = attachMediaSource(video, src)
+    queueMicrotask(() => {
+      if (!cancelled) setFailed(false)
+    })
     return () => {
       cancelled = true
-      if (hlsRef.current) {
-        hlsRef.current.destroy()
-        hlsRef.current = null
-      }
+      cleanup()
     }
   }, [src])
 
@@ -92,7 +45,7 @@ const ShortSlide = ({ item, active, muted, onToggleMute }) => {
       if (play?.catch) play.catch(() => {})
     } else {
       video.pause()
-      try { video.currentTime = 0 } catch (_) { /* ignore */ }
+      try { video.currentTime = 0 } catch { /* ignore */ }
     }
   }, [active, muted])
 
@@ -205,4 +158,3 @@ const ShortsPlayer = ({ items = [], onClose, startIndex = 0 }) => {
 }
 
 export default ShortsPlayer
-export { resolvePlaybackSrc }
