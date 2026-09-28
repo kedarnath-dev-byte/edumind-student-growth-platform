@@ -1,6 +1,6 @@
 """Schemas for parent dashboard summaries."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -13,9 +13,7 @@ class ParentLearningLogSummary(BaseModel):
     understood: str
     not_understood: Optional[str] = None
     confidence_level: str
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class ParentRevisionSummary(BaseModel):
     pending_revisions_count: int
     overdue_revisions_count: int

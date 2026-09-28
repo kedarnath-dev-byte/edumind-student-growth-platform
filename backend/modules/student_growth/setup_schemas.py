@@ -1,6 +1,6 @@
 """Schemas for school setup dropdown data."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,7 +17,7 @@ class SchoolResponse(BaseModel):
     id: int
     name: str
     city: Optional[str] = None
-    created_at: Optional[datetime] = None
+    created_at: Optional[UtcDateTime] = None
 
 
 class ClassroomCreate(BaseModel):
@@ -37,7 +37,7 @@ class ClassroomResponse(BaseModel):
     grade: Optional[str] = None
     section: Optional[str] = None
     academic_year: Optional[str] = None
-    created_at: Optional[datetime] = None
+    created_at: Optional[UtcDateTime] = None
 
 
 class SubjectCreate(BaseModel):
@@ -51,7 +51,7 @@ class SubjectResponse(BaseModel):
     id: int
     school_id: Optional[int] = None
     name: str
-    created_at: Optional[datetime] = None
+    created_at: Optional[UtcDateTime] = None
 
 
 class TopicCreate(BaseModel):
@@ -65,4 +65,4 @@ class TopicResponse(BaseModel):
     id: int
     subject_id: Optional[int] = None
     name: str
-    created_at: Optional[datetime] = None
+    created_at: Optional[UtcDateTime] = None

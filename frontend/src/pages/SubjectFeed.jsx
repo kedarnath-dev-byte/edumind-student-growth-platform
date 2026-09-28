@@ -18,18 +18,11 @@ import {
 } from '../utils/driveMediaHelpers'
 import { preferMuxShorts, hasMuxPlayback } from '../utils/muxHls'
 import { withWakeLock } from '../utils/wakeLock'
+import { formatIstRelative } from '../utils/istTime'
 
 
 function relativeTime(value) {
-  if (!value) return ''
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return ''
-  const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000))
-  if (sec < 60) return 'just now'
-  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
-  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`
-  return d.toLocaleDateString()
+  return formatIstRelative(value)
 }
 
 function initials(name) {

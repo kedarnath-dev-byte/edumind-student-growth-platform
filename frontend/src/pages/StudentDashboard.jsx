@@ -8,6 +8,7 @@ import StudentDiscoverTip from '../components/StudentDiscoverTip'
 import { useEffect, useMemo, useState } from 'react'
 import { useStudentId } from '../hooks/useStudentId'
 import studentGrowthService from '../services/studentGrowthService'
+import { istDateKey, formatIstDate } from '../utils/istTime'
 
 const TOPIC_ID = 1
 
@@ -79,41 +80,11 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-const startOfDay = (date) => {
-  const next = new Date(date)
-  next.setHours(0, 0, 0, 0)
-  return next
-}
-
-const toLocalDateKey = (date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-const getDueDateKey = (value) => {
-  if (typeof value === 'string') {
-    const dateOnly = value.match(/^(\d{4}-\d{2}-\d{2})/)
-    if (dateOnly) return dateOnly[1]
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  return toLocalDateKey(parsed)
-}
+const getDueDateKey = (value) => istDateKey(value)
 
 const formatDateKey = (dateKey) => {
   if (!dateKey) return ''
-
-  const [year, month, day] = dateKey.split('-').map(Number)
-  if (!year || !month || !day) return dateKey
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(year, month - 1, day))
+  return formatIstDate(`${dateKey}T00:00:00+05:30`, dateKey)
 }
 
 const normalizeHabitSummary = (payload) => {
@@ -152,7 +123,7 @@ const getHabitStatusMessage = (status) => {
 }
 
 const categorizeRevisions = (tasks) => {
-  const todayKey = toLocalDateKey(startOfDay(new Date()))
+  const todayKey = istDateKey(new Date())
 
   return toSafeArray(tasks).reduce((counts, task) => {
     if (task.status === 'COMPLETED') {

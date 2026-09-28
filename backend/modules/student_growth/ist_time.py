@@ -1,14 +1,19 @@
-"""Asia/Kolkata (IST) calendar helpers for revision WhatsApp digests.
+"""Asia/Kolkata (IST) calendar helpers + UTC JSON datetime serialization.
 
 Prefer these for morning-job day bounds. Habit summaries still use UTC date
 bounds unless separately migrated — keep that stable.
+
+API response schemas should use ``UtcDateTime`` so naive UTC columns
+serialize with a ``Z`` suffix (JS otherwise treats them as local time).
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Tuple
+from typing import Annotated, Optional, Tuple
 from zoneinfo import ZoneInfo
+
+from pydantic import PlainSerializer
 
 IST = ZoneInfo("Asia/Kolkata")
 UTC = timezone.utc
@@ -50,3 +55,20 @@ def ist_day_bounds_utc(
     start_utc = start_ist.astimezone(UTC).replace(tzinfo=None)
     end_utc = end_ist.astimezone(UTC).replace(tzinfo=None)
     return start_utc, end_utc
+
+
+def utc_isoformat(value: Optional[datetime]) -> Optional[str]:
+    """Serialize DB naive-UTC (or aware) datetimes as ISO-8601 with Z."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    else:
+        value = value.astimezone(UTC)
+    return value.isoformat().replace("+00:00", "Z")
+
+
+UtcDateTime = Annotated[
+    datetime,
+    PlainSerializer(utc_isoformat, return_type=str, when_used="json"),
+]

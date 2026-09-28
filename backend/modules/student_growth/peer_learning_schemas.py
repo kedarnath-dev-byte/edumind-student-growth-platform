@@ -1,6 +1,6 @@
 """Schemas for the Peer Learning Circle APIs."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -28,8 +28,8 @@ class PeerHelpRequestResponse(BaseModel):
     learning_log_id: Optional[int] = None
     message: str
     status: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class PeerHelpOfferCreate(BaseModel):
@@ -52,8 +52,8 @@ class PeerHelpOfferResponse(BaseModel):
     topic_id: int
     message: str
     status: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class AcceptHelpRequestRequest(BaseModel):
@@ -81,8 +81,8 @@ class PeerHelpSessionResponse(BaseModel):
     status: str
     requester_feedback: Optional[str] = None
     helper_reflection: Optional[str] = None
-    created_at: datetime
-    completed_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    completed_at: Optional[UtcDateTime] = None
 
 
 class TopicSupportCircleResponse(BaseModel):

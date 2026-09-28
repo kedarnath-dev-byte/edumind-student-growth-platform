@@ -21,6 +21,7 @@ import studentGrowthService from '../services/studentGrowthService'
 import { urlsFromDriveUpload, extractDriveFileId } from '../utils/driveMediaHelpers'
 import { preferMuxShorts, hasMuxPlayback } from '../utils/muxHls'
 import { withWakeLock } from '../utils/wakeLock'
+import { formatIstDateTime } from '../utils/istTime'
 
 const LAST_SUBJECT_KEY = 'edumind_last_subject_topic'
 
@@ -45,16 +46,7 @@ const EmptyHint = ({ children }) => (
   <p className="text-xs text-amber-300 mt-2">{children}</p>
 )
 
-const formatDueDate = (value) => {
-  if (!value) return 'Not scheduled yet'
-  return new Date(value).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDueDate = (value) => formatIstDateTime(value, 'Not scheduled yet')
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
@@ -248,13 +240,7 @@ const StudentLearningLog = () => {
     return match?.name || `Topic #${topicId}`
   }
 
-  const formatLogDate = (value) => {
-    if (!value) return 'Unknown date'
-    return new Date(value).toLocaleString([], {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  }
+  const formatLogDate = (value) => formatIstDateTime(value, 'Unknown date')
 
 
   const muxShortsItems = useMemo(

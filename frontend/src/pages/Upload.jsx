@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import uploadService from '../services/uploadService'
+import { formatIstDateTime } from '../utils/istTime'
 
 // ─── Document Card ────────────────────────────────────────────────────────────
 const DocumentCard = ({ doc, onDelete }) => (
@@ -21,7 +22,7 @@ const DocumentCard = ({ doc, onDelete }) => (
       <div>
         <p className="text-white text-sm font-medium">{doc.filename}</p>
         <p className="text-gray-400 text-xs mt-0.5">
-          {doc.chunk_count || 0} chunks · {doc.created_at || 'Just now'}
+          {doc.chunk_count || 0} chunks · {doc.created_at ? formatIstDateTime(doc.created_at) : 'Just now'}
         </p>
       </div>
     </div>
