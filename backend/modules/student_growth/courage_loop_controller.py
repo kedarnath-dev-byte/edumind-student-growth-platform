@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from core.auth import require_admin_user
+from core.auth import assert_can_access_student, get_resolved_edumind_profile, require_admin_user
 from core.database import get_db
 from modules.student_growth.courage_loop_schemas import (
     CourageLoopAdvanceRequest,
@@ -26,7 +26,9 @@ router = APIRouter(prefix="/api/v1/courage-loops", tags=["Courage Loop"])
 async def create_courage_loop(
     payload: CourageLoopCreate,
     db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
 ):
+    assert_can_access_student(profile, payload.student_id)
     try:
         return CourageLoopService(db).create(payload)
     except CourageLoopRuleError as exc:
@@ -37,7 +39,9 @@ async def create_courage_loop(
 async def list_my_courage_loops(
     student_id: int = Query(...),
     db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
 ):
+    assert_can_access_student(profile, student_id)
     return CourageLoopService(db).list_mine(student_id)
 
 
@@ -47,7 +51,9 @@ async def advance_courage_loop(
     payload: CourageLoopAdvanceRequest,
     student_id: int = Query(...),
     db: Session = Depends(get_db),
+    profile: dict = Depends(get_resolved_edumind_profile),
 ):
+    assert_can_access_student(profile, student_id)
     try:
         return CourageLoopService(db).advance(loop_id, student_id, payload)
     except CourageLoopRuleError as exc:

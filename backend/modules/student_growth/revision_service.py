@@ -6,6 +6,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from modules.student_growth.models import RevisionAttempt, RevisionTask, RewardEvent
+from modules.student_growth.product_events import REVISION_COMPLETED, record_product_event
 
 
 class FutureRevisionLockedError(Exception):
@@ -96,6 +97,18 @@ class RevisionService:
         self.db.refresh(task)
         self.db.refresh(attempt)
         self.db.refresh(reward)
+
+        record_product_event(
+            REVISION_COMPLETED,
+            student_id=task.student_id,
+            entity_type="revision_task",
+            entity_id=task.id,
+            payload={
+                "revision_stage": task.revision_stage,
+                "learning_log_id": task.learning_log_id,
+                "days_late": days_late,
+            },
+        )
 
         return {"revision_task": task, "reward": reward, "attempt": attempt}
 

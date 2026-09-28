@@ -27,6 +27,11 @@ from modules.student_growth.notification_recipient_service import (
 )
 from modules.student_growth.whatsapp_client import WhatsAppClient
 from core.config import get_settings
+from modules.student_growth.product_events import (
+    WHATSAPP_SENT,
+    WHATSAPP_SKIP,
+    record_product_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +52,24 @@ class WhatsAppNotificationService:
         log = self.db.query(LearningLog).filter(LearningLog.id == log_id).first()
         if log is None:
             logger.warning("whatsapp_revision_plan skip reason=log_not_found log_id=%s", log_id)
+            record_product_event(
+                WHATSAPP_SKIP,
+                entity_type="learning_log",
+                entity_id=log_id,
+                payload={"kind": KIND_REVISION_PLAN, "reason": "log_not_found"},
+            )
             return {"ok": False, "skipped": True, "reason": "log_not_found"}
 
         recipient = self.recipients.resolve_for_student(log.student_id)
         if recipient is None:
+            record_product_event(
+                WHATSAPP_SKIP,
+                student_id=log.student_id,
+                school_id=log.school_id,
+                entity_type="learning_log",
+                entity_id=log_id,
+                payload={"kind": KIND_REVISION_PLAN, "reason": "no_phone"},
+            )
             return {"ok": False, "skipped": True, "reason": "no_phone"}
 
         tasks = (
@@ -61,6 +80,14 @@ class WhatsAppNotificationService:
         )
         if not tasks:
             logger.info("whatsapp_revision_plan skip reason=no_tasks log_id=%s", log_id)
+            record_product_event(
+                WHATSAPP_SKIP,
+                student_id=log.student_id,
+                school_id=log.school_id,
+                entity_type="learning_log",
+                entity_id=log_id,
+                payload={"kind": KIND_REVISION_PLAN, "reason": "no_tasks"},
+            )
             return {"ok": False, "skipped": True, "reason": "no_tasks"}
 
         subject_name, topic_name = self._subject_topic_labels(log)
@@ -100,6 +127,33 @@ class WhatsAppNotificationService:
                 "error": result.get("error"),
             },
         )
+        if result.get("ok"):
+            # dry_run still counts as "sent" path for funnel (provider accepted intent)
+            record_product_event(
+                WHATSAPP_SENT,
+                student_id=log.student_id,
+                school_id=log.school_id,
+                entity_type="learning_log",
+                entity_id=log_id,
+                payload={
+                    "kind": KIND_REVISION_PLAN,
+                    "dry_run": bool(result.get("dry_run")),
+                    "recipient_source": recipient.source,
+                },
+            )
+        else:
+            record_product_event(
+                WHATSAPP_SKIP,
+                student_id=log.student_id,
+                school_id=log.school_id,
+                entity_type="learning_log",
+                entity_id=log_id,
+                payload={
+                    "kind": KIND_REVISION_PLAN,
+                    "reason": "send_failed",
+                    "error": str(result.get("error") or "")[:300],
+                },
+            )
         return {
             "ok": bool(result.get("ok")),
             "dry_run": bool(result.get("dry_run")),

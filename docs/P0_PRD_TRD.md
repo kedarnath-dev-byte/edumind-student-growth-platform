@@ -40,7 +40,7 @@ Play Store, live WhatsApp, Worlds algorithm, event warehouse, microservice split
 
 ### Components
 - Frontend: `useStudentId`, `ApiWarmBanner`, `faceConsent` localStorage, Home reorder
-- Backend: unchanged in this slice (AuthZ/seed/events = next P0)
+- Backend: AuthZ on student_growth routes; seed prod gate; `product_events` funnel (follow-up PR)
 - Providers: Mux create-then-attach (existing); WA dry-run (existing)
 
 ### APIs (contract unchanged)
@@ -55,3 +55,9 @@ Play Store, live WhatsApp, Worlds algorithm, event warehouse, microservice split
 
 ### Consent stub storage
 `localStorage.edumind_face_shorts_consent_v1` → migrate to profile flag in P1.
+
+
+## Instrumentation (T5)
+
+Table `product_events` records: `log_created`, `revision_completed`, `mux_attach_ok` / `mux_attach_fail`, `whatsapp_sent` / `whatsapp_skip`.
+Helper: `modules.student_growth.product_events.record_product_event` (never raises into primary flows).

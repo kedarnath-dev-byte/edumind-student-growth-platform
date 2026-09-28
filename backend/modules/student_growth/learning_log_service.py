@@ -12,6 +12,7 @@ from core.database import SessionLocal
 from modules.student_growth.models import LearningLog, RevisionTask, RewardEvent
 from modules.student_growth.revision_schedule_factory import RevisionScheduleFactory
 from modules.student_growth.schemas import LearningLogCreate
+from modules.student_growth.product_events import LOG_CREATED, record_product_event
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,15 @@ class LearningLogService:
             self.db.refresh(task)
         for reward in rewards:
             self.db.refresh(reward)
+
+        record_product_event(
+            LOG_CREATED,
+            student_id=learning_log.student_id,
+            school_id=learning_log.school_id,
+            entity_type="learning_log",
+            entity_id=learning_log.id,
+            payload={"topic_id": learning_log.topic_id, "subject_id": learning_log.subject_id},
+        )
 
         # Fire-and-forget WhatsApp revision plan; never fail learning-log create.
         self._schedule_revision_plan_whatsapp(learning_log.id)

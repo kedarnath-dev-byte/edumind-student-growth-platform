@@ -90,6 +90,18 @@ const studentGrowthService = {
     }
   },
 
+  async updateLearningLogNoteImages(learningLogId, noteImageUrls) {
+    try {
+      const response = await api.patch(
+        `${apiPrefix}/learning-logs/${learningLogId}/note-images`,
+        { note_image_urls: noteImageUrls || [] },
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(getErrorMessage(error, 'Failed to attach note photos'))
+    }
+  },
+
   async getLearningLogsForStudent(studentId) {
     try {
       const response = await api.get(`${apiPrefix}/learning-logs/student/${studentId}`)
