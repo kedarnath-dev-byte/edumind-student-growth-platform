@@ -1,6 +1,6 @@
 """Schemas for Courage Loop APIs (privacy-first)."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,8 +40,8 @@ class CourageLoopResponse(BaseModel):
     stage: str
     clarity_path: Optional[str] = None
     courage_action: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class CourageLoopAdminItem(BaseModel):
@@ -56,8 +56,8 @@ class CourageLoopAdminItem(BaseModel):
     visibility: str
     stage: str
     has_note: bool = False
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class FearTypeCount(BaseModel):

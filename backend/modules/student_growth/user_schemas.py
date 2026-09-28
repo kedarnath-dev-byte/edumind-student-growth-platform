@@ -1,6 +1,6 @@
 """Schemas for pilot-ready users, profiles, and safe role links."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -34,8 +34,8 @@ class AppUserResponse(BaseModel):
     phone: Optional[str] = None
     role: str
     status: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class StudentProfileCreate(BaseModel):
@@ -64,8 +64,8 @@ class StudentProfileResponse(BaseModel):
     classroom_id: Optional[int] = None
     display_name: str
     guardian_contact: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class TeacherProfileCreate(BaseModel):
@@ -81,8 +81,8 @@ class TeacherProfileResponse(BaseModel):
     user_id: int
     school_id: Optional[int] = None
     display_name: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class ParentProfileCreate(BaseModel):
@@ -106,8 +106,8 @@ class ParentProfileResponse(BaseModel):
     user_id: int
     display_name: str
     phone: Optional[str] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: UtcDateTime
+    updated_at: Optional[UtcDateTime] = None
 
 
 class ParentStudentLinkCreate(BaseModel):
@@ -124,9 +124,7 @@ class ParentStudentLinkResponse(BaseModel):
     student_profile_id: int
     relationship: Optional[str] = None
     status: str
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class ClassroomStudentCreate(BaseModel):
     classroom_id: int
     student_profile_id: int
@@ -139,9 +137,7 @@ class ClassroomStudentResponse(BaseModel):
     classroom_id: int
     student_profile_id: int
     status: str
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class TeacherClassroomCreate(BaseModel):
     teacher_profile_id: int
     classroom_id: int
@@ -154,9 +150,7 @@ class TeacherClassroomResponse(BaseModel):
     teacher_profile_id: int
     classroom_id: int
     status: str
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class LinkSupabaseUserRequest(BaseModel):
     app_user_id: int
 

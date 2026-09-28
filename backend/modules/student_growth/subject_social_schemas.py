@@ -1,6 +1,6 @@
 """Schemas for subject-world social feed."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,7 +38,7 @@ class SubjectPostResponse(BaseModel):
     video_duration_seconds: Optional[float] = None
     status: str
     like_count: int = 0
-    created_at: datetime
+    created_at: UtcDateTime
     from_followed: bool = False
     is_suggested: bool = False
     suggestion_label: Optional[str] = None
@@ -72,9 +72,7 @@ class SubjectFollowResponse(BaseModel):
     follower_student_id: int
     following_student_id: int
     subject_id: int
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class SubjectProfileResponse(BaseModel):
     student_id: int
     display_name: str

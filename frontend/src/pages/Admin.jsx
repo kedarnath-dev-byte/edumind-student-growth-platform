@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import api from '../services/api'
+import { formatIstDateTime } from '../utils/istTime'
 
 const TABS = [
   { id: 'pulse', label: 'Student Pulse' },
@@ -1397,7 +1398,7 @@ const Admin = () => {
                       <span>#{post.id}</span>
                       <span>subject {post.subject_id}</span>
                       {post.topic_id && <span>topic {post.topic_id}</span>}
-                      <span>{post.created_at ? new Date(post.created_at).toLocaleString() : ''}</span>
+                      <span>{post.created_at ? formatIstDateTime(post.created_at) : ''}</span>
                       <span className="text-blue-300">
                         {post.author_display_name || `Student #${post.author_student_id}`}
                       </span>
@@ -1459,7 +1460,7 @@ const Admin = () => {
                 <ul className="space-y-2 mb-4">
                   {(timeline.learning_logs || []).slice(0, 10).map((log) => (
                     <li key={log.id} className="text-xs text-gray-300 border border-gray-800 rounded p-2">
-                      <span className="text-gray-500">{log.created_at}</span> · conf {log.confidence_level}
+                      <span className="text-gray-500">{formatIstDateTime(log.created_at, '')}</span> · conf {log.confidence_level}
                       <p>Understood: {log.understood}</p>
                       {log.not_understood && <p className="text-amber-200">Gap: {log.not_understood}</p>}
                     </li>

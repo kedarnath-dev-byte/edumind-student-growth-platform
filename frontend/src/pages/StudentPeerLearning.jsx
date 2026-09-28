@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import studentGrowthService from '../services/studentGrowthService'
+import { formatIstDateTime } from '../utils/istTime'
 
 const DEMO_REQUESTER_STUDENT_ID = 1
 const DEMO_HELPER_STUDENT_ID = 2
@@ -49,16 +50,7 @@ const normalizeCircle = (payload) => {
   }
 }
 
-const formatDate = (value) => {
-  if (!value) return 'Not recorded yet'
-  return new Date(value).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDate = (value) => formatIstDateTime(value, 'Not recorded yet')
 
 const EmptyState = ({ children }) => (
   <div className="bg-gray-950 border border-gray-800 rounded-lg p-4 text-center">

@@ -1,6 +1,6 @@
 """Pydantic schemas for Student Growth MVP APIs."""
 
-from datetime import datetime
+from modules.student_growth.ist_time import UtcDateTime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -13,13 +13,11 @@ class RevisionTaskResponse(BaseModel):
     learning_log_id: int
     student_id: int
     revision_stage: str
-    due_at: datetime
+    due_at: UtcDateTime
     status: str
     difficulty_after_revision: Optional[str] = None
-    completed_at: Optional[datetime] = None
-    created_at: datetime
-
-
+    completed_at: Optional[UtcDateTime] = None
+    created_at: UtcDateTime
 class RewardEventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -30,9 +28,7 @@ class RewardEventResponse(BaseModel):
     event_type: str
     points: int
     message: str
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class LearningLogCreate(BaseModel):
     student_id: int
     school_id: Optional[int] = None
@@ -80,7 +76,7 @@ class LearningLogResponse(BaseModel):
     mux_upload_id: Optional[str] = None
     video_duration_seconds: Optional[float] = None
     note_image_urls: Optional[List[str]] = Field(default_factory=list)
-    created_at: datetime
+    created_at: UtcDateTime
     revision_tasks: List[RevisionTaskResponse] = Field(default_factory=list)
     rewards: List[RewardEventResponse] = Field(default_factory=list)
 
@@ -99,16 +95,14 @@ class RevisionAttemptResponse(BaseModel):
     student_id: int
     learning_log_id: int
     attempt_number: int
-    completed_at: datetime
+    completed_at: UtcDateTime
     completed_on_due_date: bool
     days_late: int
     difficulty_after_revision: Optional[str] = None
     revision_text_summary: Optional[str] = None
     revision_video_url: Optional[str] = None
     points_awarded: int
-    created_at: datetime
-
-
+    created_at: UtcDateTime
 class HabitCardResponse(BaseModel):
     name: str
     value: int

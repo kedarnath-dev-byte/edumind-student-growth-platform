@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStudentId } from '../hooks/useStudentId'
 import studentGrowthService from '../services/studentGrowthService'
+import { formatIstDateTime, parseApiUtc, startOfIstDay } from '../utils/istTime'
 
 const DIFFICULTY_OPTIONS = [
   { value: 'HARD', label: 'Still need support' },
@@ -22,29 +23,12 @@ const emptyProof = {
 
 const toSafeArray = (value) => Array.isArray(value) ? value : []
 
-const startOfDay = (date) => {
-  const next = new Date(date)
-  next.setHours(0, 0, 0, 0)
-  return next
-}
-
-const formatDate = (value) => {
-  if (!value) return 'No due date'
-  return new Date(value).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDate = (value) => formatIstDateTime(value, 'No due date')
 
 const categorizeRevisions = (tasks) => {
-  const today = startOfDay(new Date())
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const sevenDaysLater = new Date(today)
-  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+  const today = startOfIstDay(new Date())
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+  const sevenDaysLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   return toSafeArray(tasks).reduce((groups, task) => {
     if (task.status === 'COMPLETED') {
@@ -52,8 +36,8 @@ const categorizeRevisions = (tasks) => {
       return groups
     }
 
-    const dueDate = new Date(task.due_at)
-    if (Number.isNaN(dueDate.getTime())) {
+    const dueDate = parseApiUtc(task.due_at)
+    if (!dueDate) {
       groups.future.push(task)
       return groups
     }

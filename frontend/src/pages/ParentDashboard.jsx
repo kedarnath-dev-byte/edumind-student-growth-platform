@@ -4,6 +4,7 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import studentGrowthService from '../services/studentGrowthService'
+import { formatIstDateTime } from '../utils/istTime'
 
 const STUDENT_ID = 1
 const SCHOOL_ID = 1
@@ -49,16 +50,7 @@ const toNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-const formatDate = (value) => {
-  if (!value) return 'Not recorded yet'
-  return new Date(value).toLocaleString([], {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+const formatDate = (value) => formatIstDateTime(value, 'Not recorded yet')
 
 const normalizeSummary = (payload) => {
   if (!payload || typeof payload !== 'object') return defaultSummary
