@@ -1,0 +1,30 @@
+# Best-effort keep-alive for Render free tier during IST daytime.
+# Hits cheap root `/` first (no DB metric write), then `/api/v1/health`.
+# Cold starts can still happen outside this window or if GitHub Actions delays.
+name: Keep Render warm
+
+on:
+  schedule:
+    # Every 10 minutes, 01:30–17:50 UTC ≈ 07:00–23:20 IST
+    - cron: "*/10 1-17 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping EduMind backend
+        run: |
+          set -euo pipefail
+          ROOT="https://edumind-backend-69e4.onrender.com/"
+          HEALTH="https://edumind-backend-69e4.onrender.com/api/v1/health"
+          echo "Pinging $ROOT"
+          curl -fsS --max-time 90 -o /tmp/root.json -w "root http=%{http_code} ttfb=%{time_starttransfer}s total=%{time_total}s\n" "$ROOT"
+          cat /tmp/root.json; echo
+          echo "Pinging $HEALTH"
+          curl -fsS --max-time 90 -o /tmp/health.json -w "health http=%{http_code} ttfb=%{time_starttransfer}s total=%{time_total}s\n" "$HEALTH" || {
+            echo "health probe soft-failed (service may still be waking)"
+            exit 0
+          }
+          cat /tmp/health.json; echo

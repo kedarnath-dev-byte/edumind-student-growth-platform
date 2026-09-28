@@ -10,6 +10,18 @@ const apiPrefix = (import.meta.env.VITE_API_BASE_URL || '')
   ? ''
   : '/api/v1'
 
+const formatDetail = (detail, fallback) => {
+  if (detail == null || detail === '') return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item?.msg || item?.detail || String(item)).join('; ') || fallback
+  }
+  if (typeof detail === 'object') {
+    return detail.message || detail.detail || fallback
+  }
+  return String(detail)
+}
+
 const getErrorMessage = (error, fallback) => {
   if (!error.response) {
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
@@ -17,7 +29,21 @@ const getErrorMessage = (error, fallback) => {
     }
     return 'Cannot reach EduMind servers right now (often a cold start). Wait 20–40s and retry.'
   }
-  return error.response?.data?.detail || fallback
+  const status = error.response.status
+  const detail = formatDetail(error.response?.data?.detail, fallback)
+  if (status === 502 || status === 503 || status === 504) {
+    return `Server temporarily unavailable (${status}). Wait ~30s and retry — often a free-tier wake.`
+  }
+  if (status === 401) {
+    return detail || 'Please sign in again.'
+  }
+  if (status === 403) {
+    return detail || 'You do not have access to this data.'
+  }
+  if (status >= 500) {
+    return detail && detail !== fallback ? `${detail} (HTTP ${status})` : `Server error (HTTP ${status}). Please retry.`
+  }
+  return detail || fallback
 }
 
 const normalizeList = (payload, keys = []) => {
