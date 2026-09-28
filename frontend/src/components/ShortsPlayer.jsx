@@ -1,7 +1,7 @@
 /**
  * @file ShortsPlayer.jsx
- * @description Full-screen vertical swipe feed (Instagram / YouTube Shorts feel).
- * Autoplay muted; tap to unmute. Prefers Mux HLS (stream.mux.com/{id}.m3u8).
+ * @description Full-screen vertical snap-scroll feed (Instagram Reels / YouTube Shorts).
+ * IntersectionObserver autoplay/pause on the visible slide. Mux HLS via muxHls.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { attachMediaSource, resolveMuxSrc } from '../utils/muxHls'
@@ -17,10 +17,27 @@ function resolvePlaybackSrc(item) {
   return null
 }
 
-const ShortSlide = ({ item, active, muted, onToggleMute }) => {
+const ShortSlide = ({ item, active, muted, onToggleMute, onVisible, index }) => {
+  const sectionRef = useRef(null)
   const videoRef = useRef(null)
   const src = resolvePlaybackSrc(item)
   const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (entry?.isIntersecting && entry.intersectionRatio >= 0.6) {
+          onVisible?.(index)
+        }
+      },
+      { threshold: [0.6, 0.75, 0.9] },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [index, onVisible])
 
   useEffect(() => {
     const video = videoRef.current
@@ -49,13 +66,15 @@ const ShortSlide = ({ item, active, muted, onToggleMute }) => {
     }
   }, [active, muted])
 
-  const title = item?.author_display_name || item?.caption || 'Short'
-  const caption = item?.caption || item?.taught_today || ''
+  const title = item?.author_display_name || item?.caption || item?.taught_today || 'Short'
+  const caption = item?.caption || item?.taught_today || item?.understood || ''
 
   return (
     <section
-      className="relative h-full w-full snap-start snap-always bg-black flex items-center justify-center"
-      aria-label={title}
+      ref={sectionRef}
+      className="relative h-[100dvh] w-full shrink-0 snap-start snap-always bg-black flex items-center justify-center"
+      aria-label={typeof title === 'string' ? title.slice(0, 80) : 'Short'}
+      data-short-index={index}
     >
       {src && !failed ? (
         <video
@@ -64,19 +83,19 @@ const ShortSlide = ({ item, active, muted, onToggleMute }) => {
           playsInline
           loop
           muted={muted}
-          preload="metadata"
+          preload={active ? 'auto' : 'metadata'}
           onClick={onToggleMute}
           onError={() => setFailed(true)}
         />
       ) : (
         <div className="text-gray-400 text-sm px-6 text-center">
-          {failed ? 'Video unavailable' : 'No video'}
+          {failed ? 'Video unavailable' : 'No playable Short (needs Mux upload)'}
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pb-8 pointer-events-none">
-        <p className="text-white font-semibold text-sm">{title}</p>
-        {caption && (
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pb-10 pointer-events-none">
+        <p className="text-white font-semibold text-sm line-clamp-2">{title}</p>
+        {caption && caption !== title && (
           <p className="text-gray-200 text-xs mt-1 line-clamp-3">{caption}</p>
         )}
         <p className="text-gray-400 text-[10px] mt-2">
@@ -89,32 +108,48 @@ const ShortSlide = ({ item, active, muted, onToggleMute }) => {
 
 /**
  * @param {object} props
- * @param {Array<object>} props.items - posts/logs with mux_playback_id or media URLs
+ * @param {Array<object>} props.items - posts/logs with mux_playback_id (preferred)
  * @param {() => void} [props.onClose]
  * @param {number} [props.startIndex]
  */
 const ShortsPlayer = ({ items = [], onClose, startIndex = 0 }) => {
   const scrollerRef = useRef(null)
-  const [activeIndex, setActiveIndex] = useState(startIndex)
+  const safeStart = Math.max(0, Math.min(startIndex, Math.max(items.length - 1, 0)))
+  const [activeIndex, setActiveIndex] = useState(safeStart)
   const [muted, setMuted] = useState(true)
 
-  const onScroll = useCallback(() => {
-    const el = scrollerRef.current
-    if (!el) return
-    const idx = Math.round(el.scrollTop / Math.max(el.clientHeight, 1))
-    setActiveIndex(Math.max(0, Math.min(items.length - 1, idx)))
-  }, [items.length])
+  const onVisible = useCallback((index) => {
+    setActiveIndex(index)
+  }, [])
+
+  // Lock body scroll while open (Instagram-style overlay)
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
 
   useEffect(() => {
     const el = scrollerRef.current
-    if (!el) return
-    el.scrollTop = startIndex * el.clientHeight
-  }, [startIndex])
+    if (!el || !items.length) return
+    // Wait a frame so layout has 100dvh heights
+    const id = requestAnimationFrame(() => {
+      const slideH = el.clientHeight || window.innerHeight
+      el.scrollTop = safeStart * slideH
+      setActiveIndex(safeStart)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [safeStart, items.length])
 
   if (!items.length) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white p-6">
-        <p className="text-sm text-gray-300">No Shorts videos yet.</p>
+        <p className="text-sm text-gray-300 text-center">
+          No Reel-ready Shorts yet. Record a selfie explanation (Mux) on your Learning Log —
+          older Drive-only videos stay in Archive and cannot autoplay like Reels.
+        </p>
         {onClose && (
           <button type="button" onClick={onClose} className="mt-4 text-blue-300 text-sm">
             Close
@@ -125,7 +160,7 @@ const ShortsPlayer = ({ items = [], onClose, startIndex = 0 }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black text-white">
+    <div className="fixed inset-0 z-50 bg-black text-white" role="dialog" aria-modal="true" aria-label="Watch Shorts">
       {onClose && (
         <button
           type="button"
@@ -137,20 +172,26 @@ const ShortsPlayer = ({ items = [], onClose, startIndex = 0 }) => {
         </button>
       )}
       <div
+        className="absolute top-3 left-3 z-20 rounded-full bg-black/40 px-2.5 py-1 text-[10px] text-gray-300"
+        aria-live="polite"
+      >
+        {activeIndex + 1} / {items.length}
+      </div>
+      <div
         ref={scrollerRef}
-        onScroll={onScroll}
-        className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-contain"
-        style={{ scrollSnapType: 'y mandatory' }}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-contain touch-pan-y"
+        style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
       >
         {items.map((item, index) => (
-          <div key={item.id || item.mux_playback_id || index} className="h-full w-full">
-            <ShortSlide
-              item={item}
-              active={index === activeIndex}
-              muted={muted}
-              onToggleMute={() => setMuted((m) => !m)}
-            />
-          </div>
+          <ShortSlide
+            key={item.id || item.mux_playback_id || `short-${index}`}
+            item={item}
+            index={index}
+            active={index === activeIndex}
+            muted={muted}
+            onToggleMute={() => setMuted((m) => !m)}
+            onVisible={onVisible}
+          />
         ))}
       </div>
     </div>

@@ -43,6 +43,42 @@ export function resolveMuxSrc(muxPlaybackId, fallbackUrl) {
   return fallbackUrl || null
 }
 
+/**
+ * Mux image API thumbnail for a playback id (list cards / posters).
+ * @param {string|null|undefined} muxPlaybackId
+ * @param {{ width?: number, height?: number, time?: number }} [opts]
+ */
+export function muxThumbnailUrl(muxPlaybackId, opts = {}) {
+  if (!muxPlaybackId) return null
+  const width = opts.width || 540
+  const height = opts.height || 960
+  const time = opts.time ?? 1
+  return `https://image.mux.com/${muxPlaybackId}/thumbnail.jpg?width=${width}&height=${height}&fit_mode=smartcrop&time=${time}`
+}
+
+/** True when item can autoplay like a Reel (Mux HLS). */
+export function hasMuxPlayback(item) {
+  if (!item) return false
+  if (item.mux_playback_id) return true
+  const url = item.playback_url || item.media_url || item.explanation_video_url || item.src || ''
+  return /stream\.mux\.com/i.test(url) || /\.m3u8(\?|$)/i.test(url)
+}
+
+/**
+ * Prefer Mux items for Shorts feeds; optionally append non-Mux last (usually skip).
+ * @param {Array<object>} items
+ * @param {{ includeNonMux?: boolean }} [opts]
+ */
+export function preferMuxShorts(items, opts = {}) {
+  const list = Array.isArray(items) ? items : []
+  const mux = list.filter((item) => hasMuxPlayback(item))
+  if (opts.includeNonMux) {
+    const rest = list.filter((item) => !hasMuxPlayback(item))
+    return [...mux, ...rest]
+  }
+  return mux
+}
+
 export function isHlsUrl(url) {
   return !!url && /\.m3u8(\?|$)/i.test(url)
 }

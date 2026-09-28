@@ -75,3 +75,11 @@ Order on submit:
 4. If Mux fails / phone sleeps mid-upload, the log row still exists; UI offers **Retry video upload**.
 
 Subject Worlds video posts follow the same create-then-attach pattern.
+
+
+## Instagram-style Watch Shorts (Learning Log + Subject Worlds)
+
+- **Watch Shorts** opens a full-viewport vertical snap feed (`ShortsPlayer`) with **IntersectionObserver** autoplay/pause on the visible slide.
+- Feed items are **Mux-only** (`mux_playback_id` / Mux HLS). Drive-only archives are excluded so Reels always autoplay.
+- Learning Log list cards: Mux → thumbnail + play (deep-links into Shorts at that item). Drive-only → labeled **Archive / Drive** with Open in Drive.
+- Old Drive-only explanation videos will **not** become Reels until re-uploaded via Mux on a new/updated log.

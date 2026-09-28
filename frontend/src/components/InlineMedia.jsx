@@ -1,6 +1,7 @@
 /**
  * Instagram / Shorts-style inline image or video renderer.
- * Mux / HLS plays via hls.js (Android WebView). Drive footer ONLY for Drive URLs.
+ * Mux / HLS plays via hls.js (Android WebView). Drive footer ONLY for Drive URLs
+ * and labeled Archive / Drive so users know why it is not a Reel.
  */
 import { useMemo, useState } from 'react'
 import MuxInlineVideo from './MuxInlineVideo'
@@ -10,7 +11,7 @@ import {
   mediaTypeFromMime,
   mediaTypeFromUrl,
 } from '../utils/driveMediaHelpers'
-import { isHlsUrl, isMuxUrl, resolveMuxSrc } from '../utils/muxHls'
+import { isHlsUrl, isMuxUrl, muxThumbnailUrl, resolveMuxSrc } from '../utils/muxHls'
 
 /**
  * @param {object} props
@@ -21,6 +22,7 @@ import { isHlsUrl, isMuxUrl, resolveMuxSrc } from '../utils/muxHls'
  * @param {string} [props.mime]
  * @param {string} [props.className]
  * @param {string} [props.alt]
+ * @param {() => void} [props.onPlayShort] - when set with Mux, show thumbnail + play (opens Shorts)
  */
 const InlineMedia = ({
   src,
@@ -30,6 +32,7 @@ const InlineMedia = ({
   mime,
   className = '',
   alt = '',
+  onPlayShort,
 }) => {
   const [failed, setFailed] = useState(false)
 
@@ -38,6 +41,7 @@ const InlineMedia = ({
     [muxPlaybackId, src],
   )
   const isMuxVideo = !!(muxPlaybackId || isMuxUrl(src) || isMuxUrl(viewUrl) || isHlsUrl(src))
+  const poster = muxPlaybackId ? muxThumbnailUrl(muxPlaybackId) : null
 
   const kind = useMemo(() => {
     if (isMuxVideo) return 'video'
@@ -63,11 +67,41 @@ const InlineMedia = ({
 
   if (kind === 'video') {
     if (isMuxVideo && muxSrc) {
+      // Optional Reel entry: thumbnail + play opens full Shorts feed
+      if (typeof onPlayShort === 'function' && muxPlaybackId) {
+        return (
+          <button
+            type="button"
+            onClick={onPlayShort}
+            className={`${shell} relative block text-left aspect-[9/16] max-h-[28rem] group`}
+            aria-label="Play Short"
+          >
+            {poster ? (
+              <img
+                src={poster}
+                alt={alt || 'Short thumbnail'}
+                className="absolute inset-0 h-full w-full object-cover bg-black"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gray-900" />
+            )}
+            <span className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/35 transition-colors">
+              <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-black text-xl shadow-lg">
+                ▶
+              </span>
+            </span>
+            <span className="absolute bottom-2 left-2 text-[10px] font-semibold uppercase tracking-wide bg-black/60 text-white px-2 py-0.5 rounded-full">
+              Reel · Mux
+            </span>
+          </button>
+        )
+      }
       return (
         <div className={shell}>
           <MuxInlineVideo
             muxPlaybackId={muxPlaybackId}
             src={muxSrc}
+            poster={poster || undefined}
             className="w-full max-h-[32rem] object-contain bg-black"
             controls
           />
@@ -88,7 +122,7 @@ const InlineMedia = ({
           />
         ) : embedUrl ? (
           <iframe
-            title="Drive video preview"
+            title="Drive video archive preview"
             src={embedUrl}
             className="w-full aspect-[9/16] max-h-[32rem] border-0 bg-black"
             allow="autoplay; encrypted-media"
@@ -97,14 +131,15 @@ const InlineMedia = ({
         ) : (
           <div className="px-4 py-8 text-center text-sm text-gray-400">
             Video preview unavailable in-app.
+            <p className="text-xs text-gray-500 mt-2">
+              Archive / Drive videos cannot autoplay like Reels. Re-upload as a Mux Short to get Reel playback.
+            </p>
           </div>
         )}
         {driveOpenUrl && (
           <div className="px-3 py-2 bg-gray-950 border-t border-gray-800 flex justify-between items-center gap-2">
-            <span className="text-[11px] text-gray-500 truncate">
-              {failed || !src
-                ? 'Direct play blocked — open in Drive'
-                : 'Also available in Drive'}
+            <span className="text-[11px] text-amber-200/90 truncate">
+              Archive / Drive — not a Reel (cannot autoplay)
             </span>
             <a
               href={driveOpenUrl}
@@ -142,12 +177,13 @@ const InlineMedia = ({
         </div>
       )}
       {(failed || !src) && driveOpenUrl && (
-        <div className="px-3 py-2 bg-gray-950 border-t border-gray-800 text-right">
+        <div className="px-3 py-2 bg-gray-950 border-t border-gray-800 flex justify-between items-center gap-2">
+          <span className="text-[11px] text-gray-500 truncate">Archive / Drive</span>
           <a
             href={driveOpenUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-semibold text-blue-300 hover:underline"
+            className="text-xs font-semibold text-blue-300 hover:underline shrink-0"
           >
             Open in Drive
           </a>
