@@ -1,0 +1,88 @@
+# Morning WhatsApp revision digest + optional outbox drain.
+# Schedule: 06:00 Asia/Kolkata = 00:30 UTC → cron `30 0 * * *`
+#
+# REQUIRED: add repo secret INTERNAL_JOB_SECRET matching Render env INTERNAL_JOB_SECRET.
+# Do NOT set WHATSAPP_DRY_RUN=false from this workflow — leave Render env as true until Meta templates are Approved.
+
+name: EduMind — morning WhatsApp digest
+
+on:
+  schedule:
+    # 06:00 IST (Asia/Kolkata) = 00:30 UTC
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+    inputs:
+      for_date:
+        description: "Optional IST calendar date YYYY-MM-DD for morning digest (empty = today IST)"
+        required: false
+        type: string
+      run_outbox_drain:
+        description: "Also POST outbox drain after morning digest"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  morning-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require INTERNAL_JOB_SECRET
+        env:
+          INTERNAL_JOB_SECRET: ${{ secrets.INTERNAL_JOB_SECRET }}
+        run: |
+          if [ -z "$INTERNAL_JOB_SECRET" ]; then
+            echo "::error::Repo secret INTERNAL_JOB_SECRET is not set. Add it under Settings → Secrets and variables → Actions, matching the Render env INTERNAL_JOB_SECRET."
+            exit 1
+          fi
+
+      - name: POST morning-revision-whatsapp
+        env:
+          INTERNAL_JOB_SECRET: ${{ secrets.INTERNAL_JOB_SECRET }}
+          FOR_DATE: ${{ inputs.for_date }}
+        run: |
+          set -euo pipefail
+          BASE="https://edumind-backend-69e4.onrender.com/api/v1/internal/jobs/morning-revision-whatsapp"
+          if [ -n "${FOR_DATE:-}" ]; then
+            URL="${BASE}?for_date=${FOR_DATE}"
+          else
+            URL="${BASE}"
+          fi
+          echo "POST ${URL}"
+          HTTP=$(curl -sS -o /tmp/morning-digest-body.json -w "%{http_code}" \
+            -X POST \
+            -H "X-Internal-Job-Secret: ${INTERNAL_JOB_SECRET}" \
+            -H "Accept: application/json" \
+            --max-time 120 \
+            "${URL}")
+          echo "HTTP ${HTTP}"
+          cat /tmp/morning-digest-body.json || true
+          echo
+          case "${HTTP}" in
+            2??) echo "Morning digest OK" ;;
+            *) echo "::error::Morning digest failed with HTTP ${HTTP}"; exit 1 ;;
+          esac
+
+      # Optional: drain notification_outbox (docs/CRON_WHATSAPP_AND_OUTBOX.md).
+      # On schedule always runs; on workflow_dispatch respects run_outbox_drain input (default true).
+      - name: POST drain-notification-outbox
+        if: github.event_name == 'schedule' || inputs.run_outbox_drain != false
+        env:
+          INTERNAL_JOB_SECRET: ${{ secrets.INTERNAL_JOB_SECRET }}
+        run: |
+          set -euo pipefail
+          URL="https://edumind-backend-69e4.onrender.com/api/v1/internal/jobs/drain-notification-outbox?limit=50"
+          echo "POST ${URL}"
+          HTTP=$(curl -sS -o /tmp/outbox-drain-body.json -w "%{http_code}" \
+            -X POST \
+            -H "X-Internal-Job-Secret: ${INTERNAL_JOB_SECRET}" \
+            -H "Accept: application/json" \
+            --max-time 120 \
+            "${URL}")
+          echo "HTTP ${HTTP}"
+          cat /tmp/outbox-drain-body.json || true
+          echo
+          case "${HTTP}" in
+            2??) echo "Outbox drain OK" ;;
+            *) echo "::error::Outbox drain failed with HTTP ${HTTP}"; exit 1 ;;
+          esac
